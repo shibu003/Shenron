@@ -48,7 +48,7 @@
 | A社↔B社 cross-company | `prototype/agents/` | LinkedIn 営業(**Codex**)→マーケ(**Claude**)、**実 LLM**で連鎖 |
 | **MCP control plane** | `prototype/mcp/` | **3 索引（agent/workflow/automation）token-light** + `run_workflow`/`run_automation`/`fire_event`。build-state event で automation を引く＋`--unattended` で無人 fire（二段 fence：attended＋token）。trace 検証済 |
 | **schedule→Trigger.dev seam** | `prototype/mcp/trigger/` | automation の `schedule` trigger を Trigger.dev v3 declarative `schedules.task` に乗せる（自前 cron 無し、G1 adopt）。`gen-trigger.mjs`＝`automations.json`→task 生成、`run()`→`fire.mjs`→MCP。**generator + `fire.mjs` は検証済**／cron→fire の end-to-end は Trigger.dev project（SDK）必要で未通電 |
-| **durable inbox + D&D cockpit** | `prototype/hub/` | offline 耐性の handoff：相手オフラインでも `hub` が durable に保持→次 poll で **auto 実行 or 承認待ち**。`ui.html`＝**ドラッグ&ドロップ cockpit**（presence・drag-to-handoff・承認・policy toggle）。MCP tools（`send_handoff`/`poll_inbox`/`approve_handoff`/…）でも操作可。A2A に無い mailbox を自前実装、耐久は将来 Trigger.dev waitpoint に乗せる。CLI+API 検証済 |
+| **durable inbox + Langflow 流 cockpit（Wave A–F）** | `prototype/hub/` | offline 耐性の handoff（durable inbox）＋ **`ui.html`＝Langflow 流 visual flow-builder**：左 palette・上 toolbar（Save/Run/Automate▾/⚙Settings）・中央 canvas・右 inspector・🌐JA/EN。**A** typed ports 配線・**B1** hub 代理実行（worker 無し）・**B2** 保存+DAG Run・**C** trigger→automation＋fire・**D** palette/MCP export・**E** open-core pitch・**F** ⚙settings（autorun on/off＋MCP integrations 接続/on-off＋mcp ノード）。全て stub で検証済。MCP control plane でも操作可。hub 起動: `node prototype/hub/hub.mjs --vendor stub` |
 | fleet 計測 | `scripts/measure-fleet.mjs` | 並列 session 数 + contextFill 式の実機検証 |
 
 全て **依存ゼロ・ローカル・実 LLM**。trust/承認は attended で fence。
@@ -81,7 +81,7 @@
 5. **✅ Wave D（DONE）— palette + MCP export**: 「☰ palette」＝agent/skill カタログ（hub 共有 index を検索）。node ✕ で canvas から外し palette ＋ で戻す（add サイクル）。per-node/palette「⧉ copy MCP call」（`send_handoff` 片）、per-flow「⇪ export」（workflow 保存＋`run_workflow` MCP 片を copy）。MCP search proxy は不要化（hub state＝同一 index）。done 基準 `docs/11 §2 Wave D`。
 6. **✅ Wave E（DONE）— open-core ピッチ**: 「BuildHUD kills 手配線 cross-agent glue」を `docs/06 §6.8` に1枚（n8n/Cal.com/Langflow 対応表・各 Wave が消す glue・capture・正直 fence）。**cockpit ロードマップ A–E 完了**。
 7. **▶ 拡張＝3 フェーズで実行（`docs/06 §6.9`/`docs/11 §2.5 f`）**: 巨人 marketplace（Salesforce/Google/MS/AWS）を **AI-native＋easy＋中立＋安全**で kill。需要は実証済（AgentExchange ~$800M ARR・wrapper 死・**非複製資産**で勝つ）。**WORK 市場に飛びつかず順に**:
-   - **Phase 1（今 build 完成・出荷優先）**: **F**(integrations/⚙settings＋autorun) → **G**(mcp ノード＋実送信) → **K**(Langflow parity 最小) → **L**(Ghost Writer＝AI-native 著述)。＝AI-native・中立 surface（**入場料・単体では moat でない**）。
+   - **Phase 1（今 build 完成・出荷優先）**: **F ✅ DONE**(integrations/⚙settings＋autorun・commit `62674db`/`6013eda`) → **▶ 次=G**(mcp ノードの**実送信**＝今 stub を実呼び出しに) → **K**(Langflow parity 最小) → **L**(Ghost Writer＝AI-native 著述)。＝AI-native・中立 surface（**入場料・単体では moat でない**）。
    - **Phase 2（moat）**: **H ★wedge**=Agent Trust Boundary（capability passport＋data firewall＋audit・S0→S1→S2）。隣接 **I**(consensus)・**J**(build-state IR)。＝**巨人 walled/Langflow に「書けない flow」**を実演。
    - **Phase 3（North Star）**: **WORK 市場**=cross-owner agent 労働市場（reputation graph＝通貨・marketplace・AP2 settlement・emergent チェーン）。**GATE-1 実証後に本格化**。
    ⚠️ **Langflow 再調査（2026-06）**: MCP 双方向・flow を MCP 公開・「Langflow Assistant」＝NL→完全 flow 生成を既出（~146k★・IBM/watsonx）→ **K/L/D は catch-up＝入場料・本家に正面では勝てない。勝負は Phase 2 の H**（`docs/11 §0`/§2.5 f）。
