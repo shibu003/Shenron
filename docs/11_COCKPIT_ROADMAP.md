@@ -157,16 +157,16 @@
 > 差別化は **「便利な flow-builder」ではない**（そこは Langflow/n8n が本家＝入場料・§0/§2.5f）。差別化は **下の 5 つの束**＝**オーナー境界をまたぐ AI 開発作業を、信頼境界つきで安全に走らせる**こと。**この束は今ほぼ実装済**（H/I/J/MCP）＝moat はコードで存在する（narrative でなく）。
 
 ### 束（= moat。各項に**実装状況**）
-1. **Agent Trust Firewall** — agent ごとの **capability passport**（例: read repo diff only / no `.env` / no network / Slack send は approval）。→ **✅ 実装（Wave H・`trust.mjs`＋hub 毎ホップ強制）**。`caps:[read|write|external_send]`、external_send 無し agent は外部送信を **deny**。🟡 ネットワーク/スコープの細粒度宣言（read-diff-only 等）は宣言語彙の拡張余地。
-2. **Data Firewall** — **edge ごと**に `pass`/`never`。secret・API key・PII・`.env` は**既定遮断**。→ **✅ 既定遮断＋per-agent never は実装（Wave H・`redact`＝secret/PII/env パターン）**。🟡 **per-edge** 粒度（今は handoff 作成＋mcp egress に per-agent `share.never` 適用）と pass-allowlist（構造化 payload のみ）は次の精緻化。
+1. **Agent Trust Firewall** — agent ごとの **capability passport**（例: read repo diff only / no `.env` / no network / Slack send は approval）。→ **✅ 実装＋productize（Wave H＋(a)B・`trust.mjs`＋hub 毎ホップ強制）**。構造化 `caps:{net,fs,external_send,secrets}`（`net:none|read|full` / `fs:none|diff-only|repo` / `external_send:deny|approval|allow` / `secrets:deny`）。external_send は hub 強制（deny=即 fail／approval=fence／allow=auto）、net/fs は宣言＋audit（実 sandbox=runner 側・将来）。
+2. **Data Firewall** — **edge ごと**に `pass`/`never`。secret・API key・PII・`.env` は**既定遮断**。→ **✅ per-edge 実装（(a)A・`fenceEdge`/`advanceFrom`＝毎エッジ redact・built-in は常時無効化不可）＋cross-company deny-by-default**。🟡 pass-allowlist（構造化 payload のみ）は次の精緻化。
 3. **Audit Trail** — どの agent が・どの入力で・何を見て・何を外部送信したか。**企業が欲しいのはここ**。→ **✅ 実装（Wave H・hash-chain 改ざん不能・`/api/audit`＋verify）**。記録: redact/deny/approve/send/passport。inbox.json 改ざん→再起動→verify=ok:false を実機確認。
 4. **Build-State Native** — PR merged / test failed / deploy green / review requested を trigger に。**汎用 iPaaS でなく AI 開発作業に寄せる**。→ **✅ 実装（Wave J・IR 語彙 10＋match DSL 8 演算子・`/api/buildstate`／Wave C・trigger→automation）**。
 5. **MCP Control Plane** — 人間の click だけでなく **AI が BuildHUD 自体を操作**して agent/workflow を探し・配線し・実行。→ **✅ 実装（`docs/10`・`prototype/mcp/server.mjs` 18 tools・token-light index／Wave L Ghost Writer＝NL→flow）**。
 
-> ＝**Phase 2（H/I/J）＋ MCP control plane で moat の 5 束は出荷可能な実体**。残るは「製品化（誰に・いくらで）」と細粒度（per-edge・宣言語彙）。
+> ＝**Phase 2（H/I/J）＋ MCP control plane で moat の 5 束は出荷可能な実体**。**#1 は (a) A/B/C で productize 済**（per-edge firewall＋capability 語彙＋preset/template・1-pager＝`docs/12`）。残るは「誰に・いくらで」の **GATE-1 実証**。
 
 ### 作ると儲かりやすい順（= 製品化ロードマップ。marketplace に飛びつかない）
-1. **🥇 Agent Trust Boundary for AI dev teams**（**最初の有料商品にすべき**）— ICP: 2-pizza team / AI-heavy agency / 複数 agent を使う SMB。売り物＝上の 1〜3 の束（passport＋data firewall＋audit）。**素地は Wave H で実装済** → 残は packaging・課金・per-edge/宣言語彙の精緻化。🔴 **GATE-1（「中立・安全層に金を払う非巨人」を名指し）未証明**は不変（`docs/06 §6.9 B`）。
+1. **🥇 Agent Trust Boundary for AI dev teams**（**最初の有料商品＝productize 済**・`docs/12`）— ICP: 2-pizza team / AI-heavy agency / 複数 agent を使う SMB。売り物＝上の 1〜3 の束（passport＋data firewall＋audit）。**(a) A/B/C 完了**＝per-edge firewall・capability 語彙（net/fs/external_send/secrets）・Trust preset 1-click・Safe Handoff template・課金 1-pager。🔴 **GATE-1（「中立・安全層に金を払う非巨人」を名指し）未証明は packaging しても不変**（`docs/06 §6.9 B`）＝次の一手。
 2. **🥈 Safe Cross-Agent Handoff** — Claude が実装 → Codex が review → Gemini が security check → Slack/GitHub に送る。**ただし機密は渡さず（Data Firewall）・外部送信は承認制（Trust Firewall）**。→ 素地は G（実送信）＋H（fence）＋I（consensus）で実装済 → **1 本の代表 flow＋テンプレ**として商品化。
 3. **🥉 Audit-backed Agent Reputation**（**WORK 市場の前段**）— marketplace を**先に作らない**。実行履歴（Audit Trail）から「この agent は何回 review して何回通ったか」を貯める。→ Audit は実装済＝**基盤あり**。reputation 集計（per-agent 成功率/通過率の派生）は**未実装＝次の素直な一歩**。
 4. **WORK Marketplace**（**最後**）— 売るのは「agent の skill」ではなく **非複製資産へのアクセス**（専有 data・repo access・license・責任・実績）。→ Phase 3 North Star。gate＝上の 1〜3 ＋ GATE-1 実証後。

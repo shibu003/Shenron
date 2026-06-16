@@ -1,7 +1,7 @@
 # PROJECT — BuildHUD（仮）現状サマリ
 
 > 次セッションの **最初に読む** 1 枚。決定事項・到達点・残 gate・入口を集約。詳細は `docs/` と `prototype/`。
-> 更新: 2026-06-16
+> 更新: 2026-06-16（(a) Trust Boundary 有料商品化 A/B/C 完了＝`docs/12`・per-edge firewall＋capability 語彙＋preset/template）
 
 ---
 
@@ -76,12 +76,12 @@
 
 > ⚡ **Phase 1＋Phase 2（H★ Trust Boundary / I consensus / J build-state IR）完了（`docs/11`・origin 同期済 `918d26d`）。cockpit は Langflow 実機 UI 参考に整理済**。差別化の 5 束は実コードで存在（`docs/11 §2.6`）。
 
-### ▶▶ 次の主作業 = (a) #1「Agent Trust Boundary」を**有料商品化**（最初の有料 SKU・`docs/11 §2.6` 収益化 #1）
-素地は **Wave H で実装済**（passport＋data firewall＋tamper-evident audit＝`prototype/trust.mjs`）。残り = **粒度** と **packaging**。着手前に **3-pass plan（philosophy #5）**。
-- **A. per-edge Data Firewall**（今は per-agent）: edge が `share:{pass,never}` を持つ。hub `advanceFrom`（edge で出力→下流 input 受け渡し時）にその edge policy で `redact` 適用。**cross-company edge は deny-by-default**（pass のみ通す）。UI: edge クリックで pass/never 編集（今は drawLinks `.hit` が click-to-delete のみ）。除去は既存 audit trail に記録。
-- **B. capability 語彙の拡張**（今は `read|write|external_send`）: §2.6 #1 の例＝ `net: none|read|full` / `fs: none|diff-only|repo` / `external_send: deny|approval|allow` / `secrets: deny`(既定)。hub が該当ホップで強制（external_send=approval→mcp は awaiting_approval、deny→即 deny。net/fs は宣言＋audit、実 sandbox は runner 側の将来）。
-- **C. packaging**: cockpit に **Trust preset**（untrusted-3rd-party＝net:none/fs:diff-only/external_send:approval/secrets:deny ／ internal ／ trusted を passport に一括適用）。代表 flow テンプレ＝§2.6 #2 Safe Cross-Agent Handoff（Claude 実装→Codex review→(env/PII fence)→Slack approval）。ICP=2-pizza/agency/multi-agent SMB、課金=seat or per-audited-run の 1-pager。
-- **done 基準**: edge ごとに pass/never→cross-edge で機密が落ちる／capability 語彙を宣言→hub が強制＋audit／untrusted preset 1-click。
+### ✅ (a) #1「Agent Trust Boundary」を**有料商品化**（最初の有料 SKU・`docs/11 §2.6` 収益化 #1）= **A/B/C 完了・実機検証済**
+1-pager＝**`docs/12_TRUST_BOUNDARY_SKU.md`**（ICP・束・課金・正直 fence）。素地は Wave H（`prototype/trust.mjs`）、粒度と packaging を A/B/C で productize:
+- **A. per-edge Data Firewall ✅**（commit `b45d10b`）: edge が `share.never` を持ち、hub `fenceEdge`/`advanceFrom` が**毎エッジで** redact（built-in secret/PII は常時・無効化不可）。**cross-company edge は deny-by-default**（`crossCompany` フラグ＋強制 firewall）。UI: edge クリックで 🔒 firewall editor（per-wire never＋削除）、fenced wire は amber 破線＋🔒。除去は audit に edge タグ付きで記録。検証: input→output wire で secret＋codename 除去・A社→B社 cross-company redact・verify ok。
+- **B. capability 語彙拡張 ✅**（commit `d2cb0a1`）: flat `read|write|external_send` → 構造化 `net: none|read|full` / `fs: none|diff-only|repo` / `external_send: deny|approval|allow` / `secrets: deny`(固定保証)。`normalizePassport` が旧 array 形を migrate。hub が `external_send` を mcp ホップで**強制**（deny=即 fail＋audit、approval=node.auto でも fence 強制、allow=auto 許可）。net/fs は**宣言＋audit**（実 sandbox は runner 側・将来＝UI に正直表記）。`/api/capvocab`。検証: 旧 passport boot migrate・deny/approval/allow 3 経路・verify ok。
+- **C. packaging ✅**（このコミット）: passport editor に **Trust preset 1-click**（untrusted-3rd-party＝net:none/fs:diff-only/send:approval ／ internal ／ trusted）。代表 flow＝cockpit「🔒 Safe Handoff 例」（Chat Input〔secret＋codename〕→上流 agent→🔒 cross-company wire→下流 agent→承認制 external send→Chat Output）。**1-pager＝`docs/12`**（課金=per-audited-run 主・seat 床）。検証: preset 適用・Safe Handoff を実 Run→secret wire 除去・send は awaiting_approval→approve で実送信・verify ok。
+- **done 基準**: ✅ edge ごとに never→cross-edge で機密が落ちる／✅ capability 語彙を宣言→hub が強制＋audit／✅ untrusted preset 1-click＋代表 flow 1-click。
 - **code 入口**: `prototype/trust.mjs`（redact/passport/audit）・`prototype/hub/hub.mjs`（`create`/`runMcp`/`advanceFrom`/`setPassport`/`fireMcpNode`）・`prototype/hub/ui.html`（drawLinks `.hit` クリック・`inspAgent` passport editor・`bindAgent`）・`docs/11 §2.5 e`（pass/never 設計）。
 - 🔴 **fence**: **GATE-1（買い手未名指し）は packaging しても不変** → 並行 interview 推奨。
 - hub 起動: `node prototype/hub/hub.mjs --vendor stub` → http://localhost:8795（再開時 `lsof -tiTCP:8795` で有無確認）。
@@ -120,7 +120,8 @@
 | `docs/07` | dogfood 手順（Persona C 1-handoff） |
 | `docs/08` / `09` | 借りる OSS 部品 / 自前部品（≒堀） |
 | `docs/10` | MCP control plane 設計 |
-| `docs/11` | **cockpit roadmap**（Langflow/n8n 流用・visual flow-builder・Wave A–E） |
+| `docs/11` | **cockpit roadmap**（Langflow/n8n 流用・visual flow-builder・Wave A–L） |
+| `docs/12` | **Agent Trust Boundary SKU 1-pager**（最初の有料商品・ICP/束/課金/正直 fence） |
 | `prototype/hub/` | **durable inbox + D&D cockpit**（offline 配送・presence・承認/auto。`README` 参照） |
 | `prototype/gate1/` | **GATE-1 close kit**（recruit→run→score。最優先入口） |
 | `prototype/README.md` | 1-handoff の動かし方 |
