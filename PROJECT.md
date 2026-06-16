@@ -84,11 +84,12 @@
 - **C. packaging ✅**（このコミット）: passport editor に **Trust preset 1-click**（untrusted-3rd-party＝net:none/fs:diff-only/send:approval ／ internal ／ trusted）。代表 flow＝cockpit「🔒 Safe Handoff 例」（Chat Input〔secret＋codename〕→上流 agent→🔒 cross-company wire→下流 agent→承認制 external send→Chat Output）。**1-pager＝`docs/12`**（課金=per-audited-run 主・seat 床）。検証: preset 適用・Safe Handoff を実 Run→secret wire 除去・send は awaiting_approval→approve で実送信・verify ok。
 - **done 基準**: ✅ edge ごとに never→cross-edge で機密が落ちる／✅ capability 語彙を宣言→hub が強制＋audit／✅ untrusted preset 1-click＋代表 flow 1-click。
 
-### ▶ Wave E（trust-native builder＝parity を自軸化・`docs/11 §2.7`）= E1 ✅ E2 ✅ ／ E3 ⏳
+### ✅ Wave E（trust-native builder＝parity を自軸化・`docs/11 §2.7`）= E1 ✅ E2 ✅ E3 ✅ 完了
 「配線しながら安全が見える（E1）→ 安全に分岐できる（E2）→ 走った後に証明できる（E3）」。Langflow に trust 次元で対抗（out-feature しない・§2 決定）。
 - **E1 ✅**（`aa08f34`）trust-as-you-build: `POST /api/trust/preview`＝実 enforcement コードで firewall＋cap gate を **agent 非実行**で dry-run→「🔒 Check trust」で実行前に「何を弾くか」可視化。
 - **E2 ✅**（`ffd1f64`）trust-router: 新 node kind `router`＝predicate（redacted/clean/contains）で **1 ブランチだけ発火**（true DAG＝If-Else parity）＋ firewall が弾いたかで分岐＝incumbent 不可。`advanceFrom` を dead-branch elimination に書き換え・skipped ノード greyed・route を audit。diamond 検証済。
-- **E3 ⏳**（次）run 後の verdict（Trust Summary）＝「SAFE・何を弾いた・承認待ち・分岐」を 1 画面。データは `/api/audit`＋`/api/state` に既存＝主に UI。
+- **E3 ✅**（`b80a117`）run 後の verdict（Trust Summary）＝既定 inspector に「除去数＋leak chips・send sent/held/blocked・router 分岐・skipped・verify」を最新 run で集約（新 endpoint 無し）。raw audit を「証拠」、verdict を「答え」に昇格。実機検証済。
+- 🔴 **fence 不変**: Wave E は最良の GATE-1 demo を兼ねるが **demand 証明ではない**。次の本命＝GATE-1 を builder の話をせず trust の痛みで 1 件当てる（`docs/11 §2.7`・feedback 結論）。
 - **code 入口**: `prototype/trust.mjs`（redact/passport/audit）・`prototype/hub/hub.mjs`（`create`/`runMcp`/`advanceFrom`/`setPassport`/`fireMcpNode`）・`prototype/hub/ui.html`（drawLinks `.hit` クリック・`inspAgent` passport editor・`bindAgent`）・`docs/11 §2.5 e`（pass/never 設計）。
 - 🔴 **fence**: **GATE-1（買い手未名指し）は packaging しても不変** → 並行 interview 推奨。
 - hub 起動: `node prototype/hub/hub.mjs --vendor stub` → http://localhost:8795（再開時 `lsof -tiTCP:8795` で有無確認）。
