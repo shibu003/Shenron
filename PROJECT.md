@@ -72,10 +72,15 @@
 
 ## 5. 次にやること（優先順）
 
-1. **GATE-1 を閉じる**（最優先・唯一の人間タスク）: 実在の友人 1 人＋反復タスクを実名で確定 → **`prototype/gate1/`**（runbook + 招待文 + scorecard、mechanism は検証済）で 1 回往復 → `SCORECARD.md` を埋める。mechanism と実 Codex 往復は ✅、残るは「実在の 2 人目」と「また使いたい」の 2 criterion のみ。
-2. **検証**: `docs/05` の R1/R2/R3 行動テスト（DM 文面・採点・kill-criteria あり）＋ `measure-fleet.mjs`。
-3. **roadmap**: `docs/06` の North Star 7 pillar から **gate 条件つき Wave**（3-pass loop）に back-cast（未着手）。
-4. （任意）投資家 1-pager / MCP を実 client(.mcp.json)に登録して AI 運用。
+> ⚡ **現在の主作業 = cockpit を visual flow-builder に育てる（`docs/11` Wave A–E）**。GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/` に温存・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
+
+1. **▶ Wave A（次の一手・未着手）**: cockpit（`prototype/hub/ui.html`）を「ノード移動＋ポート配線」グラフエディタに昇格 — agent ノードに in/out ポート、**port→port でエッジ配線**（型交差で接続判定）。done 基準は `docs/11 §2 Wave A`。現状の node-on-node ドラッグ送信は残す。
+2. **Wave B–E**: B 保存+DAG実行+MCP露出 → C trigger→automation → D palette+MCP export → E open-core「kills X」ピッチ（全部 `docs/11`）。
+3. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
+4. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
+
+**cockpit を動かす**: `node prototype/hub/hub.mjs` → **http://localhost:8795**（agent ノードを drag→drag で handoff、policy ⚡auto/✋approval、承認、status 集計・timeline）。worker（実行役）: `node prototype/hub/worker.mjs --config prototype/agents/marketing.json --vendor stub|claude|codex`。
+⚠️ 前セッションで hub を **:8795 で起動したまま**（orphan, 8790 は user の bun を kill 済）。再開時 `lsof -tiTCP:8795` で確認、無ければ起動。
 
 ---
 
