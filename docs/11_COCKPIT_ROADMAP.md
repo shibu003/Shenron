@@ -3,7 +3,7 @@
 > 起点：3 参照（Langflow **~146k**〔DataStax→**IBM/watsonx** 傘下〕 / n8n ~100k / Cal.com ~32k）= **D&D 視覚ビルダー × open-core × self-host**。
 > 方針：cockpit（`prototype/hub/ui.html`）を **「agent を線で配線して保存して走る」builder** に育て、いま別々の **agents・workflows・automations・MCP** を **1 つの視覚面に統合**（docs/08 §1.5 **G2** の実体）。
 > 原則：**パターン流用・コード非複製**（philosophy #1）。**zero-dep 維持** → React Flow は概念だけ借り、本体は本番 upgrade 時。
-> 更新: 2026-06-16（Langflow 現況を再調査＝§0／§2.5 f reality check。K/L/D は catch-up・moat は H のみ）
+> 更新: 2026-06-16（**Wave G 完了＝mcp ノード実呼び出し**。Phase 1 は F✅→G✅→K→L、次=K）
 
 ---
 
@@ -134,7 +134,7 @@
 
 **新 Wave（B の後・優先順）**:
 - **Wave F — integrations & settings ✅ DONE**：**F.1**（autorun on/off＝hub 代理実行を global＋per-agent で gate・`/api/autorun`・⚙settings＋inspector トグル・検証済）＋**F.2**（`integrations.json` 登録・⚙settings で MCP server 接続/on-off/追加・enabled tool を palette に表示→`kind:"mcp"` ノードを canvas に配置・配線可。実呼び出しは **stub＝Wave G**）。done: Gmail/Slack を繋いで on/off、enabled tool が palette に、autorun off で hub 代理実行が止まる。commit `62674db`/`6013eda`。
-- **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor 実呼び出し（approval フェンス）。**done**: agent→gmail.send_email を配線→Run→**実送信**。
+- **Wave G — MCP tool ノード＋実 side-effect ✅ DONE**：`kind:"mcp"` ノードを **executor が実呼び出し**。新規 zero-dep **`mcp-client.mjs`**（JSON-RPC 2.0／stdio=改行区切り initialize→initialized→tools/call ＋ HTTP streamable は best-effort）で接続済み MCP server の tool を実行（auth は各 server に乗る＝philosophy #1）。hub の `fireMcpNode`/`runMcp` が **durable inbox の handoff を再利用**＝cockpit 可視化・history・**agent と同じ approval フェンス**（外部副作用は既定 approval、node.auto で opt-in、global autorun master が kill switch）。上流出力は `input` 引数で渡し、node.config を merge。crash 時 sweep は **running の外部副作用を自動再送しない**（approved のみ resume）。検証用 zero-dep **`echo-mcp-server.mjs`**（`.echo-outbox.log` に追記＝観測可能な実副作用、外部 creds 不要）＋ `integrations.json` の `echo`（enabled）。**done（達成）**: marketing-outreach-agent→echo.send_email を配線→Run→agent 完了→mcp が awaiting_approval（副作用ゼロ）→approve→**実送信**（outbox 追記・run completed 2/2）／auto opt-in＝承認なし実行／global off＝auto でも待機（kill switch）／disabled server＝クリーンに failed／crash 再起動＝running 非再送・approved resume を全 ✅。実 Gmail/Slack は **bring-your-own**（自前 MCP server＋OAuth）。
 - **Wave H — Agent Trust Boundary（★wedge・最重要差別化）**：`capability passport`（per-agent 宣言＋hub 毎ホップ強制）＋ `data firewall`（share pass/never・cross は deny-by-default・secret/PII 既定 never）＋ `audit`（grant/redact/approve を改ざん不能 trail に）。S0/S1/S2 で距離違いに使い回す。**done**: 「Claude→（env/PII 除去）→他 vendor の Codex agent、file paths のみ可視、全 call audit、外部送信は approval、相手 offline でも durable」＝**n8n/Langflow/Zapier に書けない flow** を 1 本実演。
 - **Wave I — cross-vendor consensus node（vs vendor-native）**：同 task を Claude＋Codex＋Gemini に fan-out → hub が diff/投票 → 合意出力。**単一 vendor は構造的に不可能**＝「なぜ Claude native でなく BuildHUD?」への構造回答。**done**: consensus ノードで 3 vendor 並列→多数決/合議結果が下流へ。
 - **Wave J — build-state IR（vs iPaaS）**：trigger 語彙を第一級化（`pr_merged`/`rc_built`/`deploy_green`/`test_red`/`review_completed`…）＋ match DSL。n8n の generic webhook と差を付ける（「IR 深いほど堀」§4）。**done**: 名前付き build-state event で automation 発火、IR スキーマを doc 化。
@@ -148,7 +148,7 @@
 
 ### g) 3 フェーズ実行順（`docs/06 §6.9`・WORK 市場に飛びつかない）
 > 「巨人 marketplace を **AI-native＋easy＋中立＋安全** で kill」を、出荷可能→moat→economy の順で。vision 膨張＝出荷ゼロ（docs/06 §2）への規律。
-- **Phase 1（出荷優先・AI-native easy 中立 builder）**＝ **F → G → K → L**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。
+- **Phase 1（出荷優先・AI-native easy 中立 builder）**＝ **F ✅ → G ✅ → K → L**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。**次=K（Langflow parity 最小）**。
 - **Phase 2（moat）**＝ **H ★** ＋ 隣接 **I・J**。done: 「他社 agent を機微データに env/PII fence＋全 call audit で使う」＝**巨人 walled/Langflow に書けない flow**を実演。
 - **Phase 3（North Star・economy）**＝ **WORK 市場**＝cross-owner agent 労働市場（discovery・**reputation graph＝通貨**・marketplace・**AP2 settlement**・emergent チェーン）。**gate＝Phase 2 完了＋GATE-1 実証後に本格化**（先回りしない）。
 
@@ -159,7 +159,7 @@
 - MCP 露出 → `prototype/mcp/server.mjs`（`run_workflow`/inbox tools・計 18）
 - schedule trigger → `prototype/mcp/trigger/`（Trigger.dev seam・既存）
 - integrations（接続 MCP・on/off）→ `prototype/mcp/integrations.json`（**新規**・§2.5 Wave F）
-- mcp tool ノード実行（side-effect）→ `prototype/hub/worker.mjs`＋`prototype/mcp/server.mjs`（§2.5 Wave G）
+- mcp tool ノード実行（side-effect）→ `prototype/hub/hub.mjs`（`fireMcpNode`/`runMcp`・approval フェンス）＋ **`prototype/mcp/mcp-client.mjs`**（zero-dep MCP client・stdio/HTTP）。検証＝`prototype/mcp/echo-mcp-server.mjs`（§2.5 Wave G ✅）
 - trust boundary（passport/firewall/audit）→ `prototype/hub/hub.mjs`（強制点）＋ agent 設定（passport 宣言）＋`integrations.json`（§2.5 Wave H）
 
 ## 4. 非目標（この roadmap では作らない）
