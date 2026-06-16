@@ -25,24 +25,32 @@
 | `get_agent` | read | `{id}` | full Agent Card（on-demand） |
 | `search_workflows` | read | `{query, limit?}` | `[{id,name,summary,steps,tags}]` 小 ref |
 | `get_workflow` | read | `{id}` | full 定義（steps/nodes/edges） |
-| `build_state` | read | `{}` | IR の**要約**（counts / 直近 run / staleness）。全文でなく summary |
-| `run_handoff` | **act** | `{toAgentId, skill, input}` | 1 handoff 実行結果（A2A message/send） |
-| `run_workflow` | **act** | `{id, input}` | workflow 連鎖実行＋trace |
+| `search_automations` | read | `{query, limit?}` | `[{id,name,summary,trigger,workflow,enabled,tags}]` 小 ref |
+| `get_automation` | read | `{id}` | full 定義（trigger / bound workflow / default input） |
+| `build_state` | read | `{}` | IR の**要約**（counts / ids / attended-unattended）。全文でなく summary |
+| `run_handoff` | **act** | `{toAgentId, skill, input, confirm?}` | 1 handoff 実行結果（A2A message/send） |
+| `run_workflow` | **act** | `{id, input, confirm?}` | workflow 連鎖実行＋trace |
+| `run_automation` | **act** | `{id, input?, confirm?}` | automation の bound workflow を fire＋trace |
+| `fire_event` | **act** | `{event, input?, confirm?}` | build-state event に match した enabled automation を返す＋fire（**build-state を引き金に走らせる**核） |
 
-- **read/act 分離**：act tool（`run_*`）は trust gate を通す（cross-company は attended・M5）。read は自由。
+- **read/act 分離**：act tool（`run_*`/`fire_event`）は trust gate を通す（cross-company は attended・M5）。read は自由。
+- **二段 fence**：(1) 既定 attended（`confirm:true` or `--unattended` まで dry-run）、(2) 実行は `A2A_SHARED_TOKEN` 必須（無ければ network に出ず refuse）。
+- **automation = trigger（`schedule`/`build_state`）に bind した workflow**。workflow が run-on-demand なのに対し、automation は event/schedule 起点。同じ token-light 索引・同じ generic searcher に載る。
 - 返りは常に **ref 優先**（full は `get_*` のみ）＝ token-light の徹底。
 
 ## 3. Resources（読み取り）
 
 - `buildhud://agents` — agent 索引（ref 一覧）
 - `buildhud://workflows` — workflow 索引（ref 一覧）
+- `buildhud://automations` — automation 索引（ref 一覧）
 - `buildhud://state` — Build State IR 要約
 （full は resource でなく `get_*` tool で取る＝索引と本体を分離）
 
 ## 4. Index の作り方
 
-- source：`prototype/agents/*.json`（agent 定義）＋ `prototype/mcp/workflows.json`（named workflow）。将来は live registry（G4 agentgateway）も source に。
-- 索引フィールド：`name + company + skill.description + tags` を keyword 化（MVP は keyword スコア、後で embedding）。
+- source：`prototype/agents/*.json`（agent 定義）＋ `prototype/mcp/workflows.json`（named workflow）＋ `prototype/mcp/automations.json`（trigger-bound run）。将来は live registry（G4 agentgateway）も source に。
+- 3 索引は **1 つの generic `searchIndex(items, toText, toRef, query, limit)`** を共有（per-index に重複コードを持たない＝「大きな部品」）。
+- 索引フィールド：`name + company + skill.description + tags`（automation は `+ trigger.type + workflow`）を keyword 化（MVP は keyword スコア、後で embedding）。
 - **本体は索引に入れない**：検索ヒット → id → `get_*` で本体 load。これが token 節約の核。
 
 ## 5. Transport / 規約
@@ -54,7 +62,8 @@
 ## 6. Fence / 安全
 
 - act tool は **read-only でない**＝ 必ず trust gate（MVP: token+allowlist+attended、`07`/`09 M5`）。
-- AI が勝手に cross-company dispatch しないよう、`run_*` は既定で **attended**（承認必須）。autonomous は明示 opt-in（`--unattended`）。
+- AI が勝手に cross-company dispatch しないよう、`run_*`/`fire_event` は既定で **attended**（承認必須）。autonomous は明示 opt-in（`--unattended` / `BUILDHUD_UNATTENDED=1`）＝ CI hook・cron から無人で fire するための口。
+- ただし autonomous でも **実行は `A2A_SHARED_TOKEN` 必須**（無ければ network に出ず即 refuse）。`enabled:false` の automation は fire しない。= 二段 fence。
 - 索引・検索は token を燃やさない設計が目的。**full dump tool を作らない**（`get_*` で 1 件ずつ）。
 
 ## 7. 使い方（実装 `prototype/mcp/server.mjs`）
