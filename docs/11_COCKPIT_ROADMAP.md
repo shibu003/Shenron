@@ -75,10 +75,10 @@
 - files: `ui.html`（palette/✕/＋/⧉/⇪・HIDDEN 集合・nodeOf 流用）。**`mcp/server.mjs` の search proxy は不要に**＝cockpit は hub state（＝同一 index）を直接検索（redundant part を作らない・philosophy #2）。MCP `search_agents` は AI 向け surface として別途存続。
 - **done（達成）**: palette からノード追加（✕→＋ サイクル）、node/palette の MCP 呼び出しを copy、flow を MCP tool として export（`run_workflow` 片）。
 
-### Wave E — open-core「kills X」ピッチ（n8n/Cal.com）
-- UI でなく **docs/06**：「**BuildHUD kills 手配線 cross-agent glue**」open-core/self-host/no-per-seat ナラティブ。
-- files: `docs/06_VISION.md`。
-- **done**: pitch 1 枚に反映。
+### Wave E — open-core「kills X」ピッチ（n8n/Cal.com）✅ DONE
+- UI でなく **docs/06 §6.8**：「**BuildHUD kills 手配線 cross-agent glue**」open-core/self-host/no-per-seat ナラティブ。先例（n8n/Cal.com/Langflow）対応表・各 Wave が消す glue の種類・capture（seat/zap でなく trust/orchestration/marketplace）・正直な fence（🔴 GATE-1 不変・🟡 narrative≠moat・🟢 builder は実在）。
+- files: `docs/06_VISION.md`（§6.8 追加・更新日 bump）。
+- **done（達成）**: pitch を `docs/06 §6.8` に 1 枚反映。
 
 ## 2.5 拡張性 — MCP tool ノード・integrations・実 side-effect（vision を固定）
 

@@ -79,8 +79,8 @@
 3. **✅ Wave B2（DONE）— 保存 + DAG 実行**: cockpit「💾 save」→ 配線を `workflows.json` に保存（**nodes/edges 正・`steps[]` 派生＝採用案 (a)**）。「▶ run」→ hub が **reactive DAG 実行**（入口=in-degree 0 → handoff 化して B1 で走り、完了で下流発火、edge で出力→入力受け渡し）→ 既存 handoff アニメで可視化。MCP `run_workflow` は DAG flow を hub `/api/runflow` に委譲（同一エンジン）。検証済（sales→marketing topo completed・prospects 受け渡し確認・saved/draft/MCP 経路）。done 基準 `docs/11 §2 Wave B2`。
 4. **✅ Wave C（DONE）— trigger ノード → automation**: 「＋ trigger」で build_state trigger ノードを置き chain へ配線→「📋 auto」で `automations.json` に保存（trigger＋agent chain を workflow 化して ref）→「⚡ fire」/`/api/fire` の build_state event で **マッチ automation が chain を自動実行**（B2 `runFlow`・cockpit 可視化）。検証済（green→completed 2/2、非マッチ→fire なし）。done 基準 `docs/11 §2 Wave C`。
 5. **✅ Wave D（DONE）— palette + MCP export**: 「☰ palette」＝agent/skill カタログ（hub 共有 index を検索）。node ✕ で canvas から外し palette ＋ で戻す（add サイクル）。per-node/palette「⧉ copy MCP call」（`send_handoff` 片）、per-flow「⇪ export」（workflow 保存＋`run_workflow` MCP 片を copy）。MCP search proxy は不要化（hub state＝同一 index）。done 基準 `docs/11 §2 Wave D`。
-6. **▶ Wave E（次の一手・任意）**: open-core「kills 手配線 cross-agent glue」ナラティブを `docs/06` に1枚反映（UI 不要）。
-7. **拡張 F/G（`docs/11 §2.5`・user 要望）**: **F** integrations/⚙settings（MCP 接続＋on/off・**autorun on/off**・**share=渡す/絶対渡さない情報の切り分け**）→ **G** `kind:"mcp"` tool ノード＋executor 実呼び出し＝**「submit 後に実際に外部へ送信」**（approval フェンス＋share 境界を通してから送信）。
+6. **✅ Wave E（DONE）— open-core ピッチ**: 「BuildHUD kills 手配線 cross-agent glue」を `docs/06 §6.8` に1枚（n8n/Cal.com/Langflow 対応表・各 Wave が消す glue・capture・正直 fence）。**cockpit ロードマップ A–E 完了**。
+7. **▶ 拡張 F/G（次の一手・user 要望・`docs/11 §2.5`）**: **F** integrations/⚙settings（MCP 接続＋on/off・**autorun on/off**・**share=渡す/絶対渡さない情報の切り分け**）→ **G** `kind:"mcp"` tool ノード＋executor 実呼び出し＝**「submit 後に実際に外部へ送信」**（approval フェンス＋share 境界を通してから送信）。
 8. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
 9. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
 

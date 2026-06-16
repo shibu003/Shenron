@@ -2,7 +2,7 @@
 
 > ハンドオフ。会話で vision が 3 段膨張したので 1 枚に整理。`01`–`05` の前提を更新する上位レイヤー。
 > 原則（§3.5）：競合がいても撤退しない。土俵 / 手法 / 痛みをずらして空白を**作る**。**ただし「ずらせば勝てる」で終えない** — 作った空白は耐久テスト（巨人は追随に何を捨てるか）と 7 ステップにかけ、🔴 は 🔴 と書く。
-> 更新日: 2026-06-15
+> 更新日: 2026-06-16（§6.8 open-core ピッチ＝Wave E 追加）
 
 ---
 
@@ -158,6 +158,37 @@ relay 課金は捨て、**trust＋orchestration＋index/MCP** で課金する。
 
 BuildHUD 自体を **MCP server** として公開し、AI が自律操作できるようにする（agent / workflow を発見・配線・実行）。
 clean-mcp 流の **token-light index** が肝：全 workflow/agent を context に流さず、`search_*` が小さな ref を返し、`get_*` で必要な 1 件だけ load（= 本環境の deferred-tool/ToolSearch と同型）。設計は `10_MCP_INTERFACE.md`。これ自体が capture 点（§6.6）にもなる。
+
+---
+
+## 6.8 open-core ピッチ — 「BuildHUD kills 手配線 cross-agent glue」（n8n / Cal.com 流・Wave E）
+
+> cockpit が visual flow-builder になった（`docs/11` Wave A–D 実装済・`prototype/hub`）ので、open-core ナラティブを 1 枚で固定。
+
+**1 行ピッチ**：**BuildHUD kills the hand-wired glue between agents.** 別 vendor・別人の AI agent を繋ぐのに、今は bespoke script／コピペ人手リレー／使い捨て webhook を書いている（§6.5「手で繋いでいる人」＝痛みの証拠）。BuildHUD はそれを **D&D で配線し、保存して、走らせる** 1 つの面に置き換える。
+
+**なぜ open-core / self-host / no-per-seat（先例に倣う）**：
+
+| 先例 | 何を kill したか | BuildHUD の対応 |
+|---|---|---|
+| **n8n** | Zapier の per-task 課金＋closed → **self-host・per-execution 無料** | hub は zero-dep・self-host、capture は per-zap/per-seat でなく **trust/orchestration/marketplace-take**（§6.6） |
+| **Cal.com** | Calendly の closed-source → **source ごと open-core**（機能を seat paywall に隠さない） | 配線・実行・automation・palette は **source 同梱**（`prototype/hub`）、上位 trust/audit/SSO を enterprise tier に |
+| **Langflow** | 商用 flow-builder の lock-in → **OSS の visual agent builder** | 概念流用・zero-dep 維持、その上に **cross-person/vendor の trust** を足す（差別化） |
+
+**「kills X」の X を具体化**（各 Wave が glue の 1 種を消す）：
+- 手書き glue script（A の出力を整形して B に渡す）→ **typed port 配線**（Wave A）
+- 自前 cron/webhook 配線 → **trigger ノード → automation**（Wave C）
+- 「相手 agent が起動してないと止まる」→ **hub in-process executor＋durable inbox**（Wave B1）
+- 「この MCP 繋いで」の手作業 → **palette ＋ ⚙settings の on/off**（Wave D／F）
+- 「絶対に渡せない情報まで漏れる」→ **share 境界 pass/never**（Wave F・§2.5）
+
+**capture（open-core の常道・§6.6 と一致）**：source は self-host 無料、**課金は seat/zap でなく** ① cross-party trust/audit（M5）② cross-company orchestration の運用 UX ③ MCP/index seat ④ 仲介 handoff の marketplace take。
+
+**正直な fence（本書の声）**：
+- 🟡 「kills X」は **positioning narrative** であって moat ではない。moat は §4（cross-person trust × hosted relay × dyad 縦特化）。
+- 🔴 **GATE-1 不変**：手配線を実際に痛がり金を払う 1 ペアは未検証。open-core は配布を速めるが**買い手は作らない**。
+- 🟡 open-core の monetization（どの上位機能を有料にするか）自体が別の bet。n8n/Cal.com は成立、我々は未検証。
+- 🟢 ただし **builder は vapor でなく実在**（Wave A–D・`prototype/hub`）＝ピッチの裏に動くコードがある＝solo 最大リスク（出荷せず終わる）を一部解消。
 
 ---
 
