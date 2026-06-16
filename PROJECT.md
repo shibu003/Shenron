@@ -1,7 +1,7 @@
 # PROJECT — BuildHUD（仮）現状サマリ
 
 > 次セッションの **最初に読む** 1 枚。決定事項・到達点・残 gate・入口を集約。詳細は `docs/` と `prototype/`。
-> 更新: 2026-06-16（(a) Trust Boundary 有料商品化 A/B/C 完了＝`docs/12`・per-edge firewall＋capability 語彙＋preset/template）
+> 更新: 2026-06-16（(a) Trust Boundary 商品化 A/B/C 完了＝`docs/12`／Wave E trust-native builder E1✅E2✅ E3⏳＝`docs/11 §2.7`・parity は neutralize 方針）
 
 ---
 
@@ -37,6 +37,7 @@
 - **trust は MVP で fake**（共有 token+allowlist+attended）。本物(OBO/DPoP・M5)は North Star。
 - **capture 再設計**（`docs/06 §6.6`）: hosted-relay-tier は gateway 勢に商品化された → capture を **gateway の上**（trust/audit・orchestration・index/MCP seat・marketplace take）へ。
 - **ICP**: persona A 溺れる OSS maintainer（痛み最強）/ B 2-pizza チーム（TAM）/ C build-in-public 2 人組（demo・dogfood）＋ free-tier juggler。市場は S1(社内多 vendor)が今・S2(会社境界)が将来（`docs/06 §6.5`）。
+- **parity は out-feature せず neutralize**（2026-06-16 /feedback）: Langflow builder には **trust 次元を仕込んで対抗**（Wave E＝trust-native builder）、機能数競争はしない（parity を上げるほど『無料の本家でいい』に近づく自殺点）。対 Langflow の正手＝**補完財（flow を import して fence）＝逆方向**（温存）。⚠️ Wave E は GATE-1 demo を兼ねるが **demand 証明ではない**（`docs/11 §2.7`）。
 
 ---
 
@@ -82,6 +83,12 @@
 - **B. capability 語彙拡張 ✅**（commit `d2cb0a1`）: flat `read|write|external_send` → 構造化 `net: none|read|full` / `fs: none|diff-only|repo` / `external_send: deny|approval|allow` / `secrets: deny`(固定保証)。`normalizePassport` が旧 array 形を migrate。hub が `external_send` を mcp ホップで**強制**（deny=即 fail＋audit、approval=node.auto でも fence 強制、allow=auto 許可）。net/fs は**宣言＋audit**（実 sandbox は runner 側・将来＝UI に正直表記）。`/api/capvocab`。検証: 旧 passport boot migrate・deny/approval/allow 3 経路・verify ok。
 - **C. packaging ✅**（このコミット）: passport editor に **Trust preset 1-click**（untrusted-3rd-party＝net:none/fs:diff-only/send:approval ／ internal ／ trusted）。代表 flow＝cockpit「🔒 Safe Handoff 例」（Chat Input〔secret＋codename〕→上流 agent→🔒 cross-company wire→下流 agent→承認制 external send→Chat Output）。**1-pager＝`docs/12`**（課金=per-audited-run 主・seat 床）。検証: preset 適用・Safe Handoff を実 Run→secret wire 除去・send は awaiting_approval→approve で実送信・verify ok。
 - **done 基準**: ✅ edge ごとに never→cross-edge で機密が落ちる／✅ capability 語彙を宣言→hub が強制＋audit／✅ untrusted preset 1-click＋代表 flow 1-click。
+
+### ▶ Wave E（trust-native builder＝parity を自軸化・`docs/11 §2.7`）= E1 ✅ E2 ✅ ／ E3 ⏳
+「配線しながら安全が見える（E1）→ 安全に分岐できる（E2）→ 走った後に証明できる（E3）」。Langflow に trust 次元で対抗（out-feature しない・§2 決定）。
+- **E1 ✅**（`aa08f34`）trust-as-you-build: `POST /api/trust/preview`＝実 enforcement コードで firewall＋cap gate を **agent 非実行**で dry-run→「🔒 Check trust」で実行前に「何を弾くか」可視化。
+- **E2 ✅**（`ffd1f64`）trust-router: 新 node kind `router`＝predicate（redacted/clean/contains）で **1 ブランチだけ発火**（true DAG＝If-Else parity）＋ firewall が弾いたかで分岐＝incumbent 不可。`advanceFrom` を dead-branch elimination に書き換え・skipped ノード greyed・route を audit。diamond 検証済。
+- **E3 ⏳**（次）run 後の verdict（Trust Summary）＝「SAFE・何を弾いた・承認待ち・分岐」を 1 画面。データは `/api/audit`＋`/api/state` に既存＝主に UI。
 - **code 入口**: `prototype/trust.mjs`（redact/passport/audit）・`prototype/hub/hub.mjs`（`create`/`runMcp`/`advanceFrom`/`setPassport`/`fireMcpNode`）・`prototype/hub/ui.html`（drawLinks `.hit` クリック・`inspAgent` passport editor・`bindAgent`）・`docs/11 §2.5 e`（pass/never 設計）。
 - 🔴 **fence**: **GATE-1（買い手未名指し）は packaging しても不変** → 並行 interview 推奨。
 - hub 起動: `node prototype/hub/hub.mjs --vendor stub` → http://localhost:8795（再開時 `lsof -tiTCP:8795` で有無確認）。

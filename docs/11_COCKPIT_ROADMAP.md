@@ -173,6 +173,16 @@
 
 > 戦略含意: **cockpit/builder は surface（入場料）、有料商品は #1 の Trust Boundary**。「便利さ」で Langflow と正面勝負しない（§2.5f 耐久テスト）。非複製資産＝最終的な堀（`docs/06 §6.9`）。
 
+## 2.7 Wave E — trust-native builder（parity を「自軸化」する／out-feature しない）
+
+> 経緯（2026-06-16 の /feedback セッション）: 「Phase 1 builder が toy に見えると moat 到達前に負ける」は真。だが **Langflow（~146k★・IBM）を機能数で上回るのは死の treadmill**、かつ **parity を上げるほど『無料の本家でいい』に近づく自殺点**。結論＝**parity は out-feature でなく neutralize**：builder の各機能に **trust 次元**を仕込み、「Langflow が single-owner を捨てないとコピーできない使いやすさ」にする。耐久テスト（巨人は追随に何を捨てるか）＝🟢 構造的空白。⚠️ これでも **GATE-1（買い手実在）は未証明**＝Wave E は最良の GATE-1 demo を兼ねるが demand 証明ではない（feedback 結論：builder の話をせず trust の痛みで 1 件当てるのが本当の次の一手）。最終的な対 Langflow の正手は **補完財（flow を import して fence）＝parity の逆方向**（温存アイデア）。
+
+背骨: **配線しながら安全が見える（E1）→ 安全に分岐できる（E2）→ 走った後に安全だったと証明できる（E3）**。
+
+- **Wave E1 — trust-as-you-build（実行前 dry-run）✅**（commit `aa08f34`）: `POST /api/trust/preview` が **実 enforcement コード**（`redact`/`sendMode`/`normalizePassport`）で firewall＋capability gate を **agent 非実行・送信ゼロ**で dry-run。per-wire＝fence カテゴリ＋既知入力（input node/flow input）には具体 strip 数、agent 出力は runtime＝policy のみ（overclaim しない）。per-node＝agent caps・mcp `external_send`→approval/denied/auto。UI＝「🔒 Check trust」→ Trust プレビューパネル（「実行前に N 除去・M ゲート」）＋配線に 🔒N 注記。**検証**: Safe Handoff で input wire＝openai-key×1+env-secret×1・cross-company wire＝never:codename+cross-company(runtime)・echo.send_email→approval（agent 走らせず）。＝**Langflow が構造的に出せない面**（trust モデルが無い）。files: `hub.mjs`(trustPreview/route)・`ui.html`(checkTrust/renderTrustPanel/drawLinks 注記)。
+- **Wave E2 — trust-router node（条件分岐＝parity ＋ trust 分岐＝差別化）✅**（commit `ffd1f64`）: 新 node kind `router`。`fireRouterNode` が predicate（`redacted`/`clean`/`contains`/`always`）で **1 ブランチだけ発火**＝true DAG（Langflow If-Else parity）。`redacted/clean` は **firewall が実際に弾いたか**（残る `[redacted:]` マーカー）で分岐＝incumbent が書けない制御フロー。決定は audit（`route`）に残り「なぜ分岐したか」を証明可能。**engine 書き換え**: `advanceFrom` に dead-branch elimination（dead edge＝router 非選択枝／skipped node＝全 incoming dead／settled-and-live で発火／完了＝全 non-trigger が output か skipped。dead/skipped は array＝JSON 永続・`/api/state` 露出）。UI＝Trust Router コンポーネント・edge inspector の then/else・配線ラベル（then=青/else=灰）・**skipped ノード greyed**・audit route 表示。**検証**: secret→then 発火/else skip・clean→else 発火/then skip・**diamond（router→then/else→merge）で生きた枝だけ merge・deadlock 無し**・route 監査・verify ok。files: `hub.mjs`(router kind/fireRouterNode/advanceFrom rewrite)・`ui.html`(COMP router/inspComp select/edge branch/skipped 表示)。
+- **Wave E3 — run 後の verdict（Trust Summary）⏳**: 実行後「SAFE・何を弾いた・どこで承認待ち・どう分岐した」を 1 画面（E1 の予告 vs 結果の対）。データは `/api/audit`＋`/api/state`(runs/handoffs/skipped) に既存＝主に UI。
+
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
 - flow 実行/保存 → `prototype/hub/hub.mjs`（durable inbox＋将来 topo-run）
