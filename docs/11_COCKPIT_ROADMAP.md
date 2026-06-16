@@ -69,10 +69,11 @@
 - files: `hub.mjs`（saveAutomation/fireEvent/triggerMatches/deepMatch＋routes・runFlow の trigger strip）、`ui.html`（trigger node＋＋trigger/📋auto/⚡fire＋buildFlow に trigger 同梱）。
 - **done（達成）**: UI で trigger→sales→marketing を組み「📋 auto」で automation 保存、「⚡ fire」 or `/api/fire` の build_state event で **マッチした automation が chain を自動実行**（green→completed 2/2、非マッチ→fire なしを検証）。
 
-### Wave D — agent palette + MCP export（Langflow）
-- **サイドバー palette**（`search_agents`/MCP）から agent/skill を canvas にドラッグ追加。per-node「**copy MCP call**」、per-flow「**export as MCP tool**」（登録片を表示）。
-- files: `ui.html`（palette/export）、`mcp/server.mjs`（search proxy）。
-- **done**: palette からノード追加、ノードの MCP 呼び出しをコピーできる。
+### Wave D — agent palette + MCP export（Langflow）✅ DONE
+- **「☰ palette」**＝ agent/skill カタログ（**hub の共有 agent index ＝ `/api/state`** をクライアント検索）。canvas は「カタログ × 表示集合」モデル：node の **✕** で canvas から外し（index には残る）、palette の **＋** で戻す＝Langflow の「palette からノード追加」を実現。検索 box でフィルタ。
+- **per-node「⧉ copy MCP call」**（node・palette 両方）＝ `send_handoff` の tool 呼び出し片を clipboard へ。**per-flow「⇪ export」**＝配線を workflow 保存し `run_workflow` の MCP tool 呼び出し片を表示＋copy。
+- files: `ui.html`（palette/✕/＋/⧉/⇪・HIDDEN 集合・nodeOf 流用）。**`mcp/server.mjs` の search proxy は不要に**＝cockpit は hub state（＝同一 index）を直接検索（redundant part を作らない・philosophy #2）。MCP `search_agents` は AI 向け surface として別途存続。
+- **done（達成）**: palette からノード追加（✕→＋ サイクル）、node/palette の MCP 呼び出しを copy、flow を MCP tool として export（`run_workflow` 片）。
 
 ### Wave E — open-core「kills X」ピッチ（n8n/Cal.com）
 - UI でなく **docs/06**：「**BuildHUD kills 手配線 cross-agent glue**」open-core/self-host/no-per-seat ナラティブ。
