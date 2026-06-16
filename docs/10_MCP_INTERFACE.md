@@ -36,7 +36,7 @@
 - **read/act 分離**：act tool（`run_*`/`fire_event`）は trust gate を通す（cross-company は attended・M5）。read は自由。
 - **二段 fence**：(1) 既定 attended（`confirm:true` or `--unattended` まで dry-run）、(2) 実行は `A2A_SHARED_TOKEN` 必須（無ければ network に出ず refuse）。
 - **automation = trigger（`schedule`/`build_state`）に bind した workflow**。workflow が run-on-demand なのに対し、automation は event/schedule 起点。同じ token-light 索引・同じ generic searcher に載る。
-  - `build_state` の `trigger.match` は **flat primitive 等値の subset 一致**（MVP）。nested object/array は never-fire ＝ load 時に警告（Claude #9 / Codex #3）。richer event 形は将来。
+  - `build_state` の `trigger.match` は **deep subset 一致**（nested object は再帰・array は位置・primitive は ===、no eval）。event が match を包含すれば fire（Claude #9 / Codex #3）。
 - 返りは常に **ref 優先**（full は `get_*` のみ）＝ token-light の徹底。
 
 ## 3. Resources（読み取り）
