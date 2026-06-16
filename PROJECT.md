@@ -48,6 +48,7 @@
 | A社↔B社 cross-company | `prototype/agents/` | LinkedIn 営業(**Codex**)→マーケ(**Claude**)、**実 LLM**で連鎖 |
 | **MCP control plane** | `prototype/mcp/` | **3 索引（agent/workflow/automation）token-light** + `run_workflow`/`run_automation`/`fire_event`。build-state event で automation を引く＋`--unattended` で無人 fire（二段 fence：attended＋token）。trace 検証済 |
 | **schedule→Trigger.dev seam** | `prototype/mcp/trigger/` | automation の `schedule` trigger を Trigger.dev v3 declarative `schedules.task` に乗せる（自前 cron 無し、G1 adopt）。`gen-trigger.mjs`＝`automations.json`→task 生成、`run()`→`fire.mjs`→MCP。**generator + `fire.mjs` は検証済**／cron→fire の end-to-end は Trigger.dev project（SDK）必要で未通電 |
+| **durable inbox + D&D cockpit** | `prototype/hub/` | offline 耐性の handoff：相手オフラインでも `hub` が durable に保持→次 poll で **auto 実行 or 承認待ち**。`ui.html`＝**ドラッグ&ドロップ cockpit**（presence・drag-to-handoff・承認・policy toggle）。MCP tools（`send_handoff`/`poll_inbox`/`approve_handoff`/…）でも操作可。A2A に無い mailbox を自前実装、耐久は将来 Trigger.dev waitpoint に乗せる。CLI+API 検証済 |
 | fleet 計測 | `scripts/measure-fleet.mjs` | 並列 session 数 + contextFill 式の実機検証 |
 
 全て **依存ゼロ・ローカル・実 LLM**。trust/承認は attended で fence。
@@ -90,6 +91,7 @@
 | `docs/07` | dogfood 手順（Persona C 1-handoff） |
 | `docs/08` / `09` | 借りる OSS 部品 / 自前部品（≒堀） |
 | `docs/10` | MCP control plane 設計 |
+| `prototype/hub/` | **durable inbox + D&D cockpit**（offline 配送・presence・承認/auto。`README` 参照） |
 | `prototype/gate1/` | **GATE-1 close kit**（recruit→run→score。最優先入口） |
 | `prototype/README.md` | 1-handoff の動かし方 |
 | `prototype/agents/README.md` | A社↔B社 cross-company demo |
