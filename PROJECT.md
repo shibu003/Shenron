@@ -1,7 +1,7 @@
 # PROJECT — BuildHUD（仮）現状サマリ
 
 > 次セッションの **最初に読む** 1 枚。決定事項・到達点・残 gate・入口を集約。詳細は `docs/` と `prototype/`。
-> 更新: 2026-06-16（(a) Trust Boundary 商品化 A/B/C 完了＝`docs/12`／Wave E trust-native builder E1✅E2✅ E3⏳＝`docs/11 §2.7`・parity は neutralize 方針）
+> 更新: 2026-06-16（(a) Trust Boundary 商品化 A/B/C＝`docs/12`／Wave E trust-native builder E1–E3 完了＝`docs/11 §2.7`／**現モード＝使いやすさ Wave pass §5：機能を1つずつ guided UI 化。Wave1=配線 firewall 済・次=trigger/fire event**）
 
 ---
 
@@ -76,6 +76,12 @@
 ## 5. 次にやること（優先順）
 
 > ⚡ **Phase 1＋Phase 2（H★ Trust Boundary / I consensus / J build-state IR）完了（`docs/11`・origin 同期済 `918d26d`）。cockpit は Langflow 実機 UI 参考に整理済**。差別化の 5 束は実コードで存在（`docs/11 §2.6`）。
+
+### ▶▶ 現在の作業モード = **使いやすさ Wave pass（機能を 1 つずつ「根本から」直す）**
+> 方針（user・2026-06-16）: 各 Wave で **cockpit の 1 機能/1 画面**を取り、**「自由入力/生 JSON → 使い手が判断できる UI」**へ。型は「① その機能に何が流れ・誰が扱うかを**先に見せる** → ② **情報/選択肢ごとに**設定できる → ③ sandbox/approval/trust を**明示**して信頼度を上げる」。⚠️ **これは一例で全機能の解ではない — 問題ごとに解は別**。各 Wave＝**問題点を見つける→判断可能な状態にする→実装→検証**を閉じる（WIP=1）。⚠️ **並列セッションが同 working tree（ui.html）を触る** → commit 前に `git status --short` 必須・safe-commit。
+- **✅ Wave 1（DONE・`ee87e84`）= 配線 data-firewall inspector**: 自由入力 never 単独 → **送り手/受け手 contract カード（role/会社/型）＋受け手 passport（net/fs/external_send）＋情報カテゴリ checkbox（secrets/PII は常時ON、project/customer/strategy は1クリック）＋edge から trust preset ＋Check trust**。`share.classes`(復元用)＋展開した `share.never`(既存 hub 強制経路) で保存。
+- **▶ Wave 2（次）= trigger / fire event UI**: 今 `{ "event":"review_completed", "status":"green" }` の**生 JSON が利用者を迷わせる**。→ event を語彙（`/api/buildstate` の 10 種＋fields）から選び、status/match を**ガイド付き**で組み、fire 時に「何が起きるか」を自然文で見せる。
+- **backlog（同じ型で順次）**: MCP node の args（生 JSON → tool 別の typed field）／automation 保存（いつ何が走るか）／Ghost Writer のレビュー導線／Run 入力（entry ごとの typed 入力）／Consensus vendors／send handoff modal。各 Wave 着手時に「この機能の迷う点」を 1 つ特定してから。
 
 ### ✅ (a) #1「Agent Trust Boundary」を**有料商品化**（最初の有料 SKU・`docs/11 §2.6` 収益化 #1）= **A/B/C 完了・実機検証済**
 1-pager＝**`docs/12_TRUST_BOUNDARY_SKU.md`**（ICP・束・課金・正直 fence）。素地は Wave H（`prototype/trust.mjs`）、粒度と packaging を A/B/C で productize:
