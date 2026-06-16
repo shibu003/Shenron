@@ -36,6 +36,7 @@
 
 GLUE は作らず乗る（philosophy #1）:
 - **G1** → Trigger.dev(Apache-2.0) / Hatchet(OSS・AI-agent durable)
+  - **実装済 seam**（`prototype/mcp/trigger/`）：automation の `schedule` trigger は **Trigger.dev v3 declarative `schedules.task({id,cron,run})`** に乗せる。自前 cron は持たない。`gen-trigger.mjs` が `automations.json`（単一の真実源）から task を生成し、各 `run()` は `prototype/mcp/fire.mjs` 経由で **MCP server の `run_automation` を fire**。cron 同期は `npx trigger.dev dev|deploy`。worker は agents が届く所で動かす（Cloud は localhost agent に届かない＝self-hosted/dev）。`build_state` trigger は cron でなく CI からの `fire_event`。
 - **G3** → HumanLayer（Slack/email/SMS 承認。cross-party identity だけ自前）
 - **G4/G5** → Solo.io **agentgateway**(LF・A2A+MCP native・中立) / Kong Agent Gateway / Portkey / LiteLLM / TrueFoundry（registry+discovery+routing+多テナント計量）
 - **G2** → React Flow 上に自前（A2A-card-as-node を native でやる OSS 無し）

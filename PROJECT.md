@@ -47,6 +47,7 @@
 | 1-handoff（Persona C） | `prototype/` | review-branch を**実 Codex**がレビュー、往復 COMPLETED |
 | A社↔B社 cross-company | `prototype/agents/` | LinkedIn 営業(**Codex**)→マーケ(**Claude**)、**実 LLM**で連鎖 |
 | **MCP control plane** | `prototype/mcp/` | **3 索引（agent/workflow/automation）token-light** + `run_workflow`/`run_automation`/`fire_event`。build-state event で automation を引く＋`--unattended` で無人 fire（二段 fence：attended＋token）。trace 検証済 |
+| **schedule→Trigger.dev seam** | `prototype/mcp/trigger/` | automation の `schedule` trigger を Trigger.dev v3 declarative `schedules.task` に乗せる（自前 cron 無し、G1 adopt）。`gen-trigger.mjs`＝`automations.json`→task 生成、`run()`→`fire.mjs`→MCP。生成・wiring 検証済 |
 | fleet 計測 | `scripts/measure-fleet.mjs` | 並列 session 数 + contextFill 式の実機検証 |
 
 全て **依存ゼロ・ローカル・実 LLM**。trust/承認は attended で fence。
