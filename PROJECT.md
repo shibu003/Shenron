@@ -91,6 +91,7 @@
 | `docs/07` | dogfood 手順（Persona C 1-handoff） |
 | `docs/08` / `09` | 借りる OSS 部品 / 自前部品（≒堀） |
 | `docs/10` | MCP control plane 設計 |
+| `docs/11` | **cockpit roadmap**（Langflow/n8n 流用・visual flow-builder・Wave A–E） |
 | `prototype/hub/` | **durable inbox + D&D cockpit**（offline 配送・presence・承認/auto。`README` 参照） |
 | `prototype/gate1/` | **GATE-1 close kit**（recruit→run→score。最優先入口） |
 | `prototype/README.md` | 1-handoff の動かし方 |
