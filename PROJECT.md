@@ -71,7 +71,7 @@
 
 ## 5. 次にやること（優先順）
 
-1. **GATE-1 を閉じる**: friend 1 人＋反復タスクを実名で確定 → `prototype/agents` or `prototype/mcp` をその実 repo/業務で 1 回回す。
+1. **GATE-1 を閉じる**（最優先・唯一の人間タスク）: 実在の友人 1 人＋反復タスクを実名で確定 → **`prototype/gate1/`**（runbook + 招待文 + scorecard、mechanism は検証済）で 1 回往復 → `SCORECARD.md` を埋める。mechanism と実 Codex 往復は ✅、残るは「実在の 2 人目」と「また使いたい」の 2 criterion のみ。
 2. **検証**: `docs/05` の R1/R2/R3 行動テスト（DM 文面・採点・kill-criteria あり）＋ `measure-fleet.mjs`。
 3. **roadmap**: `docs/06` の North Star 7 pillar から **gate 条件つき Wave**（3-pass loop）に back-cast（未着手）。
 4. （任意）投資家 1-pager / MCP を実 client(.mcp.json)に登録して AI 運用。
@@ -90,6 +90,7 @@
 | `docs/07` | dogfood 手順（Persona C 1-handoff） |
 | `docs/08` / `09` | 借りる OSS 部品 / 自前部品（≒堀） |
 | `docs/10` | MCP control plane 設計 |
+| `prototype/gate1/` | **GATE-1 close kit**（recruit→run→score。最優先入口） |
 | `prototype/README.md` | 1-handoff の動かし方 |
 | `prototype/agents/README.md` | A社↔B社 cross-company demo |
 | `prototype/mcp/README.md` | **MCP の使い方（次セッション入口）** |
