@@ -84,7 +84,7 @@
 8. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
 9. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
 
-**cockpit を動かす**: `node prototype/hub/hub.mjs --vendor stub` → **http://localhost:8795**（`--vendor stub`＝local agent を即時 in-process 実行・real LLM は省略。drag→drag で handoff、policy ⚡auto/✋approval、承認、status 集計・timeline）。**LOCAL agent（sales/marketing）は worker 不要で hub が走らせる**（B1）。REMOTE agent のみ worker: `node prototype/hub/worker.mjs --config … --vendor stub|claude|codex`。
+**cockpit を動かす**: `node prototype/hub/hub.mjs --vendor stub` → **http://localhost:8795**。UI は **Langflow 流の flow-builder に再設計**（左 palette・上 toolbar〔Save / Run / Automate▾〕・中央 canvas・右 inspector・**🌐 JA/EN 切替**）。操作モデル＝**ノード移動＝本体ドラッグ／配線＝port ドラッグ／設定＝ノードを click→ inspector**（旧「重ねて送信」廃止、handoff 送信は inspector の Send から）。`--vendor stub`＝local agent を即時 in-process 実行（B1・worker 不要）。REMOTE agent のみ worker: `node prototype/hub/worker.mjs --config … --vendor stub|claude|codex`。
 ⚠️ 再開時 `lsof -tiTCP:8795` で hub の有無を確認、無ければ起動。
 
 ---
