@@ -114,6 +114,34 @@ cross-party agent trust に NIST AI Agent Standards(2026/2)・CIAM/WIAM(Strata/A
 
 ---
 
+## 6.5 市場構造 — agent を「買う」時代と S1/S2（2026-06 接地）
+
+**前提（実在）**：agent はもう「買う」もの。Salesforce AgentExchange / Google Agentspace / Microsoft / AWS / Oracle が agent marketplace を全社投入（task $5–50〜enterprise $5k–50k/月）。interop 標準は A2A / MCP（MCP は企業採用 Gartner +1,445%）。cross-org の agent 商取引も始動（調達 agent ↔ 仕入先 sales agent、Google UCP 2026 テスト/2027 本番、Gartner: 2028 までに agent が B2B 購買 $15T を仲介）。
+
+**🔴 だが「繋ぐ」には性質の違う 2 シナリオがあり、混同は致命的**（本書のデモ A社↔B社 はこれを曖昧にしている）：
+
+| | **S1: 社内・複数 vendor** | **S2: 会社境界またぎ** |
+|---|---|---|
+| 例 | 1 社が SF agent＋他社マーケ agent＋自前を**社内で**handoff | A社 agent が **B社 agent** と境界越しに取引 |
+| デモの実体 | **ほぼこれ**（営業＋マーケは普通 1 社の stack） | "2 社"と銘打つが実は S1 寄り |
+| 需要 | **実在・今・大きい**（marketplace 出荷済、A2A はこのため） | 方向は実在も**主に将来/投機**（UCP 2027、$15T は 2028 予測） |
+| 競合 | 🔴 巨人＋iPaaS(n8n/Workato)＋A2A ネイティブが収束。"勝者は企業調達 plumbing に紐づく者" | 🟢 白地寄り、だが trust/課金/責任が**未解決(M5)**＋UCP/決済 rails 流入 |
+
+→ **繋ぐ需要が*今・濃い*のは S1（混雑・enterprise 重力）。*白地*は S2（hard＋将来＋trust 未解決）。防御可能な所と、難しく未検証な所が同じ** — これが正直な構造（§4/§5 と一致）。
+
+**🔴 罠**：$15T/$3T は 2028 のアナリスト予測で「今この 2 社が払う」を意味しない。「論理的に需要が出るはず」は依然 🔴 仮説。**GATE-1 不変**。
+
+**ICP のズレ（最重要・自分に効く）**：繋ぐ**金**があるのは enterprise(S1)/B2B 商取引(S2)。だが安く検証でき founder が中に居る ICP は indie/fleet-operator/free-tier juggler。**両者がズレている。**
+→ **橋**：今は **「indie/小チームが Claude+Codex＋専門 agent を*買って/使って*社内で繋ぐ」＝ S1 の小規模端**（prototype が既に動かす領域・founder も中に居る）。**enterprise marketplace 越え/cross-org($15T) は投資家向け TAM ナラティブ**として使い、**今は作らない**。
+
+**立ち位置**：marketplace は agent を**売る**場、A2A は**繋ぐ**標準。単一 marketplace は競合 agent を自社内で昇格しない → **vendor 中立の wiring/trust/UX 層は単一巨人に構造防御可能**。ただし **A2A 自体（中立・巨人連合）とは競合** → 白地は「**A2A の上の、marketplace 横断の orchestration＋trust＋体験**」に絞られる（transport ではない）。
+
+**最速検証（S1 起点）**：「今、別ベンダの agent / 自動化を**手で**繋いでいる（コピペ・人手リレー）人」を 3–5 人探す＝ S1 の実在手作業＝pain の証拠。S2（他社 agent と境界越し）を*今*手でやってる人が居れば強い早期シグナル。
+
+> 出典: Stactize（agent marketplaces）, Fastio（buy/sell agents）, MetaRouter / adwaitx（agentic commerce）, IBM Research（agent economy）。
+
+---
+
 ## 7. MVP スコープ（出荷可能・fence 済）
 
 1. **1 trusted dyad**（あなた + 実在の 1 人）。trust は事前合意で fake。
