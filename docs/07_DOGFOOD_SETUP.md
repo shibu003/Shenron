@@ -29,7 +29,7 @@
    git push (feat/*)                                 │ 3) approve? [y/N] → 実行
         │                                            │
   A host (Node/TS or Py)                        B host (a2a-sdk server)
-   1) 検知 → A2A client                          ├ /.well-known/agent.json (skill: review-branch)
+   1) 検知 → A2A client                          ├ /.well-known/agent-card.json (skill: review-branch)
    2) message/send ──── cloudflared tunnel ────► └ on_message_send → Codex review → 返信
         ▲                                            │
         └──────────── 5) 結果表示 ◄──── A2A 応答 ────┘
@@ -72,7 +72,7 @@ cloudflared tunnel --url http://localhost:8787
 ```
 
 ### S2. B 側：A2A server ＋ Agent Card
-`/.well-known/agent.json`（skill を 1 つだけ公開）：
+`/.well-known/agent-card.json`（skill を 1 つだけ公開）：
 ```json
 {
   "name": "friend-codex-reviewer",
@@ -93,18 +93,22 @@ server（`a2a-sdk`, Python・擬似コード。method 名は v1.0 SDK で要確�
 ```python
 # pip install a2a-sdk
 class ReviewExecutor(AgentExecutor):
-    async def on_message_send(self, ctx):
-        require_bearer(ctx, os.environ["A2A_SHARED_TOKEN"])     # trust fake
-        req = parse(ctx.message)                                 # {repo, branch, diff_url}
-        assert req["repo"] in ALLOWLIST                          # repo 限定
+    async def execute(self, context, event_queue):              # ← hook 名は execute（on_message_send は無い）
+        require_bearer(context, os.environ["A2A_SHARED_TOKEN"]) # trust fake（本来は前段 middleware 推奨）
+        req = parse(context.message)                            # {repo, branch, diff_url}
+        assert req["repo"] in ALLOWLIST                         # repo 限定
         if not approve_prompt(f"A asks Codex to review {req['branch']} — approve?"):
-            return text("declined")                              # attended
-        log_handoff(req)                                         # 監査
-        review = run(["codex", "exec",                           # ← 非対話 flag は要確認
+            event_queue.enqueue_event(text("declined")); return # attended（gate は codex の外）
+        log_handoff(req)                                        # 監査
+        review = run(["codex", "exec", "--json",                # 機械可読は --json（--output-format は無い）
+                      "--ask-for-approval", "never",            # 対話 approval は切る（gate は上の approve_prompt）
+                      "--sandbox", "read-only",                 # review なので read-only
                       f"Review the diff of branch {req['branch']} in {req['repo']}. "
                       f"List bugs and risks concisely."])
-        return text(review)
-# DefaultA2ARequestHandler(ReviewExecutor) を HTTP :8787 で serve
+        event_queue.enqueue_event(text(review))                 # 結果を enqueue（HTTP は触らない）
+    async def cancel(self, context, event_queue): ...
+# DefaultRequestHandler(agent_card=card, agent_executor=ReviewExecutor(), task_store=InMemoryTaskStore())
+# を route factory (create_jsonrpc_routes 等) で :8787 に mount（A2AStarletteApplication は v1.0 で廃止）
 ```
 
 ### S3. A 側：trigger（push を検知）
@@ -119,7 +123,7 @@ curl -s localhost:8788/trigger -d "{\"branch\":\"$branch\"}"
 ```python
 # pip install a2a-sdk  (client)
 client = A2AClient(base_url=B_TUNNEL_URL, token=os.environ["A2A_SHARED_TOKEN"])
-card = client.get_agent_card()                       # /.well-known/agent.json
+card = client.get_agent_card()                       # /.well-known/agent-card.json
 task = client.message_send(skill="review-branch",
         text=json.dumps({"repo": REPO, "branch": branch, "diff_url": diff_url}))
 result = client.wait(task)                            # message/send → poll/stream
@@ -160,14 +164,14 @@ print("REVIEW FROM FRIEND'S CODEX:\n", result.text)  # S5 結果表示
 
 Claude Code / Codex に**この §だけ**渡せば組める。fence を spec に明記して scope 膨張を防ぐ：
 
-> 「A2A（a2a-sdk）で 2 host を繋ぐ最小デモを作れ。B host は `/.well-known/agent.json` に skill `review-branch` を 1 つ公開し、bearer token（env `A2A_SHARED_TOKEN`）を検証、allowlist した repo のみ受け、承認プロンプト y のときだけ `codex exec` で diff review を実行して返す。A host は pre-push hook で branch 名を受け、A2A client で B に `message/send`、結果を端末表示。**追加機能は作るな**（認可基盤・課金・複数 skill・自動 merge・unattended は禁止）。method 名は a2a-sdk v1.0 のドキュメントで確認せよ。」
+> 「A2A（a2a-sdk）で 2 host を繋ぐ最小デモを作れ。B host は `/.well-known/agent-card.json` に skill `review-branch` を 1 つ公開し、bearer token（env `A2A_SHARED_TOKEN`）を検証、allowlist した repo のみ受け、承認プロンプト y のときだけ `codex exec` で diff review を実行して返す。A host は pre-push hook で branch 名を受け、A2A client で B に `message/send`、結果を端末表示。**追加機能は作るな**（認可基盤・課金・複数 skill・自動 merge・unattended は禁止）。method 名は a2a-sdk v1.0 のドキュメントで確認せよ。」
 
 ---
 
 ## 8. 落とし穴
 
-- **A2A method 名/型は v1.0 SDK で要確認**（`message/send` vs `task/send`、`AgentExecutor` のフック名）。本書は概形。
-- **Codex/Claude の非対話 flag**：`codex exec`・`claude -p` の正確な引数を各 CLI の help で確認。
+- **A2A 接地済（`08` §1）**：card=`/.well-known/agent-card.json`（`agent.json` は legacy）、send=`message/send`（`task/send` は無い）、hook=`execute(ctx,event_queue)`（`on_message_send` は無い）、v1.0 で `A2AStarletteApplication` 廃止→route factory。
+- **dispatch flag 接地済（`08` §5）**：`claude -p`（`--output-format json`、`--permission-prompt-tool`）。**`codex exec --json`（`--output-format` は無い）＋`--ask-for-approval never --sandbox`**。Codex の approval は対話的なので **gate は BuildHUD 側（approve_prompt）に置く**。
 - **tunnel URL は起動毎に変わる**（trycloudflare 無料）→ Agent Card の `url` を毎回更新 or named tunnel。
 - **token を repo にコミットしない**（env のみ・`.gitignore`）。`handoff.log` に diff 全文を残さない（path/要約のみ）＝ 将来の privacy 設計の練習（`04` R4）。
 - **review は返すだけ・書き込まない**（attended でも自動 merge しない）。

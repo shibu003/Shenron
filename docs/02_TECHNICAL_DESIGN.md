@@ -1,30 +1,32 @@
 # 02 — 技術設計 & ロードマップ / Technical Design
 
-> Claude Code 向けハンドオフ (2/4)。製品文脈は `01_PRODUCT.md`、自己監査は `03_FEEDBACK_LOOP.md`、外部赤チームは `04_RED_TEAM_AUDIT.md`。
-> 原則：**複数 vendor のソースから"読む"→ vendor 中立 IR に束ねる → desktop cockpit で描く（mobile は companion）→ agent に"投入"する。** 難所は dispatch（unattended 実行）と privacy 境界であり、jsonl 読取りではない（04 で訂正）。堀は「open cross-vendor IR ＋ model 中立 ＋ 統合 view ＋ craft」。
+> Claude Code 向けハンドオフ (2/7)。製品文脈は `01`、自己監査 `03`、外部赤チーム `04`、ビジョン `06`、dogfood `07`。
+> **2026-06-16 改訂**：製品が「cross-vendor fleet ダッシュボード」から **「A2A の上の cross-person agent handoff レイヤー」** に進化（`06`）。技術設計を **2 層**で再構成する：
+> - **土台層**：各自 local で build-state を読む → vendor 中立 Build State IR（= 旧設計、状態とトリガー源）。
+> - **製品層**：その IR/イベントを引き金に、**A2A で他人の agent に handoff**（権限・監査・attended・D&D canvas）。
+> 原則：**protocol は作らない（A2A/MCP に乗る）。難所は trust と unattended dispatch であり、ログ読取りではない**（`04`）。堀＝cross-person×cross-vendor の handoff 体験＋trust＋build-state ネイティブ。
 
 ---
 
-## 1. アーキテクチャ（パイプライン）
+## 1. アーキテクチャ（2 層）
 
 ```
-[Desktop Cockpit (主 surface)]        [Host Agent (開発機/Codespace)]
-  cross-vendor IR 描画  <── 暗号relay ──   cross-vendor 状態リーダー群:
-  feature コンポーザ(構造化form)             ├─ Claude Code リーダー (~/.claude/projects/*.jsonl)
-        │                                     ├─ Codex リーダー (Codex ログ形式)
-[Mobile Companion]                            ├─ Gemini CLI リーダー (将来)
-  glance / approve   <── 暗号relay ──        ├─ git リーダー (branch 食い違い / feature)
-        │  "feature intent"(構造化)           └─ deploy リーダー (Vercel/EAS/Netlify API)
-        └──────────── 投入 ─────────►         │
-                                         [vendor 中立 Build State IR (JSON)] ← 唯一の正典・堀のIP
-                                              │  + host-liveness/staleness ← away 時の鮮度を明示
-                                         agent SDK / headless (dispatch + approve + recover)
+                         ┌──────────── 製品層: cross-person handoff (A2A) ────────────┐
+[A: founder host]                                                      [B: friend host]
+  土台層(下記) ──build-state event──► Handoff Engine                      A2A server
+                                       ├ trust gate (MVP=共有secret/allowlist/attended)   /.well-known/agent-card.json
+                                       ├ A2A client: message/send ── HTTPS/relay ─────►   skills: review-branch ...
+                                       └ D&D canvas で wire                                execute → 自 agent 実行
+                                              ▲                                                  │
+                                              └──────────── A2A 応答 (result) ◄────────────────┘
+  ┌──────────── 土台層: build-state reader + IR (各自 local・per-person) ────────────┐
+   Claude Code jsonl / Codex log / git / deploy API  →  vendor 中立 Build State IR
+   (context健康=副指標, branch divergence, deploy, feature, host-liveness/staleness)
 ```
 
-- **relay**：QR ペア＋E2E 暗号。**= Anthropic Remote Control / Codex と同型（commodity・堀でない・売りにしない）。** 04 で first-party 化を確認。
-- **唯一の正典＝vendor 中立 Build State IR**。複数 vendor を 1 モデルに束ねる事が堀。
-- **dispatch は監視つき（attended）を default**。unattended 完走は agent が最も失敗する所（04/R5）→ approve/recover を一級設計に。
-- **privacy 境界**：relay には **派生済の数値/状態のみ**を流す。message 本文・secret・コードは host に留める（04/R4・data-minimization）。
+- **土台層**＝各自の machine 内で完結（creds/本文は host に留める・`04` R4）。IR は handoff の **トリガー源**（branch push / deploy / test 完了）と **文脈**（diff/branch）を供給。
+- **製品層**＝A2A（JSON-RPC over HTTPS、Agent Card は `/.well-known/agent-card.json`）。**人をまたぐのはここだけ**。trust gate を必ず通す。
+- **線は A2A（commodity・標準）、価値は trust＋handoff 体験＋build-state ネイティブ**（`06` §4）。
 
 ---
 
@@ -32,150 +34,154 @@
 
 | # | 判断 | フォーク | 推し | 理由 |
 |---|---|---|---|---|
-| **A1** | 状態の入手 | 自前 runtime / 既存ソースを読む | **既存を複数 vendor 読む** | jsonl・Codex ログ・git・deploy API にある。再発明しない |
-| **A2** | データモデル | ソース別場当たり / **vendor 中立 IR** | **vendor 中立 Build State IR** | cross-vendor を 1 モデルに束ねる事自体が堀（model 中立） |
-| **A3** | 接続 & capture | pure local / **open-core + hosted tier** | **local OSS reader ＋ hosted fleet/team relay** | local は creds 安全だが capture を foreclose（04/IA3）。hosted team tier で metering（→ §10 resolved） |
-| **A4** | 機能の渡し方 | D&D / **構造化 form intent** | **構造化 feature intent（form/prompt）** | D&D は commodity + mobile anti-pattern（04/D5）。中核は構造化 intent、D&D は任意 |
-| **A5** | dispatch 安全性 | fire-and-forget / **attended + recover** | **attended dispatch（approve/recover 一級）** | unattended 完走は失敗源（04/R5）。away は approve queue で |
-| **A6** | privacy | whole-file relay / **数値のみ relay** | **派生数値/状態のみ host 外へ** | jsonl は本文/secret を含む（04/R4）。最小化必須 |
+| **A1** | 状態入手 | 自前 runtime / 既存読取り | **既存を複数 vendor 読む** | jsonl/Codex/git/deploy にある。再発明しない（土台層） |
+| **A2** | データモデル | 場当たり / **vendor 中立 IR** | **Build State IR** | 状態とトリガーを 1 モデルに。handoff の文脈源 |
+| **A3** | agent 間通信 | 自前 protocol / **A2A に乗る** | **A2A（+MCP）** | A2A v1.0・150+ org（`06`）。線を作らず差別化を上の層へ |
+| **A4** | handoff の渡し方 | 自由 prompt / **構造化 + skill** | **A2A skill + 構造化 payload** | Agent Card の skill に型を持たせ安定 dispatch |
+| **A5** | dispatch 安全性 | fire-and-forget / **attended + 返すだけ** | **attended（approve gate）・read-only 返答** | unattended 連鎖は最大の難所（`04` R5）。自動 merge しない |
+| **A6** | trust | 本物の認可 / **MVP=fake → 段階** | **MVP=共有secret+allowlist+attended、本物は North Star** | cross-party 認可は数年仕事（`04` R4/`06` GATE-2）。fence |
+| **A7** | privacy | whole-file relay / **最小 payload** | **diff URL/要約のみ・本文は載せない** | jsonl は secret/本文を含む（`04` R4）。data-minimization |
+| **A8** | capture | pure local / **open-core + hosted relay** | **OSS 土台 + hosted trust/relay tier** | multi-tenant relay が network effect・課金点（`06` IA3） |
 
 ---
 
-## 3. vendor 中立 Build State IR（具体スキーマ + 実例）
+## 3. データモデル（2 つ）
 
-cockpit/mobile が描く唯一のモデル。host が各 vendor リーダーから組み立てる。
-
+### 3.1 Build State IR（土台層・各自 local）
+`cockpit`/`mobile` が描き、handoff のトリガー/文脈になる正典。
 ```json
 {
-  "project": { "id": "buildhud", "name": "BuildHUD", "root": "/abs/path" },
-  "host": {
-    "online": true,                 // host 常駐の生死（away 時の鮮度判定）
-    "lastSeen": "2026-06-15T08:51:10Z",
-    "dataStaleSince": null          // host 不在なら staleness を一級表示（04/IA1）
-  },
+  "project": { "id": "buildhud", "root": "/abs/path" },
+  "host": { "online": true, "lastSeen": "2026-06-16T01:00:00Z", "dataStaleSince": null },
   "sessions": [
-    { "id": "s1", "vendor": "claude-code", "branch": "feat/payments",
-      "status": "active", "model": "claude-opus-4-8", "modelWindow": 1000000,  // 窓は host config（jsonl に無い・04/IA2）
-      "aiHealth": {
-        "contextFillPct": 53,       // ★最新リクエスト input 側 ÷ 窓（累積ではない・04 訂正）
-        "cacheHitRate": 0.62,       // cache_read ÷ (cache_read + cache_creation) ＝唯一数学的に堅い指標
-        "tokenBurnPerMin": 14200,
-        "warnings": ["context_window_pressure"]
-      } },
-    { "id": "s2", "vendor": "codex", "branch": "main", "status": "idle", "model": "gpt-...", "aiHealth": { "contextFillPct": 22, "cacheHitRate": null } }
+    { "id": "s1", "vendor": "claude-code", "branch": "feat/payments", "status": "active",
+      "model": "claude-opus-4-8", "modelWindow": 1000000,
+      "aiHealth": { "contextFillPct": 53, "cacheHitRate": 0.62, "tokenBurnPerMin": 14200,
+                    "warnings": ["context_window_pressure"] } }
   ],
-  "branches": [
-    { "name": "main",         "ahead": 0, "behind": 0,  "isCurrent": false },
-    { "name": "feat/payments","ahead": 7, "behind": 3, "isCurrent": true }
-  ],
-  "deploys": [
-    { "target": "vercel-prod", "status": "deployed",    "commit": "a1b2c3", "at": "...Z" },
-    { "target": "vercel-prev", "status": "out_of_date", "commit": "main@9f", "at": "...Z" }
-  ],
-  "features": [
-    { "id": "f1", "name": "Auth",     "status": "implemented", "branch": "main" },
-    { "id": "f2", "name": "Payments", "status": "in_progress",  "branch": "feat/payments" }
-  ]
+  "branches": [ { "name": "feat/payments", "ahead": 7, "behind": 3, "isCurrent": true } ],
+  "deploys":  [ { "target": "vercel-prod", "status": "deployed", "commit": "a1b2c3" } ],
+  "features": [ { "id": "f2", "name": "Payments", "status": "in_progress", "branch": "feat/payments" } ]
 }
 ```
+- `host.dataStaleSince` ＝ away 時の鮮度を一級表示（`04` IA1）。
+- `aiHealth` ＝ **副指標**（鈎でない）。`contextFillPct` は §4 修正式。`modelWindow` は host config（jsonl に窓が無い・`04` IA2）。
 
-- `host` ＋ `dataStaleSince` ＝ **away 時の staleness を一級に**（04/IA1。旧 schema には無かった穴）。
-- `sessions[].vendor` ＝ **cross-vendor 統合の核（P1）**。`modelWindow` は host config（jsonl に窓も `[1m]` suffix も無い・04/IA2）。
-- `aiHealth` ＝ **副指標**（鈎でない）。`branches`/`deploys`/`features` ＝ P2 統合。
-- `feature intent`（A4 出力）の例：
+### 3.2 Handoff / A2A schema（製品層・cross-person）
+build-state イベントが handoff を生み、A2A で運ぶ。
 ```json
-{ "type": "add_feature", "label": "Push notifications",
-  "targetVendor": "claude-code", "targetBranch": "feat/payments", "notes": "expo-notifications, opt-in" }
+{
+  "handoff": {
+    "id": "h_001",
+    "from": { "person": "A", "vendor": "claude-code",
+              "agentCard": "https://a.example/.well-known/agent-card.json" },
+    "to":   { "person": "B", "vendor": "codex", "skill": "review-branch" },
+    "trigger": { "type": "build_state_event", "event": "branch_pushed", "branch": "feat/payments" },
+    "payload": { "repo": "org/app", "branch": "feat/payments", "diffUrl": "https://...", "notes": "" },
+    "trust": { "scheme": "shared_bearer", "repoAllowlist": ["org/app"], "attended": true },
+    "status": "pending_approval",   // → running → returned | declined
+    "result": { "text": null, "at": null },
+    "audit": [ { "ts": "...", "actor": "B", "action": "received" } ]
+  }
+}
 ```
-host が構造化タスクに翻訳し **attended dispatch**（approve gate つき）で投入。
+- **A2A 配線（`08` で接地）**：Agent Card（name/description/skills/securitySchemes）を **`/.well-known/agent-card.json`**（`agent.json` は legacy）に公開、**`message/send`**（非stream）/`message/stream`（SSE）で送信、`AgentExecutor.execute(ctx, event_queue)` で自 agent を実行し event を enqueue。task states は SCREAMING_SNAKE（`SUBMITTED→WORKING→COMPLETED`、`PENDING` 無し）→ 本書の `pending_approval` は A2A の `INPUT_REQUIRED`/`AUTH_REQUIRED` に対応づける。SDK＝`a2a-sdk`/`@a2a-js/sdk`。
+- `payload` は **最小**（diff URL/要約。本文を載せない・A7）。
 
 ---
 
-## 4. 健康導出ロジック（jsonl → 指標）★04 で式修正
+## 4. 健康導出（jsonl → 指標）★`04` 修正済 / `08` で簡素化
 
-各 vendor のセッションログ（Claude Code＝`~/.claude/projects/*.jsonl`、Codex＝Codex 形式）を読み集計：
-
-- **contextFillPct（修正版）** = **最新リクエストの input 側**（`input_tokens + cache_read_input_tokens + cache_creation_input_tokens`）÷ **モデル窓**。
-  - ⚠️ **旧式「累積トークン ÷ 窓」は誤り**（04 実機検証：446%–252,616%、569 中 80% が >100%）。cache_read を毎ターン再カウント + auto-compact(~83.5%) で累積は無限増。
-  - ⚠️ **窓サイズは jsonl に無く、`[1m]` suffix も保存されない**（model＝`claude-opus-4-8`）→ **窓は host 側 config** で持ち、不明時は `% 不明` を表示（偽の % を出さない）。
-- **cacheHitRate** = `cache_read` ÷ (`cache_read` + `cache_creation`)。**唯一数学的に堅い指標**（cache フィールドは streaming bug の影響を受けない）。
-- **tokenBurnPerMin** = 直近 N ターンの input+output / 経過分（streaming bug で input/output は過小になり得る・注意）。
-- **warnings**：`contextFillPct > 閾値` → `context_window_pressure`、`cacheHitRate` 急落 → `cache_thrash`。
-- 既存 OSS（ccusage 4.8k★ 他）が **token 帰属/コスト**を読めるのは実証。**ただし「live context fill」は別物**（ccusage は live monitor を撤去）。健康導出は **commodity**（`/context` が既に正しくやる）＝ 堀でない。堀は統合 IR + model 中立。
+- **💡 最善は自前計算でなく Claude Code statusline stdin の `context_window` を consume**（`08` §2 接地）：`context_window_size`（200k/1M＝**jsonl に無い窓がここに**）、`used_percentage`（公式に "input only: input + cache_creation + cache_read" と明記＝下式と同一）、`current_usage`/`rate_limits`/`cost`/`session_id` も同梱。**Codex は `payload.info.model_context_window` を in-file 保持**。jsonl 逆算は statusline が無い post-hoc の fallback。
+- **contextFillPct（fallback 式）** = **最新リクエスト input 側**（`input_tokens + cache_read_input_tokens + cache_creation_input_tokens`）÷ モデル窓。
+  - ⚠️ 旧「累積÷窓」は誤り（実機 137%–2753%、`04`/`05` 再現）。cache_read 再カウント + auto-compact(~83.5%) で累積は無限増。
+  - ⚠️ 窓は jsonl に無く `[1m]` suffix も無い → **host config**。不明時は `% 不明`（偽の % を出さない）。
+- **cacheHitRate** = `cache_read ÷ (cache_read + cache_creation)`。**唯一数学的に堅い指標**。
+- **tokenBurnPerMin** = 直近 N ターンの input+output / 分（streaming bug で過小注意）。
+- 検証：`scripts/measure-fleet.mjs` が修正式/旧式を実機対比（`05`）。健康導出は commodity（`/context` が既に正しくやる）＝ 堀でない。
 
 ---
 
-## 5. コンポーネント（部品システム）
+## 5. コンポーネント
 
-| 部品 | 役割 | 正しい挙動 |
+| 部品 | 層 | 役割 | 正しい挙動 |
+|---|---|---|---|
+| **State Readers** | 土台 | jsonl/Codex/git/deploy を読む | per-vendor、本文は host に留める |
+| **IR Assembler** | 土台 | Build State IR を組立 | staleness/host-liveness を一級に |
+| **Trigger Watcher** | 土台 | build-state イベント検知 | branch_pushed / deployed / test_done → handoff 起票 |
+| **A2A Server** | 製品 | Agent Card + skill 受信 | `/.well-known/agent-card.json`、bearer 検証、allowlist |
+| **Trust Gate** | 製品 | 認可（MVP=fake） | 共有secret+repo allowlist+attended、audit ログ |
+| **Approve Queue** | 製品 | attended 承認 | **`canUseTool` callback / blocking MCP**（defer 可・session 再開）。**PTY scrape 禁止**（Omnara が死んだ反 pattern・`08` §5） |
+| **Agent Runner** | 製品 | 自 agent を実行 | `claude -p`（`--permission-prompt-tool`）/ **`codex exec --json --ask-for-approval never --sandbox`（gate は外）**、**返すだけ・書込まない** |
+| **A2A Client** | 製品 | handoff 送信/受信 | message/send → result |
+| **D&D Canvas** | 製品 | handoff を wire | **React Flow/@xyflow v12（MIT）**・generic typed node・domain-over-graph。`A push → B:skill → 結果` を 2-3 node |
+| **Cockpit / Mobile** | 両 | IR 描画 / glance・approve | desktop 主・mobile companion（`04` IA4） |
+
+---
+
+## 6. trust モデル（段階）
+
+| 段階 | 方式 | 範囲 |
 |---|---|---|
-| **Cross-Vendor Session View** | 全 vendor の active session を 1 view | vendor badge + branch + status。**P1 の核** |
-| **Feature Inventory** | 実装済/進行中 | branch 別、git/解析から |
-| **Deploy Indicator** | デプロイ状態 | target 別 deployed/out_of_date/failed |
-| **Branch Divergence** | branch 食い違い | ahead/behind、衝突予兆 |
-| **Health Cell（副）** | context/cache を glance | 修正式の fill% + cacheHit。warning 時に色。**鈎でなく副 cell** |
-| **Staleness Banner** | host 鮮度 | host offline 時「データは HH:MM 時点」を一級表示 |
-| **Feature Composer** | 機能を足す | **構造化 form**（label/vendor/branch）→ intent → **attended dispatch**。D&D は任意 affordance |
-| **Approve Queue** | away 承認 | dispatch の permission/plan/conflict を mobile で承認・redirect |
+| **MVP（fake）** | 共有 bearer token + repo allowlist + 全 attended + `handoff.log` 監査 | 既知の 1 dyad・1 repo（`07`） |
+| **Phase 1** | per-skill scope、named tunnel/relay、revoke、device 紐付け | 小チーム/既知の数人 |
+| **North Star（本物）** | **OAuth On-Behalf-Of (OBO) + DPoP**、identity-based delegation、監査連鎖、NIST AI Agent Standards 準拠 | 任意の cross-org（hosted tier） |
+
+> 「誰が・誰の権限で・何の token で・何に触れたか」を最初から `audit` に残す（将来の本物 trust の種）。これは未解決の難問＝堀候補だが scope 爆弾（`06` GATE-2/3）。**MVP では本物を作らない。**
 
 ---
 
-## 6. デザインシステム / 配信 / 計測
+## 7. スタック + リポ構成
 
-- **desktop-first cockpit**：横断 view を密に。mobile は **glance/approve companion**（情報を絞る）。
-- **配信**：cockpit＝Electron/Tauri or web。mobile＝Expo（OTA）。OSS リポ公開。**Apple 2.5.2 risk**（vibe-coding app 排除中）を mobile 配布前に確認。
-- **計測**：cross-vendor session を束ねた数、away approve 成功率、staleness 露出時間、warning 的中率、（R1）health を見て取った行動。
-
----
-
-## 7. スタック提案 + リポ構成
-
-- **cockpit**：TS（Tauri/Electron or web）。IR renderer、cross-vendor view。
-- **mobile**：React Native / Expo（glance/approve）。
-- **host agent**：Node/TS。vendor 別リーダー、IR 組み立て、relay endpoint、attended dispatch。
-- **relay**：QR ペア＋E2E（commodity）。
-- **shared**：**open IR schema（標準化を狙う公開パッケージ）**。
+- **host agent**：Node/TS or Python。readers / IR assembler / trigger / **A2A server+client（a2a-sdk）** / trust gate / dispatch。
+- **cockpit**：TS（Tauri/Electron or web）。IR renderer + D&D canvas。
+- **mobile**：Expo（glance + approve queue）。
+- **shared**：**open IR schema + handoff schema**（標準化・ecosystem 採用狙い）。
+- **relay/到達**：MVP=cloudflared/ngrok tunnel、後に hosted relay（capture 点）。
 
 ```
-/cockpit    … desktop (cross-vendor IR renderer, composer)
-/mobile     … Expo (glance, approve queue)
-/host       … node agent
-  /readers  … claudeCode.ts, codex.ts, gemini.ts, git.ts, deploy.ts
-  /ir       … buildState.ts (schema + assembler + staleness)
-  /dispatch … attended.ts (feature intent → headless + approve/recover)
-  /relay    … pair.ts, channel.ts (数値のみ・data-minimization)
-/ir-schema  … open build-state IR (公開・ecosystem 採用狙い)
+/host
+  /readers   … claudeCode.ts, codex.ts, git.ts, deploy.ts
+  /ir        … buildState.ts (schema + assembler + staleness)
+  /trigger   … watch.ts (build-state event → handoff)
+  /a2a       … server.ts (AgentCard, execute), client.ts (message/send)
+  /trust     … gate.ts (bearer+allowlist+attended+audit)   ← MVP fake
+  /dispatch  … run.ts (claude -p / codex exec, read-only 返答)
+/cockpit     … desktop (IR renderer, D&D canvas)
+/mobile      … Expo (glance, approve queue)
+/schema      … build-state-ir + handoff-schema (公開)
 ```
 
 ---
 
-## 8. MVP スコープ（ハッカソン）
+## 8. MVP スコープ（= `07` Persona C）
 
-1. **2 vendor**（Claude Code + Codex）を host が読み、**1 つの cross-vendor IR** に束ねる。
-2. desktop cockpit：**Cross-Vendor Session View ＋ Branch Divergence ＋ Deploy Indicator**、Health は **副 cell**（修正式）。
-3. **構造化 form で feature 追加 → attended dispatch**（approve gate つき）。
-4. **mobile companion**：glance + approve queue。
-5. **staleness banner**（host offline 時）。
-6. デモ＝「全 vendor を 1 view → away approve」。
+1. **2 host（A=Claude / B=Codex）**、各自 土台層は最小（branch push 検知だけでも可）。
+2. **A2A で 1 skill `review-branch`**：A の push → trigger → A2A `message/send` → B が attended 承認 → `codex exec` で diff review → result を A に返す。
+3. **trust=fake**（共有 secret + repo allowlist + attended + `handoff.log`）。
+4. **D&D canvas は demo polish**（dogfood 検証は config で先行）。
+5. wow＝「他人の agent が、自分の合図で、自分の workflow の一部として動く」。
 
-**やらない（MVP）**：D&D 中核 UI、context-health を鈎扱い、unattended 完走、マルチ project 網羅、Gemini。
-**着手前に潰す（コード前）**：① §4 式修正の実機確認 ② privacy 境界（relay に本文を載せない設計）③ R1 行動テスト ④ fleet operator TAM 計測。
+**やらない**：本物の認可 / 課金 / 任意接続 / unattended 連鎖 / 自動 merge / 複数 skill / フル canvas（`07` §5 fence）。
 
 ---
 
 ## 9. ロードマップ
 
-- **Phase 0（ハッカソン）**：§8。鈎＝cross-vendor 1 view。
-- **Phase 1（early/OSS）**：vendor 追加（Gemini）、IR 安定化、**open IR schema 公開 + ecosystem 採用**、health 精度。
-- **Phase 2（capture）**：**hosted fleet/team tier**（複数 operator/machine 集約 relay、team handoff、cross-builder 可視性 = network effect）、アラート、深い dispatch。
+- **Phase 0（hackathon）**：§8 / `07`。1 dyad・1 handoff・A2A の上。
+- **Phase 1**：vendor 追加、skill 追加、IR 安定化、**open schema 公開**、per-skill scope trust、canvas 拡充。
+- **Phase 2（capture）**：hosted trust/relay tier（multi-tenant・network effect）、OBO/DPoP の本物 trust、team handoff、アラート。
 
 ---
 
-## 10. 未決の技術フォーク（04 で一部 resolved）
+## 10. 未決フォーク + risk（`04`/`06` 連動）
 
-- ✅ **host ランタイム**：**desktop cockpit 常駐 + relay**（away は staleness 明示）。Codespace は hosted tier の選択肢。
-- ✅ **model 非依存**：保険でなく **核**（cross-vendor が P1）。ただし保守面 2 倍化を許容（04/R7・format 税）。
-- **feature インベントリ導出**：git/PR ベース / 静的解析 / agent 要約（未決）。
-- **format 追従**：jsonl/Codex ログは無 schema・private・≈毎週 breaking（04/R7）→ reader を version 耐性設計に、壊れたら graceful degrade。
-- **ToS**：他 vendor ログ読取り + headless 駆動の商用化が ToS 抵触しないか要確認（04/R7）。
-- **privacy 実装**：E2E の鍵管理・紛失端末 revoke・at-rest 暗号（04/R4）。
+- ✅ **通信**：A2A に乗る（protocol を作らない）。**接地済（`08` §1）**：card=`/.well-known/agent-card.json`、send=`message/send`、hook=`execute(ctx,event_queue)`、SDK=`a2a-sdk`/`@a2a-js/sdk`。a2a-js(v0.3) と a2a-python(1.0) の version skew に注意、wire 契約を 1 つに固定。
+- ✅ **relay**：Happy/Nimbalyst pattern（phone=root of trust・QR は ephemeral 公開鍵・blind relay）。**真の forward-secrecy は自前で足す**（NaCl/AES 単体に ratchet 無し・`08` §4）。outbound-only daemon（inbound port 不要）。
+- ✅ **host 常駐**：desktop 常駐 + tunnel/relay（away は staleness 明示）。
+- ✅ **model 非依存**：核（cross-vendor が前提）。保守 2 倍化は許容（`04` R7）。
+- **trust 本物化**：OBO/DPoP・NIST 準拠は North Star。MVP で作らない（最大 scope risk）。
+- **format 追従**：jsonl/Codex ログは無 schema・≈毎週 breaking → reader を version 耐性・graceful degrade。
+- **ToS**：他 vendor ログ読取り + headless 駆動 + A2A 越境の商用化が ToS 抵触しないか確認（`04` R7）。
+- **配布**：mobile companion は Apple 2.5.2 risk（`04`）。
+- **privacy**：payload 最小化・tunnel token 管理・紛失端末 revoke（`04` R4）。
