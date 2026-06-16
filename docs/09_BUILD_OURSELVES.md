@@ -68,6 +68,22 @@
 
 ---
 
+## 2.5 GLUE 競合調査の結論（2026-06・adopt-vs-build 確定）
+
+調査の結果、**GLUE はほぼ全部 adopt**（自前は薄い残差のみ）。重大: G4/G5＝「中立接続層＋多テナント計量」は **agent gateway 勢が既に商品化**。
+
+| G | adopt 先 | 自前残差 |
+|---|---|---|
+| G1 orchestration | **Trigger.dev**(Apache-2.0) / **Hatchet**(AI-agent durable, OSS) | build-state **event 正規化**のみ |
+| G2 agent-canvas | React Flow 上に自前（A2A-card-as-node を native でやる OSS 無し。Sim.ai/Langflow は参考） | A2A card→node＋cross-company edge 意味論（薄い） |
+| G3 HITL 承認 | **HumanLayer**（Slack/email/SMS 承認） | **cross-party identity/scope**（=M5 trust）は自前 |
+| G4 registry/liveness/routing | **Solo.io agentgateway**(LF・A2A+MCP native・中立) / **Kong Agent Gateway** | cross-person liveness＋IR staleness（薄い） |
+| G5 hosted relay+metering | **乗る**（Kong/Cloudflare/Portkey/LiteLLM/TrueFoundry が多テナント計量を標準提供） | — |
+
+🔴 **戦略的含意**: G4/G5 と「中立 wiring 層」自体が gateway 勢（とくに agentgateway＝LF・中立・A2A native）に飲まれつつある。→ **接続では戦わない。乗る。** 自前＝堀は **M1/M2/M3/M5＋体験＋index/MCP control plane** に集約。capture は relay でなく trust/orchestration/index へ（`06 §6.6`）。
+
+---
+
 ## 3. MVP（Persona C / `07`）が実際に要する自前部品＝最小
 
 | 要る | 中身 | 自前度 |

@@ -142,6 +142,25 @@ cross-party agent trust に NIST AI Agent Standards(2026/2)・CIAM/WIAM(Strata/A
 
 ---
 
+## 6.6 capture 再設計（GLUE 調査の帰結・2026-06）
+
+🔴 旧 capture「hosted relay tier で課金」（IA3）は **commodity に侵食**：Kong / Cloudflare / Portkey / LiteLLM / TrueFoundry / Solo.io agentgateway が多テナント relay＋使用量計量を標準提供。**relay/metering では稼げない。**
+
+→ capture を **gateway の *上*** へ移す（gateway＝data plane、我々＝control/trust plane）。候補:
+- **trust/audit as a service**（cross-party の承認・delegation・検証可能 audit ＝ M5。"誰も解いてない"＝価値）
+- **orchestration per-seat / per-workflow**（cross-company handoff の設計・運用 UX）
+- **build-state index / MCP control plane の seat**（AI が BuildHUD を操作する面・§6.7）
+- **marketplace take**（仲介した handoff の成果ベース）
+
+relay 課金は捨て、**trust＋orchestration＋index/MCP** で課金する。
+
+## 6.7 MCP control plane（AI が BuildHUD を操作する面・MCP-first）
+
+BuildHUD 自体を **MCP server** として公開し、AI が自律操作できるようにする（agent / workflow を発見・配線・実行）。
+clean-mcp 流の **token-light index** が肝：全 workflow/agent を context に流さず、`search_*` が小さな ref を返し、`get_*` で必要な 1 件だけ load（= 本環境の deferred-tool/ToolSearch と同型）。設計は `10_MCP_INTERFACE.md`。これ自体が capture 点（§6.6）にもなる。
+
+---
+
 ## 7. MVP スコープ（出荷可能・fence 済）
 
 1. **1 trusted dyad**（あなた + 実在の 1 人）。trust は事前合意で fake。

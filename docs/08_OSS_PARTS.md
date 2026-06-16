@@ -32,6 +32,18 @@
 
 ---
 
+## 1.5 GLUE adopt 決定（2026-06 調査・詳細は `09 §2.5`）
+
+GLUE は作らず乗る（philosophy #1）:
+- **G1** → Trigger.dev(Apache-2.0) / Hatchet(OSS・AI-agent durable)
+- **G3** → HumanLayer（Slack/email/SMS 承認。cross-party identity だけ自前）
+- **G4/G5** → Solo.io **agentgateway**(LF・A2A+MCP native・中立) / Kong Agent Gateway / Portkey / LiteLLM / TrueFoundry（registry+discovery+routing+多テナント計量）
+- **G2** → React Flow 上に自前（A2A-card-as-node を native でやる OSS 無し）
+
+⚠️ **G4/G5＋中立層は gateway 勢が商品化** → 接続で戦わず乗る。capture は relay でなく trust/orchestration/index へ（`06 §6.6`）。
+
+---
+
 ## 2. Build-state / 健康導出（State Readers / IR Assembler / §4）
 
 **採る**：`ccusage`(MIT, 16k★) の discovery/parse/dedup、`Claude-Code-Usage-Monitor`(MIT) の poll-with-change-detection。
