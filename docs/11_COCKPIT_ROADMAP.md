@@ -62,10 +62,12 @@
 - files: `hub.mjs`（toposort/save/runFlow/advanceRun＋routes）、`ui.html`（save/run＋buildFlow）、`mcp/server.mjs`（DAG 委譲＋再読込）、`runner.mjs`（既存 async）。
 - **done（達成）**: cockpit で配線→💾保存（`workflows.json` に nodes/edges＋steps）→▶Run→**topo 順に completed**（sales→marketing、edge で prospects を受け渡し確認）／saved id 実行／draft 実行／MCP は同 flow を hub 経由で実行（委譲を検証）。**未対応**: 分岐 DAG の MCP 線形化は steps[] で近似（true DAG は hub のみ）・1 agent=1 node（多重 instance は将来）・cycle 非対応。
 
-### Wave C — trigger ノード → automation（n8n）
-- **trigger ノード**（manual/schedule/build_state）を入口に配置・配線。「**save as automation**」→ `automations.json`（trigger＋wired workflow）。manual/`fire_event`/schedule(Trigger.dev seam) で発火。
-- files: `ui.html`（trigger palette/node）、`hub.mjs`＋automation 保存、`fire_event` 流用。
-- **done**: build_state trigger→chain を UI で組み、event で自動実行。
+### Wave C — trigger ノード → automation（n8n）✅ DONE
+- **trigger ノード**（`kind:"trigger"`・build_state、out ポートのみ・amber・click で match 編集）を canvas に「**＋ trigger**」で追加し agent chain へ配線。
+- 「**📋 auto**（save as automation）」→ hub `POST /api/automations`：canvas を分割し **trigger config ＋ agent chain（trigger strip 済）を workflow 化して ref**、`automations.json` に upsert（既存 shape＝`{trigger, workflow:<id>, input, enabled}` 準拠）。
+- 「**⚡ fire**」→ hub `POST /api/fire {event}`：`triggerMatches`（`deepMatch`・server.mjs と同semantics）で enabled automation を選び、各々の workflow を **B2 `runFlow` で実行**（cockpit のhandoff アニメで可視化）。`runFlow` は trigger ノードを strip して下流を入口化。manual=▶run、schedule=Trigger.dev seam（既存）。
+- files: `hub.mjs`（saveAutomation/fireEvent/triggerMatches/deepMatch＋routes・runFlow の trigger strip）、`ui.html`（trigger node＋＋trigger/📋auto/⚡fire＋buildFlow に trigger 同梱）。
+- **done（達成）**: UI で trigger→sales→marketing を組み「📋 auto」で automation 保存、「⚡ fire」 or `/api/fire` の build_state event で **マッチした automation が chain を自動実行**（green→completed 2/2、非マッチ→fire なしを検証）。
 
 ### Wave D — agent palette + MCP export（Langflow）
 - **サイドバー palette**（`search_agents`/MCP）から agent/skill を canvas にドラッグ追加。per-node「**copy MCP call**」、per-flow「**export as MCP tool**」（登録片を表示）。
