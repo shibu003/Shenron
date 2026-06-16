@@ -146,6 +146,12 @@
   - **done**: NL 一文 → canvas に動く flow が出来て Run できる／適合無しなら新規 agent も draft。
   - 🟡 **fence**：生成品質は不確実 → typed port 検証＋human レビュー＋approval 必須。flashy だが GATE-1 は埋めない。**「flow 生成」だけなら Langflow Assistant に劣後** → 差別化は上の **(a) cross-owner ＋ (b) fenced（passport 付き）著述**のみ。最小版は今でも実装可（control plane＋schema＋runner が既存）だが、**H が無い L は本家の劣化版**＝H とセットで初めて価値。
 
+### g) 3 フェーズ実行順（`docs/06 §6.9`・WORK 市場に飛びつかない）
+> 「巨人 marketplace を **AI-native＋easy＋中立＋安全** で kill」を、出荷可能→moat→economy の順で。vision 膨張＝出荷ゼロ（docs/06 §2）への規律。
+- **Phase 1（出荷優先・AI-native easy 中立 builder）**＝ **F → G → K → L**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。
+- **Phase 2（moat）**＝ **H ★** ＋ 隣接 **I・J**。done: 「他社 agent を機微データに env/PII fence＋全 call audit で使う」＝**巨人 walled/Langflow に書けない flow**を実演。
+- **Phase 3（North Star・economy）**＝ **WORK 市場**＝cross-owner agent 労働市場（discovery・**reputation graph＝通貨**・marketplace・**AP2 settlement**・emergent チェーン）。**gate＝Phase 2 完了＋GATE-1 実証後に本格化**（先回りしない）。
+
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
 - flow 実行/保存 → `prototype/hub/hub.mjs`（durable inbox＋将来 topo-run）

@@ -2,7 +2,7 @@
 
 > ハンドオフ。会話で vision が 3 段膨張したので 1 枚に整理。`01`–`05` の前提を更新する上位レイヤー。
 > 原則（§3.5）：競合がいても撤退しない。土俵 / 手法 / 痛みをずらして空白を**作る**。**ただし「ずらせば勝てる」で終えない** — 作った空白は耐久テスト（巨人は追随に何を捨てるか）と 7 ステップにかけ、🔴 は 🔴 と書く。
-> 更新日: 2026-06-16（§6.8 open-core ピッチ＝Wave E 追加）
+> 更新日: 2026-06-16（§6.9 AI-native kill 戦略＋検証済み需要＋3 フェーズ・ロードマップ追加）
 
 ---
 
@@ -189,6 +189,55 @@ clean-mcp 流の **token-light index** が肝：全 workflow/agent を context �
 - 🔴 **GATE-1 不変**：手配線を実際に痛がり金を払う 1 ペアは未検証。open-core は配布を速めるが**買い手は作らない**。
 - 🟡 open-core の monetization（どの上位機能を有料にするか）自体が別の bet。n8n/Cal.com は成立、我々は未検証。
 - 🟢 ただし **builder は vapor でなく実在**（Wave A–D・`prototype/hub`）＝ピッチの裏に動くコードがある＝solo 最大リスク（出荷せず終わる）を一部解消。
+
+---
+
+## 6.9 AI-native で巨人 marketplace を kill — 検証済み需要 ＋ 3 フェーズ・ロードマップ（投資家 1-pager 骨子）
+
+> §6.5–§6.8 を 1 枚に統合し、戦略の確定形＋実行順を固定。**この §6.9 単体を抜き出して投資家 1-pager として読める**。出典は末尾。
+
+### A. 1-pager（問題 → wedge → 賭け）
+
+**問題（今）**：AI agent が爆発し、人は**他オーナー・他 vendor の agent を使う**時代（cross-owner）へ。
+
+**検証済み市場 🟢（予測でなく実在）**：**Salesforce AgentExchange だけで 18,500 社・~$800M ARR**（報道値 🟡）。そして **commodity model に UI を被せただけの「wrapper」は死に、勝者は専有データ/access/license/賠償＝非複製資産を持つ縦特化**（2026 M&A 総意：ZoomInfo/Harvey/Glean/Bloomberg）。
+
+**非自明な真実（reframe）**：agent を雇う理由は **skill ではない**。skill は software＝複製・蒸留・購入可能で、レンタル市場は成立しない（だから wrapper が死ぬ）。雇うのは相手が握る**非複製資産**（①専有データ ②gated access ③license/権限 ④accountability/賠償）。**「agent 労働市場」＝cross-owner の非複製資産アクセス**。
+
+**gap / why now**：巨人（Salesforce/Google/MS/AWS）は marketplace を**所有**するが構造的な罠 — **walled（単一 vendor lock-in）・enterprise sales 主導・legacy bolt-on・非 AI-native・非中立**。→ **「1 色」にできない multi-vendor の非巨人（indie/SMB）が締め出される。**
+
+**kill wedge**：巨人の walled/clunky を、4 つの束で殺す —
+- **AI-native**：AI が MCP control plane で発見・配線・実行（人が enterprise UI を click しない）。
+- **圧倒的 easy**：self-serve・数分（sales cycle なし）。
+- **中立**：Claude/Codex/Gemini/買い agent を 1 面で（vendor 横断）。
+- **安全**：cross-owner の trust boundary（巨人 walled・dev marketplace・A2A が提供しない層）。
+
+**耐久テスト 🟢（巨人が追随に捨てる物）**：(a) walled lock-in 放棄＝収益基盤喪失 (b) legacy product を AI-native に**再建** (c) enterprise sales→self-serve に GTM 転換。**三重自傷** → 構造空白。
+
+**ICP**：≥2 vendor の agent を使い「1 色」にできない **indie/SMB**（founder が中に居り安く検証できる端）。
+
+**capture**：marketplace-take ではない（発見は巨人所有）。**AI-native-safe-cross-owner 層**（trust/governance ＋ usability）。**marketplace/A2A/AP2 には乗る**（決済・transport・identity は巨人 rails を adopt）。
+
+**one-liner**：
+> **巨人は agent を walled に「売る」。我々は誰の agent でも、AI-native に・安全に・中立に「使わせる」。複製不能資産へのアクセスを、1 色にできない全員に。**
+
+### B. 正直な賭け（fence）
+- 🔴 **GATE-1（最重要・未証明）**：「巨人 walled でなく**中立・安全層に金を払う**非巨人」が実在するか。最安検証＝**≥2 vendor の agent を機微データに使う非巨人を 10 人 interview**（「他社 agent に自社データを触らせるのが怖くて使えてない／fence+audit する中立層に払うか」）。**3 人 🟢 で着手 GO**。
+- 🟡 **$15T は our TAM でない**：Gartner「2028 に B2B 購買の 90%・$15T を agent 仲介」は**既存購買の channel-shift**で、しかも**同 Gartner が「agentic の 40%+ は 2027 末に中止」**と言う（bull と bear が同一分析会社）。
+- 🟡 **usability 単体は moat でない**：kill は **AI-native × 中立 × 安全 × easy の組合せ＋巨人の構造的罠**で成立。「使いやすいだけ」なら吸収される。
+- 🔴 **cold-start**：WORK 市場（Phase 3）は reputation に volume が要る両面市場。
+
+### C. 3 フェーズ・ロードマップ（実行順＝規律。WORK 市場に飛びつかない）
+> §2 の最警告（vision 膨張＝出荷ゼロ）への対処。**出荷可能なものを先に、moat を次に、economy を最後に。**
+
+- **Phase 1 — 今 build 中を完成：AI-native で easy・中立な builder**（出荷優先）
+  cockpit A–E 完了済。残＝**F**(integrations/⚙settings＋autorun)・**G**(mcp ノード＋実送信)・**K**(Langflow parity 最小)・**L**(Ghost Writer＝AI-native 著述)。これは kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done＝非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。
+- **Phase 2 — trust / audit（moat を載せる）**
+  **H**(Agent Trust Boundary＝capability passport＋data firewall＋audit)。隣接 **I**(consensus)・**J**(build-state IR)。done＝「他社 agent を機微データに env/PII fence＋全 call audit で使う」＝巨人 walled/n8n/Langflow に**書けない flow**を実演。
+- **Phase 3 — WORK 市場（North Star・economy）**
+  cross-owner agent 労働市場：discovery/**reputation graph（通貨）**・marketplace・**AP2 settlement**・emergent チェーン。**gate＝Phase 2 完了＋GATE-1 実証後に本格化**（先回りしない）。
+
+> 出典: Salesforce AgentExchange（~$800M ARR・report 値）/ 2026 M&A（wrapper 死・非複製で勝つ）/ Google AP2（60+社・FIDO 寄贈）/ A2A（150+ org）/ Gartner IT Symposium 2025（$15T by ~2028）＋ Gartner 公式「40%+ 中止 by 2027」。
 
 ---
 
