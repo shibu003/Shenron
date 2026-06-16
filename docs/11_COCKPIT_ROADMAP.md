@@ -38,7 +38,7 @@
 - **保存先**：trigger 無し → `workflows.json`（既存）に nodes/edges を併記、trigger あり → `automations.json`。互換のため既存の `steps[]` も導出して残す。
 - **node.kind = `trigger | agent | mcp`**。`agent`=LLM skill（テキスト生成、現状）。`mcp`=**接続済み MCP server の tool 呼び出し＝副作用アクション**（例 `gmail.send_email` / `slack.post_message`）。mcp ノードも同じ typed port で配線。詳細・integrations・on/off は **§2.5**。
 
-## 2. Wave 計画（A→E ＋ 拡張 F/G。各 Wave＝1〜複数 commit、revertable、verify 付き。拡張性の全体像は §2.5）
+## 2. Wave 計画（A→E 完了 ＋ 拡張 F–K。各 Wave＝1〜複数 commit、revertable、verify 付き。拡張性＋差別化戦略は §2.5、ユースケースは docs/06）
 
 ### Wave A — 配線キャンバス（typed ports + edges）✅ DONE
 - agent ノードに **in(左)/out(右) ポート**、**port→port ドラッグでエッジ**を引く（node-on-node ドラッグから昇格）。`isValidConnection`= type 交差。エッジは status 色 bezier（既存流用）。
@@ -102,7 +102,7 @@
 - topo-run が `kind:"mcp"` ノードに来たら、上流出力を入力に **hub/worker が接続 MCP server の tool を実呼び出し** → 実際に送信される。
 - **trust fence（blast radius gate 維持）**：外部副作用ノードは既定 **approval**（attended＋`A2A_SHARED_TOKEN`）。`auto` は明示 opt-in のみ。既存 `awaiting_approval` フェンスをそのまま流用。
 
-### e) trust controls（⚙設定で on/off ＋ データ境界）— Wave F に含める
+### e) trust controls（⚙設定で on/off ＋ データ境界）— autorun=Wave F / data firewall=Wave H
 
 3 軸で独立に制御（混同しない）: **`policy`**（承認ゲート＝handoff 毎の人間承認）× **`autorun`**（hub 代理実行の可否＝下記1）× **`share`**（何を渡すか＝下記2）。
 
@@ -117,10 +117,26 @@
 - 既定：**cross-company は deny-by-default**（明示 pass のみ）／local は緩め。secret/PII パターン（API key・token・`.env` 等）は **never に既定登録**（philosophy #4 secret 漏洩防止と整合）。
 - UI：edge クリック or ⚙settings で per-edge/per-agent の pass/never を編集。監査のため除去した事実は history に残す（中身は残さない）。
 - **MVP の範囲整理**：データ境界（**何を**渡すか＝フィルタ）は今 build 可能。一方 cross-party の**認可・身元**（**誰に**＝OBO/DPoP・M5）は GATE-2 North Star で別軸（PROJECT §4）。混同しない。
+- → この **data firewall ＋ capability passport ＋ audit** を **Wave H「Agent Trust Boundary」**に統合（下記 f）。
 
-### f) 新 Wave（B の後）
-- **Wave F — integrations & settings ＋ trust controls**：`integrations.json` ＋ ⚙settings（MCP 接続 / on-off / 追加・**`autorun` on/off**・**`share` pass/never 編集**）。**done**: ①Gmail/Slack の MCP を繋いで on/off でき enabled tool が palette に出る、②agent の autorun を off にすると hub が代理実行しなくなる、③handoff の never 指定フィールドが下流に**渡らない**ことを検証。
-- **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor が enabled tool を実呼び出し（approval フェンス＋**share 境界を通してから送信**）。**done**: 「draft-outreach(agent) → gmail.send_email(mcp)」を配線→Run→**実際に下書き/送信される**（never フィールドは送信前に除去）。
+### f) 差別化を Wave 化（competitive moat → roadmap）
+
+> 競合（**n8n / Langflow / Zapier**）に「より良い flow-builder」では勝てない（統合数・成熟・LLM 特化で負ける）。勝つのは **彼らが全員前提にする『単一オーナー』を捨てた 1 軸＝オーナー境界をまたぐ agent の trust/handoff** だけで戦い、**統合は MCP/A2A に乗る**（再実装しない）時のみ。判定＝耐久テスト「**競合がコピーするのに何を捨てる必要があるか**」（docs/06 §4・§6.8、S0/S1/S2 ユースケースは docs/06 のシミュレーション節）。
+
+**背骨＝1 機構を信頼距離 S0→S1→S2 で使い回す**：**Agent Trust Boundary** = `capability passport`（各 agent に read/write/外部送信/data-scope を宣言、hub が毎ホップ強制）＋ `data firewall`（§e-2 の share pass/never）＋ `audit`（改ざん不能 trail）。
+| 距離 | fence 対象 | 競合が追随できない理由 |
+|---|---|---|
+| **S0** ソロ | 買った 3rd-party agent の vendor | vendor-native は自分を fence しない／fleet 系に trust 層が無い |
+| **S1** 社内 | 別 agent（least-privilege） | iPaaS は step を信頼前提＝agent-trust-native でない |
+| **S2** 他社 | 会社境界（OBO/DPoP） | 巨人は単一アカウント lock-in を捨てないと不可 |
+
+**新 Wave（B の後・優先順）**:
+- **Wave F — integrations & settings**：`integrations.json` ＋ ⚙settings（MCP 接続 / on-off / 追加・**`autorun` on/off**）。**done**: Gmail/Slack を繋いで on/off、enabled tool が palette に、autorun off で hub 代理実行が止まる。
+- **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor 実呼び出し（approval フェンス）。**done**: agent→gmail.send_email を配線→Run→**実送信**。
+- **Wave H — Agent Trust Boundary（★wedge・最重要差別化）**：`capability passport`（per-agent 宣言＋hub 毎ホップ強制）＋ `data firewall`（share pass/never・cross は deny-by-default・secret/PII 既定 never）＋ `audit`（grant/redact/approve を改ざん不能 trail に）。S0/S1/S2 で距離違いに使い回す。**done**: 「Claude→（env/PII 除去）→他 vendor の Codex agent、file paths のみ可視、全 call audit、外部送信は approval、相手 offline でも durable」＝**n8n/Langflow/Zapier に書けない flow** を 1 本実演。
+- **Wave I — cross-vendor consensus node（vs vendor-native）**：同 task を Claude＋Codex＋Gemini に fan-out → hub が diff/投票 → 合意出力。**単一 vendor は構造的に不可能**＝「なぜ Claude native でなく BuildHUD?」への構造回答。**done**: consensus ノードで 3 vendor 並列→多数決/合議結果が下流へ。
+- **Wave J — build-state IR（vs iPaaS）**：trigger 語彙を第一級化（`pr_merged`/`rc_built`/`deploy_green`/`test_red`/`review_completed`…）＋ match DSL。n8n の generic webhook と差を付ける（「IR 深いほど堀」§4）。**done**: 名前付き build-state event で automation 発火、IR スキーマを doc 化。
+- **Wave K — Langflow parity（完全互換目標・user 要望）**：Langflow ができる事を**全部できる**ように（**§4 の「per-field template は非目標」を撤回**）。対象＝per-field component template（node に typed 入力 field）／multi typed port（固定 1-in/1-out を一般化）／component library（input・output・prompt・model・agent・tool・data）／sub-flow（flow-as-component）／Chat I/O／playground（field 入力＋streaming）／`tweaks`（run 時 per-node 上書き）。**done**: 代表 Langflow flow（RAG / agent）を BuildHUD canvas で同等に組める。
 
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
@@ -130,8 +146,9 @@
 - schedule trigger → `prototype/mcp/trigger/`（Trigger.dev seam・既存）
 - integrations（接続 MCP・on/off）→ `prototype/mcp/integrations.json`（**新規**・§2.5 Wave F）
 - mcp tool ノード実行（side-effect）→ `prototype/hub/worker.mjs`＋`prototype/mcp/server.mjs`（§2.5 Wave G）
+- trust boundary（passport/firewall/audit）→ `prototype/hub/hub.mjs`（強制点）＋ agent 設定（passport 宣言）＋`integrations.json`（§2.5 Wave H）
 
 ## 4. 非目標（この roadmap では作らない）
-- React Flow 本体導入（build 必要＝zero-dep 破壊。本番 surface 時に）。
-- Langflow の per-field template（我々は固定 1-in/1-out で十分）。
-- 本物の cross-party 認可（GATE-2・別軸）。
+- React Flow 本体導入（build 必要＝zero-dep 破壊。本番 surface 時に。**Wave K の per-field/multi-port もまずは vanilla SVG で**）。
+- 本物の cross-party 認可（OBO/DPoP・M5＝GATE-2・別軸の North Star）。**Wave H が作るのは data firewall＝「何を渡すか」**であって「誰に＝身元/委譲」ではない（混同禁止）。
+- ~~Langflow の per-field template~~ → **撤回：Wave K で完全互換を目標化**（§2.5 f）。

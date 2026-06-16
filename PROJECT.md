@@ -80,7 +80,13 @@
 4. **✅ Wave C（DONE）— trigger ノード → automation**: 「＋ trigger」で build_state trigger ノードを置き chain へ配線→「📋 auto」で `automations.json` に保存（trigger＋agent chain を workflow 化して ref）→「⚡ fire」/`/api/fire` の build_state event で **マッチ automation が chain を自動実行**（B2 `runFlow`・cockpit 可視化）。検証済（green→completed 2/2、非マッチ→fire なし）。done 基準 `docs/11 §2 Wave C`。
 5. **✅ Wave D（DONE）— palette + MCP export**: 「☰ palette」＝agent/skill カタログ（hub 共有 index を検索）。node ✕ で canvas から外し palette ＋ で戻す（add サイクル）。per-node/palette「⧉ copy MCP call」（`send_handoff` 片）、per-flow「⇪ export」（workflow 保存＋`run_workflow` MCP 片を copy）。MCP search proxy は不要化（hub state＝同一 index）。done 基準 `docs/11 §2 Wave D`。
 6. **✅ Wave E（DONE）— open-core ピッチ**: 「BuildHUD kills 手配線 cross-agent glue」を `docs/06 §6.8` に1枚（n8n/Cal.com/Langflow 対応表・各 Wave が消す glue・capture・正直 fence）。**cockpit ロードマップ A–E 完了**。
-7. **▶ 拡張 F/G（次の一手・user 要望・`docs/11 §2.5`）**: **F** integrations/⚙settings（MCP 接続＋on/off・**autorun on/off**・**share=渡す/絶対渡さない情報の切り分け**）→ **G** `kind:"mcp"` tool ノード＋executor 実呼び出し＝**「submit 後に実際に外部へ送信」**（approval フェンス＋share 境界を通してから送信）。
+7. **▶ 拡張 F–K（次の一手・差別化戦略を Wave 化・`docs/11 §2.5 f`）**: 競合（n8n/Langflow/Zapier）には「より良い flow-builder」では勝てない → **単一オーナーを捨てた『オーナー境界をまたぐ agent trust/handoff』1 軸**で戦う。
+   - **F** integrations/⚙settings（MCP 接続＋on/off・autorun on/off）
+   - **G** `kind:"mcp"` ノード＋実 side-effect（外部送信・approval フェンス）
+   - **H ★wedge** = **Agent Trust Boundary**（capability passport＋data firewall(share)＋audit）を信頼距離 **S0→S1→S2** で使い回す＝**「n8n に書けない flow」を実演**（最重要差別化）
+   - **I** cross-vendor consensus node（Claude＋Codex＋Gemini 合議＝vendor-native と差）
+   - **J** build-state IR（trigger 語彙を第一級化＝iPaaS と差）
+   - **K** Langflow parity（per-field template/multi-port/sub-flow…＝Langflow 完全互換目標・§4 の非目標を撤回）
 8. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
 9. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
 
