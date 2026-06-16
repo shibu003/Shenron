@@ -1,9 +1,9 @@
 # 11 — Cockpit Roadmap / visual flow-builder（Langflow・n8n を流用）
 
-> 起点：3 参照（Langflow 194k / n8n 100k / Cal.com 32k）= **D&D 視覚ビルダー × open-core × self-host**。
+> 起点：3 参照（Langflow **~146k**〔DataStax→**IBM/watsonx** 傘下〕 / n8n ~100k / Cal.com ~32k）= **D&D 視覚ビルダー × open-core × self-host**。
 > 方針：cockpit（`prototype/hub/ui.html`）を **「agent を線で配線して保存して走る」builder** に育て、いま別々の **agents・workflows・automations・MCP** を **1 つの視覚面に統合**（docs/08 §1.5 **G2** の実体）。
 > 原則：**パターン流用・コード非複製**（philosophy #1）。**zero-dep 維持** → React Flow は概念だけ借り、本体は本番 upgrade 時。
-> 更新: 2026-06-16
+> 更新: 2026-06-16（Langflow 現況を再調査＝§0／§2.5 f reality check。K/L/D は catch-up・moat は H のみ）
 
 ---
 
@@ -11,7 +11,7 @@
 
 | 参照 | 借りる核 | 出典 |
 |---|---|---|
-| **Langflow** | flow=`{nodes[],edges[]}` JSON。node に **template(inputs)/outputs**、**typed handle**（`output_types` ∩ `inputTypes` ≠ ∅ で接続可）。実行=**DAG topological sort → vertex 順次 build → 結果を edge で下流へ**。入口=Chat Input、終端=Chat Output。**export-as-API**=`POST /api/v1/run/{id}` ＋ **`tweaks`**（node ごとの field 上書き）。**MCP**=flow を tool 化、input schema を入口 field から導出。**LFX**=JSON 1 枚をステートレス実行 | [import/export](https://docs.langflow.org/concepts-flows-import)・[data-types](https://docs.langflow.org/data-types)・[publish](https://docs.langflow.org/concepts-publish)・[mcp-server](https://docs.langflow.org/mcp-server)・[exec engine](https://deepwiki.com/langflow-ai/langflow/4.4-flow-execution-engine) |
+| **Langflow** | flow=`{nodes[],edges[]}` JSON。node に **template(inputs)/outputs**、**typed handle**（`output_types` ∩ `inputTypes` ≠ ∅・**色で型可視**、不一致は Type Convert）。実行=**DAG topological sort → vertex 順次 build → edge で下流へ**。入口=Chat Input/終端=Chat Output。**export-as-API**=`POST /api/v1/run/{id}` ＋ **`tweaks`**。**MCP=双方向**（flow を MCP server 公開＋MCP tool 消費・v1.8）。**grouping→custom component**（sub-flow）。**per-field typed inputs**（IntInput/DataInput/MessageTextInput…）。⚠️**現況 2026-06**: DataStax→**IBM/watsonx 傘下・~146k★**。**v1.9/1.10「Langflow Assistant」＝NL から component も完全な flow も生成**（＝**Wave L Ghost Writer は既出**）・IDE/coding-agent 向け MCP。 | [components](https://docs.langflow.org/concepts-components)・[mcp-server](https://docs.langflow.org/mcp-server)・[Assistant](https://docs.langflow.org/langflow-assistant)・[1.9](https://www.langflow.org/blog/langflow-1-9)・[DataStax→IBM](https://www.datastax.com/blog/datastax-acquires-langflow-to-accelerate-generative-ai-app-development) |
 | **n8n** | workflow=`nodes[]`＋`connections`（out→in、JSON 伝播）。**trigger ノード**（Schedule/Webhook）が入口。self-host・per-zap 課金なし | [schedule trigger](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.scheduletrigger/)・[anatomy](https://medium.com/@Quaxel/the-anatomy-of-an-n8n-workflow-3ade4a335266) |
 | **Cal.com** | routing forms・team workflows・**open-core（機能を paywall に隠さず source ごと）** | — |
 | **React Flow** | `<Handle type=source/target position id>`、`nodeTypes`、`onConnect`/`isValidConnection`。**build 必須＝zero-dep 不可** → 概念のみ流用、vanilla SVG で自前実装 | [custom nodes](https://reactflow.dev/learn/customization/custom-nodes) |
@@ -130,19 +130,21 @@
 | **S1** 社内 | 別 agent（least-privilege） | iPaaS は step を信頼前提＝agent-trust-native でない |
 | **S2** 他社 | 会社境界（OBO/DPoP） | 巨人は単一アカウント lock-in を捨てないと不可 |
 
+> ⚠️ **Langflow reality check（2026-06 調査）**：Langflow は **MCP 双方向＋flow を MCP server 公開（v1.8）**・**「Langflow Assistant」＝NL から完全な flow を生成（v1.9/1.10）**・per-field typed component・grouping→custom component を**既に持つ**（~146k★・IBM/watsonx 資金）。→ **Wave D（MCP export）/ K（parity）/ L（Ghost Writer）は差別化でなく catch-up＝「土俵に立つ入場料」**。ここで本家に正面から勝とうとした瞬間に負ける。**唯一の堀は Langflow が構造的に持たない cross-owner trust＝Wave H**。**K/L/D は最小限で持ち、勝負は H に全振り。**
+
 **新 Wave（B の後・優先順）**:
 - **Wave F — integrations & settings**：`integrations.json` ＋ ⚙settings（MCP 接続 / on-off / 追加・**`autorun` on/off**）。**done**: Gmail/Slack を繋いで on/off、enabled tool が palette に、autorun off で hub 代理実行が止まる。
 - **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor 実呼び出し（approval フェンス）。**done**: agent→gmail.send_email を配線→Run→**実送信**。
 - **Wave H — Agent Trust Boundary（★wedge・最重要差別化）**：`capability passport`（per-agent 宣言＋hub 毎ホップ強制）＋ `data firewall`（share pass/never・cross は deny-by-default・secret/PII 既定 never）＋ `audit`（grant/redact/approve を改ざん不能 trail に）。S0/S1/S2 で距離違いに使い回す。**done**: 「Claude→（env/PII 除去）→他 vendor の Codex agent、file paths のみ可視、全 call audit、外部送信は approval、相手 offline でも durable」＝**n8n/Langflow/Zapier に書けない flow** を 1 本実演。
 - **Wave I — cross-vendor consensus node（vs vendor-native）**：同 task を Claude＋Codex＋Gemini に fan-out → hub が diff/投票 → 合意出力。**単一 vendor は構造的に不可能**＝「なぜ Claude native でなく BuildHUD?」への構造回答。**done**: consensus ノードで 3 vendor 並列→多数決/合議結果が下流へ。
 - **Wave J — build-state IR（vs iPaaS）**：trigger 語彙を第一級化（`pr_merged`/`rc_built`/`deploy_green`/`test_red`/`review_completed`…）＋ match DSL。n8n の generic webhook と差を付ける（「IR 深いほど堀」§4）。**done**: 名前付き build-state event で automation 発火、IR スキーマを doc 化。
-- **Wave K — Langflow parity（完全互換目標・user 要望）**：Langflow ができる事を**全部できる**ように（**§4 の「per-field template は非目標」を撤回**）。対象＝per-field component template（node に typed 入力 field）／multi typed port（固定 1-in/1-out を一般化）／component library（input・output・prompt・model・agent・tool・data）／sub-flow（flow-as-component）／Chat I/O／playground（field 入力＋streaming）／`tweaks`（run 時 per-node 上書き）。**done**: 代表 Langflow flow（RAG / agent）を BuildHUD canvas で同等に組める。
-- **Wave L — Ghost Writer（agent を作る agent・flow 自動著述 copilot）**：Langflow（視覚ビルダー）でありながら **NL から flow も agent も著述する meta-agent**（**Sierra 流「agent を作る agent」**・Sierra 具体機能は要 webfetch 検証）。**MCP control plane（docs/10）の頂点**＝「AI が BuildHUD を操作して組む」を copilot 化。
+- **Wave K — Langflow parity（entry ticket・本家に勝てはしない）**：Langflow ができる事に**並ぶ**（**§4 の「per-field template は非目標」を撤回**）。対象＝per-field component template（node に typed 入力 field）／multi typed port（固定 1-in/1-out を一般化）／component library（input・output・prompt・model・agent・tool・data）／sub-flow（grouping→custom component）／Chat I/O／playground／`tweaks`。**⚠️ これは差別化でなく入場料**（Langflow が本家・~146k★）→ **最小限に絞り深追いしない**。**done**: 代表 flow（RAG / agent）を BuildHUD で同等に組める。
+- **Wave L — Ghost Writer（cross-owner / fenced agent を著述する meta-agent）**：⚠️ **Langflow Assistant（v1.9/1.10）が既に NL→完全 flow を生成** → 「flow を書く copilot」単体では差別化ゼロ。BuildHUD の L は **(a) cross-owner（他人/他社）の agent を含めて組む ＋ (b) Wave H の capability passport を自動付与した fenced agent を著述** に振って初めて意味（Sierra 流「agent を作る agent」＋trust）。**MCP control plane（docs/10）の頂点**＝「AI が BuildHUD を操作して組む」を copilot 化。
   - cockpit に Ghost Writer chat：「PR マージ→レビュー→lint 修正→Slack 通知」と書く → `search_agents` で既存 agent 発見 → **nodes/edges 生成＋typed port 配線＋trigger/mcp ノード配置** → canvas に materialize。適合 agent が無ければ **新規 agent config を draft**（name/skill/systemPrompt/accepts/emits）＝「agent を作る agent」。
   - 反復：「marketing も足して」「prod に触らせないで」→ 差分編集（後者は **Wave H の capability passport を自動付与**＝fenced agent を著述）。
   - 実装：hub が `runVendorAsync` に **agent index＋flow schema(§1)＋接続 MCP tools** を context で渡し flow JSON 生成 → schema/typed-port で**検証** → canvas/`workflows.json`。**生成≠実行**：human が Run 前にレビュー、Run は approval フェンス維持。vendor 中立（Claude でも Codex でも著述）。
   - **done**: NL 一文 → canvas に動く flow が出来て Run できる／適合無しなら新規 agent も draft。
-  - 🟡 **fence**：生成品質は不確実 → typed port 検証＋human レビュー＋approval 必須。flashy だが GATE-1 は埋めない（wow＋参入障壁低下＝特に S0 ソロ「書けば組まれる」に効く）。最小版は**今でも実装可**（MCP control plane＋schema＋runner が既存）。F/G/K で部品が増えるほど著述対象がリッチに。
+  - 🟡 **fence**：生成品質は不確実 → typed port 検証＋human レビュー＋approval 必須。flashy だが GATE-1 は埋めない。**「flow 生成」だけなら Langflow Assistant に劣後** → 差別化は上の **(a) cross-owner ＋ (b) fenced（passport 付き）著述**のみ。最小版は今でも実装可（control plane＋schema＋runner が既存）だが、**H が無い L は本家の劣化版**＝H とセットで初めて価値。
 
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
