@@ -3,7 +3,7 @@
 > 起点：3 参照（Langflow **~146k**〔DataStax→**IBM/watsonx** 傘下〕 / n8n ~100k / Cal.com ~32k）= **D&D 視覚ビルダー × open-core × self-host**。
 > 方針：cockpit（`prototype/hub/ui.html`）を **「agent を線で配線して保存して走る」builder** に育て、いま別々の **agents・workflows・automations・MCP** を **1 つの視覚面に統合**（docs/08 §1.5 **G2** の実体）。
 > 原則：**パターン流用・コード非複製**（philosophy #1）。**zero-dep 維持** → React Flow は概念だけ借り、本体は本番 upgrade 時。
-> 更新: 2026-06-16（**Wave G・K 完了**＝mcp 実呼び出し＋component library。Phase 1 は F✅→G✅→K✅→L、次=L）
+> 更新: 2026-06-16（**Phase 1 完了**＝F✅G✅K✅L✅。mcp 実呼び出し＋component library＋Ghost Writer。**▶ 次=Phase 2 Wave H ★wedge**）
 
 ---
 
@@ -139,7 +139,7 @@
 - **Wave I — cross-vendor consensus node（vs vendor-native）**：同 task を Claude＋Codex＋Gemini に fan-out → hub が diff/投票 → 合意出力。**単一 vendor は構造的に不可能**＝「なぜ Claude native でなく BuildHUD?」への構造回答。**done**: consensus ノードで 3 vendor 並列→多数決/合議結果が下流へ。
 - **Wave J — build-state IR（vs iPaaS）**：trigger 語彙を第一級化（`pr_merged`/`rc_built`/`deploy_green`/`test_red`/`review_completed`…）＋ match DSL。n8n の generic webhook と差を付ける（「IR 深いほど堀」§4）。**done**: 名前付き build-state event で automation 発火、IR スキーマを doc 化。
 - **Wave K — Langflow parity（entry ticket・本家に勝てはしない）✅ DONE（最小）**：Langflow ができる事に**並ぶ**最小スライス。実装＝**component library**（Chat Input / Prompt / Chat Output＝Langflow の正準トリオ。**agent は我々の LLM 単位**なので prompt+model 分割は再現しない）＋**per-field typed component template**（inspector が `fields[]` を typed 入力＝text/textarea/number で描画→`config` に保存）＋**conditional ports**（Chat Input=out のみ・Chat Output=in のみ＝固定 1-in/1-out の一般化の最小形）＋**playground**（Chat Output ノードが run 結果を表示・hub が `run.outputs` を `/api/state` で露出）。executor：`input`=baked text or Run 入力を emit／`output`=終端表示／`prompt`=in-process vendor で `{input}` 置換実行（**内部 compute ゆえ approval フェンス無し**、handoff 再利用で可視化＋crash-resume）。**done（達成）**: Chat Input→Prompt→Chat Output（3/3 completed・stub vendor で {input} 置換）／Chat Input→agent→Chat Output（baked input が agent に流れ Output が結果表示）を実機検証。**⚠️ 差別化でなく入場料**（Langflow ~146k★ が本家）。**繰り延べ（深追いしない）**: true multi-handle port（>1）・sub-flow/grouping・model/data/RAG component・full `tweaks`。勝負は Wave H。
-- **Wave L — Ghost Writer（cross-owner / fenced agent を著述する meta-agent）**：⚠️ **Langflow Assistant（v1.9/1.10）が既に NL→完全 flow を生成** → 「flow を書く copilot」単体では差別化ゼロ。BuildHUD の L は **(a) cross-owner（他人/他社）の agent を含めて組む ＋ (b) Wave H の capability passport を自動付与した fenced agent を著述** に振って初めて意味（Sierra 流「agent を作る agent」＋trust）。**MCP control plane（docs/10）の頂点**＝「AI が BuildHUD を操作して組む」を copilot 化。
+- **Wave L — Ghost Writer（NL→flow 著述 meta-agent）✅ DONE（最小）**：実装＝hub `/api/ghostwrite {prompt}`。**heuristic builder**（vendor=stub/offline 既定）が index を keyword 照合し **Chat Input/trigger →（一致 agent を言及順に連鎖）→ mcp 送信?→ Chat Output** を構築、event 駆動文（PR merge/deploy/review）は **trigger を入口**に。一致 agent 無し→ **Prompt step ＋ 新規 agent draft**（name/skill/accepts/emits/systemPrompt）。real vendor 時は **LLM が flow JSON 生成**（同経路で検証）。全 edge を **typed-port 検証**（不一致は drop＋warning）＋ **auto-layout**（longest-path）。cockpit「✨ Ghost Writer」→ prompt → `loadFlow` で canvas に materialize（agent は HIDDEN 解除・component/mcp/trigger 配置・edge 復元）→ human レビュー → ▶Run（**生成≠実行**・approval フェンス維持）。draft agent は `/api/agents` で **runnable な local agent** 登録可。**done（達成）**: 「find prospects then draft outreach and send email」→ input→sales→marketing→echo.send_email→output（0 warn）／event 文→trigger 入口／一致無し→prompt＋draft／生成 flow を実 Run で **4/4 completed** 検証。⚠️ **Langflow Assistant（v1.9/1.10）が既に NL→完全 flow** → 「flow 生成」だけなら劣後。差別化は **(a) cross-owner agent を含めて組む ＋ (b) Wave H の capability passport 付与＝fenced 著述**（H とセットで初めて価値）。本最小版は (a) の素地（cross-company agent も index 経由で配線可）まで。
   - cockpit に Ghost Writer chat：「PR マージ→レビュー→lint 修正→Slack 通知」と書く → `search_agents` で既存 agent 発見 → **nodes/edges 生成＋typed port 配線＋trigger/mcp ノード配置** → canvas に materialize。適合 agent が無ければ **新規 agent config を draft**（name/skill/systemPrompt/accepts/emits）＝「agent を作る agent」。
   - 反復：「marketing も足して」「prod に触らせないで」→ 差分編集（後者は **Wave H の capability passport を自動付与**＝fenced agent を著述）。
   - 実装：hub が `runVendorAsync` に **agent index＋flow schema(§1)＋接続 MCP tools** を context で渡し flow JSON 生成 → schema/typed-port で**検証** → canvas/`workflows.json`。**生成≠実行**：human が Run 前にレビュー、Run は approval フェンス維持。vendor 中立（Claude でも Codex でも著述）。
@@ -148,7 +148,7 @@
 
 ### g) 3 フェーズ実行順（`docs/06 §6.9`・WORK 市場に飛びつかない）
 > 「巨人 marketplace を **AI-native＋easy＋中立＋安全** で kill」を、出荷可能→moat→economy の順で。vision 膨張＝出荷ゼロ（docs/06 §2）への規律。
-- **Phase 1（出荷優先・AI-native easy 中立 builder）**＝ **F ✅ → G ✅ → K ✅ → L**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。**次=L（Ghost Writer 最小）で Phase 1 完了 → Phase 2 H**。
+- **Phase 1（出荷優先・AI-native easy 中立 builder）＝ F ✅ → G ✅ → K ✅ → L ✅ 完了**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。**▶ 次=Phase 2 H（★wedge＝Agent Trust Boundary）**。
 - **Phase 2（moat）**＝ **H ★** ＋ 隣接 **I・J**。done: 「他社 agent を機微データに env/PII fence＋全 call audit で使う」＝**巨人 walled/Langflow に書けない flow**を実演。
 - **Phase 3（North Star・economy）**＝ **WORK 市場**＝cross-owner agent 労働市場（discovery・**reputation graph＝通貨**・marketplace・**AP2 settlement**・emergent チェーン）。**gate＝Phase 2 完了＋GATE-1 実証後に本格化**（先回りしない）。
 
