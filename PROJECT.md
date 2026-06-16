@@ -74,7 +74,7 @@
 
 ## 5. 次にやること（優先順）
 
-> ⚡ **Phase 1 完了＋Phase 2 Wave H（★wedge）完了（`docs/11`）。次 = I/J or UI/UX 整理**。GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/` に温存・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
+> ⚡ **Phase 1＋Phase 2（H★ Trust Boundary / I consensus / J build-state IR）完了（`docs/11`）。cockpit は Langflow 実機参考に UI/UX 整理済**。次の主作業候補 = GATE-1 or 実 vendor/実 MCP 接続。GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/` に温存・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
 
 1. **✅ Wave A（DONE）**: cockpit（`prototype/hub/ui.html`）に agent ノードの **in(左)/out(右) typed ポート**＋**port→port ドラッグでエッジ配線**を実装。`isValidConnection` = emits∩accepts（`*`=ワイルドカード）。型は agent 設定（`prototype/agents/*.json` の `skill.accepts/emits`）由来で hub が `/api/state` に露出（既定 `*`）。sales(emits `prospects`)→marketing(accepts `prospects`) は valid・edge ラベル "prospects"、marketing(emits `outreach`)→sales(accepts `brief`) は ∅ で弾く、`*` ノードは自由連鎖。flow draft（nodes+edges）は client 保持（永続化は Wave B）。node-on-node ドラッグ送信は残置。検証: 接続/拒否ロジックを live `/api/state` で全 ✅。
 2. **✅ Wave B1（DONE）— worker 無し実行**: hub が LOCAL agent を **in-process 実行**（`runner.mjs` の `runVendorAsync`）。worker.mjs ゼロで submit→completed。REMOTE は broker-only 維持（durable inbox）。approval フェンス維持・crash 時 boot sweep 再開。検証済（stub: auto→running(hub)→completed／approval→停止→approve→completed）。**autonomy の設定 on/off は Wave F**。
