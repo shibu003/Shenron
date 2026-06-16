@@ -74,10 +74,11 @@
 
 > ⚡ **現在の主作業 = cockpit を visual flow-builder に育てる（`docs/11` Wave A–E）**。GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/` に温存・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
 
-1. **▶ Wave A（次の一手・未着手）**: cockpit（`prototype/hub/ui.html`）を「ノード移動＋ポート配線」グラフエディタに昇格 — agent ノードに in/out ポート、**port→port でエッジ配線**（型交差で接続判定）。done 基準は `docs/11 §2 Wave A`。現状の node-on-node ドラッグ送信は残す。
-2. **Wave B–E**: B 保存+DAG実行+MCP露出 → C trigger→automation → D palette+MCP export → E open-core「kills X」ピッチ（全部 `docs/11`）。
-3. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
-4. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
+1. **✅ Wave A（DONE）**: cockpit（`prototype/hub/ui.html`）に agent ノードの **in(左)/out(右) typed ポート**＋**port→port ドラッグでエッジ配線**を実装。`isValidConnection` = emits∩accepts（`*`=ワイルドカード）。型は agent 設定（`prototype/agents/*.json` の `skill.accepts/emits`）由来で hub が `/api/state` に露出（既定 `*`）。sales(emits `prospects`)→marketing(accepts `prospects`) は valid・edge ラベル "prospects"、marketing(emits `outreach`)→sales(accepts `brief`) は ∅ で弾く、`*` ノードは自由連鎖。flow draft（nodes+edges）は client 保持（永続化は Wave B）。node-on-node ドラッグ送信は残置。検証: 接続/拒否ロジックを live `/api/state` で全 ✅。
+2. **▶ Wave B（次の一手）**: 「save as workflow」→ 配線 DAG を `workflows.json` に保存（`steps[]` 互換維持）→ hub/MCP が topological 順に実行（`run_workflow` を線形→DAG 拡張）→ 「Run」で canvas に可視化。done 基準は `docs/11 §2 Wave B`。
+3. **Wave C–E**: C trigger→automation → D palette+MCP export → E open-core「kills X」ピッチ（全部 `docs/11`）。
+4. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
+5. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
 
 **cockpit を動かす**: `node prototype/hub/hub.mjs` → **http://localhost:8795**（agent ノードを drag→drag で handoff、policy ⚡auto/✋approval、承認、status 集計・timeline）。worker（実行役）: `node prototype/hub/worker.mjs --config prototype/agents/marketing.json --vendor stub|claude|codex`。
 ⚠️ 前セッションで hub を **:8795 で起動したまま**（orphan, 8790 は user の bun を kill 済）。再開時 `lsof -tiTCP:8795` で確認、無ければ起動。

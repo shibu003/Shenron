@@ -39,11 +39,12 @@
 
 ## 2. Wave 計画（A→E。各 Wave＝1〜複数 commit、revertable、verify 付き）
 
-### Wave A — 配線キャンバス（typed ports + edges）🟢 最初
+### Wave A — 配線キャンバス（typed ports + edges）✅ DONE
 - agent ノードに **in(左)/out(右) ポート**、**port→port ドラッグでエッジ**を引く（node-on-node ドラッグから昇格）。`isValidConnection`= type 交差。エッジは status 色 bezier（既存流用）。
 - canvas 上に flow draft（nodes+edges）を保持。
 - files: `ui.html`（ports/edges/接続判定）。hub 変更は最小（node 位置の保存任意）。
 - **done**: sales→marketing を実エッジで配線、型不一致は弾く、複数ノード連鎖が描ける。
+- **実装メモ**: pointer-events で port→port 配線（live rubber-band＋valid 緑/invalid 赤 highlight・elementFromPoint で touch 対応＋edge ラベル＝交差型＋click-to-delete）。node-on-node の HTML5 ドラッグ送信は残置（`wiring` 中は dragstart 抑止で両立）。node 移動は scope 落とし（HTML5 送信とジェスチャ衝突・done 基準外）。port 型は **agent の契約**として `prototype/agents/*.json` の `skill.accepts/emits` に置き hub preseed→`/api/state` 露出（既定 `*`）。§1 schema 例の `accepts:["*"]` でなく **具体型**（sales `accepts:[brief] emits:[prospects]`／marketing `accepts:[prospects] emits:[outreach]`）にした＝2 agent だけで「型不一致を弾く」を実証するため（marketing→sales=∅）。flow draft の永続化は Wave B。検証: 接続/拒否ロジックを live `/api/state` で全 ✅（sales→marketing valid・型 "prospects"／marketing→sales 拒否／self 拒否／sales→marketing→reviewer 連鎖 valid）。
 
 ### Wave B — flow 保存 + DAG 実行（Langflow export + topo run）
 - 「**save as workflow**」→ 配線 DAG を `workflows.json` に保存（hub/MCP 経由）。
