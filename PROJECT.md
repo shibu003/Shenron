@@ -75,13 +75,14 @@
 > ⚡ **現在の主作業 = cockpit を visual flow-builder に育てる（`docs/11` Wave A–E）**。GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/` に温存・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
 
 1. **✅ Wave A（DONE）**: cockpit（`prototype/hub/ui.html`）に agent ノードの **in(左)/out(右) typed ポート**＋**port→port ドラッグでエッジ配線**を実装。`isValidConnection` = emits∩accepts（`*`=ワイルドカード）。型は agent 設定（`prototype/agents/*.json` の `skill.accepts/emits`）由来で hub が `/api/state` に露出（既定 `*`）。sales(emits `prospects`)→marketing(accepts `prospects`) は valid・edge ラベル "prospects"、marketing(emits `outreach`)→sales(accepts `brief`) は ∅ で弾く、`*` ノードは自由連鎖。flow draft（nodes+edges）は client 保持（永続化は Wave B）。node-on-node ドラッグ送信は残置。検証: 接続/拒否ロジックを live `/api/state` で全 ✅。
-2. **▶ Wave B（次の一手）**: 「save as workflow」→ 配線 DAG を `workflows.json` に保存（`steps[]` 互換維持）→ hub/MCP が topological 順に実行（`run_workflow` を線形→DAG 拡張）→ 「Run」で canvas に可視化。done 基準は `docs/11 §2 Wave B`。
-3. **Wave C–E ＋ 拡張 F/G**: C trigger→automation → D palette+MCP export → E open-core「kills X」ピッチ。**拡張（`docs/11 §2.5`）**: F integrations/⚙settings（Gmail/Slack 等の MCP を繋ぐ＋on/off）→ G `kind:"mcp"` tool ノード＋executor 実呼び出し＝**「submit 後に実際に外部へ送信」**（approval フェンス付き）。
-4. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
-5. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
+2. **✅ Wave B1（DONE）— worker 無し実行**: hub が LOCAL agent を **in-process 実行**（`runner.mjs` の `runVendorAsync`）。worker.mjs ゼロで submit→completed。REMOTE は broker-only 維持（durable inbox）。approval フェンス維持・crash 時 boot sweep 再開。検証済（stub: auto→running(hub)→completed／approval→停止→approve→completed）。**autonomy の設定 on/off は Wave F**。
+3. **▶ Wave B2（次の一手）**: 「save as workflow」→ 配線 DAG を `workflows.json` に保存（**nodes/edges を正・`steps[]` 派生シム＝採用案 (a)**）→ hub/MCP が topological 実行（各 node は B1 executor で走る）→ 「Run」で canvas 可視化。done 基準は `docs/11 §2 Wave B2`。
+4. **Wave C–E ＋ 拡張 F/G**: C trigger→automation → D palette+MCP export → E open-core ピッチ。**拡張（`docs/11 §2.5`）**: **F** integrations/⚙settings（MCP 接続＋on/off・**autorun on/off**・**share=渡す/絶対渡さない情報の切り分け**）→ **G** `kind:"mcp"` tool ノード＋executor 実呼び出し＝**「submit 後に実際に外部へ送信」**（approval フェンス＋share 境界を通してから送信）。
+5. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
+6. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
 
-**cockpit を動かす**: `node prototype/hub/hub.mjs` → **http://localhost:8795**（agent ノードを drag→drag で handoff、policy ⚡auto/✋approval、承認、status 集計・timeline）。worker（実行役）: `node prototype/hub/worker.mjs --config prototype/agents/marketing.json --vendor stub|claude|codex`。
-⚠️ 前セッションで hub を **:8795 で起動したまま**（orphan, 8790 は user の bun を kill 済）。再開時 `lsof -tiTCP:8795` で確認、無ければ起動。
+**cockpit を動かす**: `node prototype/hub/hub.mjs --vendor stub` → **http://localhost:8795**（`--vendor stub`＝local agent を即時 in-process 実行・real LLM は省略。drag→drag で handoff、policy ⚡auto/✋approval、承認、status 集計・timeline）。**LOCAL agent（sales/marketing）は worker 不要で hub が走らせる**（B1）。REMOTE agent のみ worker: `node prototype/hub/worker.mjs --config … --vendor stub|claude|codex`。
+⚠️ 再開時 `lsof -tiTCP:8795` で hub の有無を確認、無ければ起動。
 
 ---
 

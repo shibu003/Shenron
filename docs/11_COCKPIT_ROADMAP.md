@@ -48,8 +48,16 @@
 - **実装メモ**: pointer-events で port→port 配線（live rubber-band＋valid 緑/invalid 赤 highlight・elementFromPoint で touch 対応＋edge ラベル＝交差型＋click-to-delete）。**node 移動も実装**（本体ドラッグ=ライブ移動・pointer events・エッジ追従）。HTML5 DnD は撤去し pointer events に統一：他ノード上で離す=**送信**（source は元位置へ snap-back＝旧 drag-to-send UX 維持）、空きで離す=**移動**。配線（port）と policy pill は除外。port 型は **agent の契約**として `prototype/agents/*.json` の `skill.accepts/emits` に置き hub preseed→`/api/state` 露出（既定 `*`）。§1 schema 例の `accepts:["*"]` でなく **具体型**（sales `accepts:[brief] emits:[prospects]`／marketing `accepts:[prospects] emits:[outreach]`）にした＝2 agent だけで「型不一致を弾く」を実証するため（marketing→sales=∅）。flow draft の永続化は Wave B。検証: 接続/拒否ロジックを live `/api/state` で全 ✅（sales→marketing valid・型 "prospects"／marketing→sales 拒否／self 拒否／sales→marketing→reviewer 連鎖 valid）。
 
 ### Wave B — flow 保存 + DAG 実行（Langflow export + topo run）
-- 「**save as workflow**」→ 配線 DAG を `workflows.json` に保存（hub/MCP 経由）。
-- hub/MCP が **flow を topological 順に実行**（`run_workflow` を steps→DAG 拡張、出力→入力を edge で受け渡し）。「**Run**」ボタン→ hub 実行→結果を canvas に可視化（既存 animate/timeline）。
+> B は2分割：**B1（実行基盤・autonomy）✅ DONE** → **B2（保存 + DAG）▶ 次**。
+
+**B1 — hub in-process executor（worker 無し実行）✅ DONE**
+- LOCAL agent（`prototype/agents/*.json` に config あり）を **hub 自身が in-process で実行**（`runner.mjs` の `runVendorAsync`・非ブロッキング）。submit/approve で発火→結果を post。**worker.mjs 不要**で submit→completed。
+- REMOTE/cross-company agent は broker-only のまま（runtime は相手所有・durable inbox が保持）。`poll()` は local agent には heartbeat のみ（二重実行防止）。**approval フェンス維持**（既定 approval＝人間承認まで走らない）。crash 時は boot sweep で再開。`--vendor stub|codex|claude` で local-exec vendor 指定。
+- files: `runner.mjs`（async runner）、`hub.mjs`（executor/scheduler/sweep）。**done（達成）**: stub で auto→running(hub)→completed・worker ゼロ／approval→awaiting_approval で停止→approve→completed を検証。**設定での on/off は §2.5 f) Wave F**。
+
+**B2 — flow 保存 + DAG 実行 ▶ 次**
+- 「**save as workflow**」→ 配線 DAG を `workflows.json` に保存（**nodes/edges を正**・`steps[]` は派生シムで互換維持＝採用案 (a)）。
+- hub/MCP が **flow を topological 順に実行**（`run_workflow` を steps→DAG 拡張、出力→入力を edge で受け渡し・各 agent node は B1 executor で実行）。「**Run**」ボタン→ hub 実行→結果を canvas に可視化（既存 animate/timeline）。
 - 各保存 flow を MCP `run_workflow` で露出（入口 node から input 導出）。`tweaks` 風の per-node 上書きも受ける。
 - files: `hub.mjs`（保存・topo-run）、`mcp/server.mjs`（flow 実行/ツール化）、`ui.html`（save/run）。
 - **done**: UI で組んだ flow を保存→Run→completed、MCP からも同 flow を実行。
@@ -91,9 +99,25 @@
 - topo-run が `kind:"mcp"` ノードに来たら、上流出力を入力に **hub/worker が接続 MCP server の tool を実呼び出し** → 実際に送信される。
 - **trust fence（blast radius gate 維持）**：外部副作用ノードは既定 **approval**（attended＋`A2A_SHARED_TOKEN`）。`auto` は明示 opt-in のみ。既存 `awaiting_approval` フェンスをそのまま流用。
 
-### e) 新 Wave（B の後）
-- **Wave F — integrations & settings**：`integrations.json` ＋ ⚙settings（接続 / on-off / 追加）。**done**: Gmail/Slack の MCP を繋いで on/off できる、enabled の tool が palette に出る。
-- **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor が enabled tool を実呼び出し（approval フェンス付き）。**done**: 「draft-outreach(agent) → gmail.send_email(mcp)」を配線→Run→**実際に下書き/送信される**。
+### e) trust controls（⚙設定で on/off ＋ データ境界）— Wave F に含める
+
+3 軸で独立に制御（混同しない）: **`policy`**（承認ゲート＝handoff 毎の人間承認）× **`autorun`**（hub 代理実行の可否＝下記1）× **`share`**（何を渡すか＝下記2）。
+
+**1. 自律実行 on/off（「相手が起動してなくても hub が動かす」機構の制御）**
+- 現状の安全弁は**既にある**：per-agent **policy=approval が既定** → 人間承認まで走らない。autonomous は policy=auto の時だけ（B1 で検証済）。
+- 追加する per-agent（＋global master）**`autorun` トグル**＝「hub が in-process でこの agent を**代理実行してよいか**」。**off** にすると B1 executor を使わず、その agent 専用 worker／相手 runtime が起動した時のみ実行（旧 broker-only 挙動へ）。⚙settings と `set_policy`/MCP で on/off。
+- 既定: local agent は `autorun=on`＋`policy=approval`（＝走るが人間ゲート）。global master off で「hub は一切代理実行しない」に倒せる。
+
+**2. データ境界（絶対に渡さない情報 / 渡す情報の切り分け）**
+- handoff/edge の payload に **share policy** を付与：`{ pass:[…許可フィールド/タグ], never:[…禁止フィールド/パターン] }`。
+- 適用点：hub が handoff 作成時（特に **cross-company＝remote 宛**）に **never 該当を除去してから保存/転送**、pass のみ下流へ。mcp ノード（Wave G の Gmail/Slack 送信）にも同じ境界を適用＝外に出る前に必ず通す。
+- 既定：**cross-company は deny-by-default**（明示 pass のみ）／local は緩め。secret/PII パターン（API key・token・`.env` 等）は **never に既定登録**（philosophy #4 secret 漏洩防止と整合）。
+- UI：edge クリック or ⚙settings で per-edge/per-agent の pass/never を編集。監査のため除去した事実は history に残す（中身は残さない）。
+- **MVP の範囲整理**：データ境界（**何を**渡すか＝フィルタ）は今 build 可能。一方 cross-party の**認可・身元**（**誰に**＝OBO/DPoP・M5）は GATE-2 North Star で別軸（PROJECT §4）。混同しない。
+
+### f) 新 Wave（B の後）
+- **Wave F — integrations & settings ＋ trust controls**：`integrations.json` ＋ ⚙settings（MCP 接続 / on-off / 追加・**`autorun` on/off**・**`share` pass/never 編集**）。**done**: ①Gmail/Slack の MCP を繋いで on/off でき enabled tool が palette に出る、②agent の autorun を off にすると hub が代理実行しなくなる、③handoff の never 指定フィールドが下流に**渡らない**ことを検証。
+- **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor が enabled tool を実呼び出し（approval フェンス＋**share 境界を通してから送信**）。**done**: 「draft-outreach(agent) → gmail.send_email(mcp)」を配線→Run→**実際に下書き/送信される**（never フィールドは送信前に除去）。
 
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
