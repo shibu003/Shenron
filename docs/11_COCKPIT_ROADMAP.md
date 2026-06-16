@@ -36,8 +36,9 @@
 - **接続可否** = `intersect(source.out.emits, target.in.accepts) ≠ ∅`（`"*"`=ワイルドカード）＝ React Flow の `isValidConnection`。
 - **実行** = topo-sort → 各 agent node を hub 経由で run、出力を edge 先の input に渡す（既存 `run_workflow` を線形→DAG に拡張）。trigger node が入口。
 - **保存先**：trigger 無し → `workflows.json`（既存）に nodes/edges を併記、trigger あり → `automations.json`。互換のため既存の `steps[]` も導出して残す。
+- **node.kind = `trigger | agent | mcp`**。`agent`=LLM skill（テキスト生成、現状）。`mcp`=**接続済み MCP server の tool 呼び出し＝副作用アクション**（例 `gmail.send_email` / `slack.post_message`）。mcp ノードも同じ typed port で配線。詳細・integrations・on/off は **§2.5**。
 
-## 2. Wave 計画（A→E。各 Wave＝1〜複数 commit、revertable、verify 付き）
+## 2. Wave 計画（A→E ＋ 拡張 F/G。各 Wave＝1〜複数 commit、revertable、verify 付き。拡張性の全体像は §2.5）
 
 ### Wave A — 配線キャンバス（typed ports + edges）✅ DONE
 - agent ノードに **in(左)/out(右) ポート**、**port→port ドラッグでエッジ**を引く（node-on-node ドラッグから昇格）。`isValidConnection`= type 交差。エッジは status 色 bezier（既存流用）。
@@ -68,12 +69,40 @@
 - files: `docs/06_VISION.md`。
 - **done**: pitch 1 枚に反映。
 
+## 2.5 拡張性 — MCP tool ノード・integrations・実 side-effect（vision を固定）
+
+> 狙い：cockpit を「agent を配線して **実際に外部へ送信する**（Gmail / Slack 等）」面にする。**MCP 追加・skill 追加・on/off を全部この中**で。今は agent skill が**テキストを生成**する所まで（worker 起動下）で、**外部アクション（送信）は未実装** → 下の Wave F/G で埋める。
+
+### a) node kind を 3 種に（§1 schema 拡張）
+- `agent` … LLM skill。テキスト生成（現状・worker.mjs が `runVendor` で実行）。
+- `mcp`   … 接続済み MCP server の **tool 呼び出し＝副作用アクション**（`gmail.send_email`・`slack.post_message`…）。`{ kind:"mcp", server:"gmail", tool:"send_email", config:{…}, in:{accepts:["outreach","*"]}, out:{emits:["sent"]} }`。`config`=field 既定（Langflow template/tweaks 相当）。
+- `trigger`… 入口（既存）。
+- 接続判定は全 kind 共通（`emits ∩ accepts`）。agent→mcp 連鎖（draft-outreach → gmail.send_email）が描ける。
+
+### b) integrations registry + settings（新規）
+- 新 store `prototype/mcp/integrations.json`：接続 MCP server 一覧（`label` / 接続情報（command|url|auth）/ **`enabled`** / 露出 `tools[]`）。
+- cockpit **⚙ settings パネル**：接続 MCP の一覧・**on/off トグル**・**新規 MCP 追加**。**enabled の server の tool だけ** palette と executor に出る。
+- 認可は **adopt, not build**：各 MCP server 自身の auth に乗る（自前認可は作らない＝philosophy #1）。
+
+### c) builder へ取り込み（Wave D palette を拡張）
+- palette = agents/skills（`search_agents`）＋ **enabled MCP server の tools**。canvas にドラッグ＝ノード追加。skill も同様にドラッグで追加。
+
+### d) 実 side-effect 実行（executor＝「submit 後に実際に動く」の本体）
+- topo-run が `kind:"mcp"` ノードに来たら、上流出力を入力に **hub/worker が接続 MCP server の tool を実呼び出し** → 実際に送信される。
+- **trust fence（blast radius gate 維持）**：外部副作用ノードは既定 **approval**（attended＋`A2A_SHARED_TOKEN`）。`auto` は明示 opt-in のみ。既存 `awaiting_approval` フェンスをそのまま流用。
+
+### e) 新 Wave（B の後）
+- **Wave F — integrations & settings**：`integrations.json` ＋ ⚙settings（接続 / on-off / 追加）。**done**: Gmail/Slack の MCP を繋いで on/off できる、enabled の tool が palette に出る。
+- **Wave G — MCP tool ノード＋実 side-effect**：`kind:"mcp"` ノード＋executor が enabled tool を実呼び出し（approval フェンス付き）。**done**: 「draft-outreach(agent) → gmail.send_email(mcp)」を配線→Run→**実際に下書き/送信される**。
+
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
 - flow 実行/保存 → `prototype/hub/hub.mjs`（durable inbox＋将来 topo-run）
 - flow=workflow/automation → `prototype/mcp/workflows.json` / `automations.json`（nodes/edges を併記、`steps[]` 互換維持）
 - MCP 露出 → `prototype/mcp/server.mjs`（`run_workflow`/inbox tools・計 18）
 - schedule trigger → `prototype/mcp/trigger/`（Trigger.dev seam・既存）
+- integrations（接続 MCP・on/off）→ `prototype/mcp/integrations.json`（**新規**・§2.5 Wave F）
+- mcp tool ノード実行（side-effect）→ `prototype/hub/worker.mjs`＋`prototype/mcp/server.mjs`（§2.5 Wave G）
 
 ## 4. 非目標（この roadmap では作らない）
 - React Flow 本体導入（build 必要＝zero-dep 破壊。本番 surface 時に）。
