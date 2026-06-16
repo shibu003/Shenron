@@ -112,7 +112,7 @@ build-state イベントが handoff を生み、A2A で運ぶ。
 | **A2A Server** | 製品 | Agent Card + skill 受信 | `/.well-known/agent-card.json`、bearer 検証、allowlist |
 | **Trust Gate** | 製品 | 認可（MVP=fake） | 共有secret+repo allowlist+attended、audit ログ |
 | **Approve Queue** | 製品 | attended 承認 | **`canUseTool` callback / blocking MCP**（defer 可・session 再開）。**PTY scrape 禁止**（Omnara が死んだ反 pattern・`08` §5） |
-| **Agent Runner** | 製品 | 自 agent を実行 | `claude -p`（`--permission-prompt-tool`）/ **`codex exec --json --ask-for-approval never --sandbox`（gate は外）**、**返すだけ・書込まない** |
+| **Agent Runner** | 製品 | 自 agent を実行 | `claude -p`（`--permission-prompt-tool`）/ **`codex exec --sandbox read-only --skip-git-repo-check`**（exec は非対話＝0.137.x に `--ask-for-approval` 無し・gate は外）、**返すだけ・書込まない** |
 | **A2A Client** | 製品 | handoff 送信/受信 | message/send → result |
 | **D&D Canvas** | 製品 | handoff を wire | **React Flow/@xyflow v12（MIT）**・generic typed node・domain-over-graph。`A push → B:skill → 結果` を 2-3 node |
 | **Cockpit / Mobile** | 両 | IR 描画 / glance・approve | desktop 主・mobile companion（`04` IA4） |

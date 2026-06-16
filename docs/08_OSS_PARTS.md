@@ -85,7 +85,7 @@
 
 ### VERIFIED DISPATCH FACTS（CLI help で接地）
 - **claude headless**：`claude -p "<prompt>"`。`--output-format text|json|stream-json`（stream は `--verbose` 必須）。`--json-schema` → `.structured_output`。`--permission-mode default|acceptEdits|plan|dontAsk|bypassPermissions`、`--allowedTools "Bash(git diff *)"`/`--disallowedTools`、`--permission-prompt-tool`（=headless の canUseTool）。`--resume/-r`, `--continue/-c`, `--fork-session`, `--mcp-config`, `--bare`。評価順 Hooks→Deny→Ask→Mode→Allow→canUseTool。
-- **codex headless**：`codex exec "<prompt>"`（`-` で stdin）。**機械可読は `--json`（NDJSON）のみ**（`--output-format json` は**無い**）。`--output-last-message`/`-o`, `--output-schema`。`--ask-for-approval/-a untrusted|on-failure|on-request|never`、`--sandbox/-s read-only|workspace-write|danger-full-access`。`--full-auto` 廃止。`-p` は **profile**（print でない）。resume: `codex exec resume [ID]`。
+- **codex headless（実機 0.137.0 で確認）**：`codex exec "<prompt>"`（`-` で stdin）。**機械可読は `--json`（NDJSON）のみ**（`--output-format json` は**無い**）。`--output-last-message`/`-o`, `--output-schema`。**`codex exec` は既定で非対話＝`--ask-for-approval` flag は無い**（書込制御は `--sandbox/-s read-only|workspace-write|danger-full-access`、危険な全許可は `--dangerously-bypass-approvals-and-sandbox`）。`--skip-git-repo-check`/`--cd`/`--add-dir` あり。`-p` は **profile**（print でない）。resume: `codex exec resume [ID]`。**注**：interactive `codex`（exec でない）には approval 概念があるが、headless は sandbox で制御。
 - **🔑 設計上の要点**：**Codex の approval は対話的** → 我々の attended-out-of-band では **`codex exec --ask-for-approval never --sandbox <tight>` で走らせ、gate は BuildHUD の Approve Queue 側**（review を返すだけ）。Claude は `canUseTool`/`--permission-prompt-tool` で native に defer 可。
 
 ---

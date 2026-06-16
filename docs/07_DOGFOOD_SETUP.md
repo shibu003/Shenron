@@ -171,7 +171,7 @@ Claude Code / Codex に**この §だけ**渡せば組める。fence を spec �
 ## 8. 落とし穴
 
 - **A2A 接地済（`08` §1）**：card=`/.well-known/agent-card.json`（`agent.json` は legacy）、send=`message/send`（`task/send` は無い）、hook=`execute(ctx,event_queue)`（`on_message_send` は無い）、v1.0 で `A2AStarletteApplication` 廃止→route factory。
-- **dispatch flag 接地済（`08` §5）**：`claude -p`（`--output-format json`、`--permission-prompt-tool`）。**`codex exec --json`（`--output-format` は無い）＋`--ask-for-approval never --sandbox`**。Codex の approval は対話的なので **gate は BuildHUD 側（approve_prompt）に置く**。
+- **dispatch flag 接地済（`08` §5＋実機 0.137.0）**：`claude -p`（`--output-format json`、`--permission-prompt-tool`）。**`codex exec --sandbox read-only --skip-git-repo-check`**（`exec` は既定で非対話＝**0.137.x に `--ask-for-approval` flag は無い**。`--json` は NDJSON、final msg は stdout）。gate は BuildHUD 側（approve_prompt）に置く。
 - **tunnel URL は起動毎に変わる**（trycloudflare 無料）→ Agent Card の `url` を毎回更新 or named tunnel。
 - **token を repo にコミットしない**（env のみ・`.gitignore`）。`handoff.log` に diff 全文を残さない（path/要約のみ）＝ 将来の privacy 設計の練習（`04` R4）。
 - **review は返すだけ・書き込まない**（attended でも自動 merge しない）。
