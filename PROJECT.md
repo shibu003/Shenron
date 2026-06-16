@@ -74,7 +74,19 @@
 
 ## 5. 次にやること（優先順）
 
-> ⚡ **Phase 1＋Phase 2（H★ Trust Boundary / I consensus / J build-state IR）完了（`docs/11`）。cockpit は Langflow 実機参考に UI/UX 整理済**。次の主作業候補 = GATE-1 or 実 vendor/実 MCP 接続。GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/` に温存・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
+> ⚡ **Phase 1＋Phase 2（H★ Trust Boundary / I consensus / J build-state IR）完了（`docs/11`・origin 同期済 `918d26d`）。cockpit は Langflow 実機 UI 参考に整理済**。差別化の 5 束は実コードで存在（`docs/11 §2.6`）。
+
+### ▶▶ 次の主作業 = (a) #1「Agent Trust Boundary」を**有料商品化**（最初の有料 SKU・`docs/11 §2.6` 収益化 #1）
+素地は **Wave H で実装済**（passport＋data firewall＋tamper-evident audit＝`prototype/trust.mjs`）。残り = **粒度** と **packaging**。着手前に **3-pass plan（philosophy #5）**。
+- **A. per-edge Data Firewall**（今は per-agent）: edge が `share:{pass,never}` を持つ。hub `advanceFrom`（edge で出力→下流 input 受け渡し時）にその edge policy で `redact` 適用。**cross-company edge は deny-by-default**（pass のみ通す）。UI: edge クリックで pass/never 編集（今は drawLinks `.hit` が click-to-delete のみ）。除去は既存 audit trail に記録。
+- **B. capability 語彙の拡張**（今は `read|write|external_send`）: §2.6 #1 の例＝ `net: none|read|full` / `fs: none|diff-only|repo` / `external_send: deny|approval|allow` / `secrets: deny`(既定)。hub が該当ホップで強制（external_send=approval→mcp は awaiting_approval、deny→即 deny。net/fs は宣言＋audit、実 sandbox は runner 側の将来）。
+- **C. packaging**: cockpit に **Trust preset**（untrusted-3rd-party＝net:none/fs:diff-only/external_send:approval/secrets:deny ／ internal ／ trusted を passport に一括適用）。代表 flow テンプレ＝§2.6 #2 Safe Cross-Agent Handoff（Claude 実装→Codex review→(env/PII fence)→Slack approval）。ICP=2-pizza/agency/multi-agent SMB、課金=seat or per-audited-run の 1-pager。
+- **done 基準**: edge ごとに pass/never→cross-edge で機密が落ちる／capability 語彙を宣言→hub が強制＋audit／untrusted preset 1-click。
+- **code 入口**: `prototype/trust.mjs`（redact/passport/audit）・`prototype/hub/hub.mjs`（`create`/`runMcp`/`advanceFrom`/`setPassport`/`fireMcpNode`）・`prototype/hub/ui.html`（drawLinks `.hit` クリック・`inspAgent` passport editor・`bindAgent`）・`docs/11 §2.5 e`（pass/never 設計）。
+- 🔴 **fence**: **GATE-1（買い手未名指し）は packaging しても不変** → 並行 interview 推奨。
+- hub 起動: `node prototype/hub/hub.mjs --vendor stub` → http://localhost:8795（再開時 `lsof -tiTCP:8795` で有無確認）。
+
+> GATE-1 は user 判断で一旦**スキップ中**（kit は `prototype/gate1/`・mechanism＋実 Codex/Claude 往復＋公開トンネル往復まで検証済、残るは人間 criterion のみ）。
 
 1. **✅ Wave A（DONE）**: cockpit（`prototype/hub/ui.html`）に agent ノードの **in(左)/out(右) typed ポート**＋**port→port ドラッグでエッジ配線**を実装。`isValidConnection` = emits∩accepts（`*`=ワイルドカード）。型は agent 設定（`prototype/agents/*.json` の `skill.accepts/emits`）由来で hub が `/api/state` に露出（既定 `*`）。sales(emits `prospects`)→marketing(accepts `prospects`) は valid・edge ラベル "prospects"、marketing(emits `outreach`)→sales(accepts `brief`) は ∅ で弾く、`*` ノードは自由連鎖。flow draft（nodes+edges）は client 保持（永続化は Wave B）。node-on-node ドラッグ送信は残置。検証: 接続/拒否ロジックを live `/api/state` で全 ✅。
 2. **✅ Wave B1（DONE）— worker 無し実行**: hub が LOCAL agent を **in-process 実行**（`runner.mjs` の `runVendorAsync`）。worker.mjs ゼロで submit→completed。REMOTE は broker-only 維持（durable inbox）。approval フェンス維持・crash 時 boot sweep 再開。検証済（stub: auto→running(hub)→completed／approval→停止→approve→completed）。**autonomy の設定 on/off は Wave F**。
@@ -83,9 +95,9 @@
 5. **✅ Wave D（DONE）— palette + MCP export**: 「☰ palette」＝agent/skill カタログ（hub 共有 index を検索）。node ✕ で canvas から外し palette ＋ で戻す（add サイクル）。per-node/palette「⧉ copy MCP call」（`send_handoff` 片）、per-flow「⇪ export」（workflow 保存＋`run_workflow` MCP 片を copy）。MCP search proxy は不要化（hub state＝同一 index）。done 基準 `docs/11 §2 Wave D`。
 6. **✅ Wave E（DONE）— open-core ピッチ**: 「BuildHUD kills 手配線 cross-agent glue」を `docs/06 §6.8` に1枚（n8n/Cal.com/Langflow 対応表・各 Wave が消す glue・capture・正直 fence）。**cockpit ロードマップ A–E 完了**。
 7. **▶ 拡張＝3 フェーズで実行（`docs/06 §6.9`/`docs/11 §2.5 f`）**: 巨人 marketplace（Salesforce/Google/MS/AWS）を **AI-native＋easy＋中立＋安全**で kill。需要は実証済（AgentExchange ~$800M ARR・wrapper 死・**非複製資産**で勝つ）。**WORK 市場に飛びつかず順に**:
-   - **Phase 1（出荷優先・AI-native easy 中立 builder）= F ✅ G ✅ K ✅ L ✅ 完了**: G(mcp 実呼び出し・`mcp-client.mjs`)／K(component library〔Chat Input/Prompt/Chat Output〕＋typed-field template＋conditional ports＋playground)／L(Ghost Writer＝NL→検証済 flow を canvas に・heuristic＋LLM・agent draft)。＝AI-native・中立 surface（**入場料・単体では moat でない**）。**▶ 次=Phase 2 H（★wedge＝Agent Trust Boundary）**。
-   - **Phase 2（moat）**: **H ★wedge**=Agent Trust Boundary（capability passport＋data firewall＋audit・S0→S1→S2）。隣接 **I**(consensus)・**J**(build-state IR)。＝**巨人 walled/Langflow に「書けない flow」**を実演。
-   - **Phase 3（North Star）**: **WORK 市場**=cross-owner agent 労働市場（reputation graph＝通貨・marketplace・AP2 settlement・emergent チェーン）。**GATE-1 実証後に本格化**。
+   - **Phase 1（出荷優先・AI-native easy 中立 builder）= F ✅ G ✅ K ✅ L ✅ 完了**: G(mcp 実呼び出し・`mcp-client.mjs`)／K(component library〔Chat Input/Prompt/Chat Output〕＋typed-field template＋conditional ports＋playground)／L(Ghost Writer＝NL→検証済 flow を canvas に・heuristic＋LLM・agent draft)。＝AI-native・中立 surface（**入場料・単体では moat でない**）。
+   - **Phase 2（moat）= H ★ ✅ ＋ I ✅ ＋ J ✅ 完了**: **H**=Agent Trust Boundary（capability passport＋data firewall＋tamper-evident audit・`trust.mjs`）／**I**=cross-vendor consensus（token-Jaccard medoid＋agreement）／**J**=build-state IR（語彙 10＋match DSL 8 演算子・`/api/buildstate`）。＝**巨人 walled/Langflow に「書けない flow」**を実機実演。**▶ 次=製品化 (a)（§5 冒頭・`docs/11 §2.6` 収益化 #1）**。
+   - **Phase 3（North Star）**: **WORK 市場**=cross-owner agent 労働市場（reputation graph＝通貨・marketplace・AP2 settlement・emergent チェーン）。**前段=監査裏付き reputation（§2.6 #3）を marketplace より先に**。**GATE-1 実証後に本格化**。
    ⚠️ **Langflow 再調査（2026-06）**: MCP 双方向・flow を MCP 公開・「Langflow Assistant」＝NL→完全 flow 生成を既出（~146k★・IBM/watsonx）→ **K/L/D は catch-up＝入場料・本家に正面では勝てない。勝負は Phase 2 の H**（`docs/11 §0`/§2.5 f）。
    ⚠️ **GATE-1 未証明**（`docs/06 §6.9 B`）: 「中立・安全層に金を払う非巨人」を 10 人 interview→**3 人 🟢 で着手 GO**。$15T は channel-shift＋Gartner 自身の 40% 中止。
 8. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
