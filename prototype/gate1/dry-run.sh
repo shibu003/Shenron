@@ -7,7 +7,7 @@
 #   prototype/gate1/dry-run.sh [codex|claude|stub] [branch]
 #
 # For the CROSS-MACHINE proof (NAT traversal), expose the B host yourself and point send.mjs at the URL:
-#   node prototype/server.mjs &                 # in one terminal (uses prototype/config.json)
+#   node prototype/reviewer-server.mjs &                 # in one terminal (uses prototype/config.json)
 #   ngrok http 8787                             # → https://xxxx.ngrok-free.app  (YOUR action; outward-facing)
 #   B_URL=https://xxxx.ngrok-free.app A2A_SHARED_TOKEN=$A2A_SHARED_TOKEN node prototype/send.mjs <branch>
 set -euo pipefail
@@ -28,7 +28,7 @@ cat > "$CFG" <<JSON
 JSON
 
 echo "▶ dry-run: reviewer=$REVIEWER  branch=$BRANCH  port=$PORT  (isolated — config.json untouched)"
-node prototype/server.mjs --config "$CFG" >/tmp/gate1-dry-b.log 2>&1 &
+node prototype/reviewer-server.mjs --config "$CFG" >/tmp/gate1-dry-b.log 2>&1 &
 BPID=$!
 trap 'kill "$BPID" 2>/dev/null || true; rm -f "$CFG"' EXIT
 

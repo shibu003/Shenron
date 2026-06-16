@@ -45,9 +45,9 @@ git clone <your-repo-or-this-rig> && cd <dir>
 cp prototype/config.example.json prototype/config.json
 #   edit config.json: "reviewer":"codex" (or "claude"), "repoAllowlist":["<owner/repo>"]
 export A2A_SHARED_TOKEN=<the-shared-secret-you-sent-them>
-node prototype/server.mjs                              # prints the local URL, waits for handoffs
+node prototype/reviewer-server.mjs                              # prints the local URL, waits for handoffs
 ngrok http 8787                                        # → https://xxxx.ngrok-free.app  (cloudflared also fine)
-#   put that public URL in config.json "publicUrl", restart server.mjs, send the URL back to you
+#   put that public URL in config.json "publicUrl", restart reviewer-server.mjs, send the URL back to you
 ```
 
 When a handoff arrives, **their terminal prompts `Approve? [y/N]`** — they type `y`, their agent reviews your diff (read-only), the review comes back to you. Nothing is written or merged. The audit line in `prototype/handoff.log` is **path/summary only — never the diff body** (`docs/07 §8`).
@@ -71,13 +71,13 @@ Fill in **`SCORECARD.md`** the moment the round-trip happens. GATE-1 is *closed*
 **JP (casual, to a builder friend):**
 > 〈name〉、15 分だけ実験に付き合ってくれない? 売り込みじゃなくて検証なんだけど——
 > **俺が branch を push したら、君の Codex(or Claude) がその diff を review して俺に返す**、っていう「人をまたいだ agent の受け渡し」を 1 回だけ動かしたい。
-> 君がやるのは: Node と codex/claude CLI が入った状態で `node prototype/server.mjs` を起動 → ngrok で公開 URL を俺に渡すだけ。レビュー要求が来たら端末に `Approve? [y/N]` が出るので `y` を押す。**コードは read-only、書き込み/merge は一切しない、diff 本文もログに残さない**(残すのは path だけ)。
+> 君がやるのは: Node と codex/claude CLI が入った状態で `node prototype/reviewer-server.mjs` を起動 → ngrok で公開 URL を俺に渡すだけ。レビュー要求が来たら端末に `Approve? [y/N]` が出るので `y` を押す。**コードは read-only、書き込み/merge は一切しない、diff 本文もログに残さない**(残すのは path だけ)。
 > 終わったら一言だけ欲しい: **「これ、また使いたい?」** 〈date〉どう?
 
 **EN (casual):**
 > Hey 〈name〉 — got 15 min for an experiment? Not a pitch, just validation.
 > I want to run **one** cross-person agent handoff: **I push a branch → your Codex (or Claude) reviews the diff → it comes back to me.**
-> Your part: with Node + the codex/claude CLI installed, run `node prototype/server.mjs`, expose it with ngrok, send me the URL. When a review request lands you'll see `Approve? [y/N]` — hit `y`. It's **read-only, never writes/merges, and the diff body is never logged** (path only).
+> Your part: with Node + the codex/claude CLI installed, run `node prototype/reviewer-server.mjs`, expose it with ngrok, send me the URL. When a review request lands you'll see `Approve? [y/N]` — hit `y`. It's **read-only, never writes/merges, and the diff body is never logged** (path only).
 > Afterward I just need one thing: **"would you use this again?"** Free 〈date〉?
 
 > Tip: pick a friend whose review you'd *genuinely* want on a repo you're *actually* pushing to this week — real recurrence is the whole point. Reframe the task line if you two repeat something else (nightly WIP test, PR triage, …).
