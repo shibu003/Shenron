@@ -62,8 +62,8 @@
 ## 6. Fence / 安全
 
 - act tool は **read-only でない**＝ 必ず trust gate（MVP: token+allowlist+attended、`07`/`09 M5`）。
-- AI が勝手に cross-company dispatch しないよう、`run_*`/`fire_event` は既定で **attended**（承認必須）。autonomous は明示 opt-in（`--unattended` / `BUILDHUD_UNATTENDED=1`）＝ CI hook・cron から無人で fire するための口。
-- ただし autonomous でも **実行は `A2A_SHARED_TOKEN` 必須**（無ければ network に出ず即 refuse）。`enabled:false` の automation は fire しない。= 二段 fence。
+- AI が勝手に cross-company dispatch しないよう、act は既定 **attended**（承認必須）。autonomous は明示 opt-in（`--unattended` / `BUILDHUD_UNATTENDED=1`）だが **automation 限定**：`run_automation`/`fire_event` の `enabled` automation のみ無人 fire、**ad-hoc な `run_handoff`/`run_workflow` は `--unattended` でも attended のまま**（恣意的 dispatch を無人化しない）。CI hook・cron 用の口。
+- `A2A_SHARED_TOKEN` は **server→agent の到達 credential**（client 認可ではない）。無ければ network に出ず refuse、`enabled:false` は fire しない。本物の cross-party 認可（OBO/DPoP・M5）は未実装ゆえ `--unattended` は **信頼 client からのみ**。
 - 索引・検索は token を燃やさない設計が目的。**full dump tool を作らない**（`get_*` で 1 件ずつ）。
 
 ## 7. 使い方（実装 `prototype/mcp/server.mjs`）
