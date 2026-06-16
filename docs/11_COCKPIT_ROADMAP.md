@@ -148,9 +148,30 @@
 
 ### g) 3 フェーズ実行順（`docs/06 §6.9`・WORK 市場に飛びつかない）
 > 「巨人 marketplace を **AI-native＋easy＋中立＋安全** で kill」を、出荷可能→moat→economy の順で。vision 膨張＝出荷ゼロ（docs/06 §2）への規律。
-- **Phase 1（出荷優先・AI-native easy 中立 builder）＝ F ✅ → G ✅ → K ✅ → L ✅ 完了**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。**▶ 次=Phase 2 H（★wedge＝Agent Trust Boundary）**。
-- **Phase 2（moat）**＝ **H ★** ＋ 隣接 **I・J**。done: 「他社 agent を機微データに env/PII fence＋全 call audit で使う」＝**巨人 walled/Langflow に書けない flow**を実演。
-- **Phase 3（North Star・economy）**＝ **WORK 市場**＝cross-owner agent 労働市場（discovery・**reputation graph＝通貨**・marketplace・**AP2 settlement**・emergent チェーン）。**gate＝Phase 2 完了＋GATE-1 実証後に本格化**（先回りしない）。
+- **Phase 1（出荷優先・AI-native easy 中立 builder）＝ F ✅ → G ✅ → K ✅ → L ✅ 完了**。＝kill の「AI-native＋easy＋中立」surface＝**入場料（単体では moat でない）**。done: 非巨人が複数 vendor の agent を AI-native・中立・self-serve で配線→Run。
+- **Phase 2（moat）＝ H ★ ✅ ＋ 隣接 I ✅・J ✅ 完了**。done（達成）: 「他社 agent を機微データに env/PII fence＋全 call audit で使う」「同 task を 3 vendor consensus」「build-state IR で発火」＝**巨人 walled/Langflow に書けない flow** を実機実演。
+- **Phase 3（North Star・economy）**＝ **WORK 市場**＝cross-owner agent 労働市場（discovery・**reputation graph＝通貨**・marketplace・**AP2 settlement**・emergent チェーン）。**gate＝Phase 2 完了＋GATE-1 実証後に本格化**（先回りしない）。**前段＝§2.6 の「監査裏付き reputation」を marketplace より先に**。
+
+## 2.6 差別化の核 = 5 つの束（「便利な builder」ではない）＋ 収益化順
+
+> 差別化は **「便利な flow-builder」ではない**（そこは Langflow/n8n が本家＝入場料・§0/§2.5f）。差別化は **下の 5 つの束**＝**オーナー境界をまたぐ AI 開発作業を、信頼境界つきで安全に走らせる**こと。**この束は今ほぼ実装済**（H/I/J/MCP）＝moat はコードで存在する（narrative でなく）。
+
+### 束（= moat。各項に**実装状況**）
+1. **Agent Trust Firewall** — agent ごとの **capability passport**（例: read repo diff only / no `.env` / no network / Slack send は approval）。→ **✅ 実装（Wave H・`trust.mjs`＋hub 毎ホップ強制）**。`caps:[read|write|external_send]`、external_send 無し agent は外部送信を **deny**。🟡 ネットワーク/スコープの細粒度宣言（read-diff-only 等）は宣言語彙の拡張余地。
+2. **Data Firewall** — **edge ごと**に `pass`/`never`。secret・API key・PII・`.env` は**既定遮断**。→ **✅ 既定遮断＋per-agent never は実装（Wave H・`redact`＝secret/PII/env パターン）**。🟡 **per-edge** 粒度（今は handoff 作成＋mcp egress に per-agent `share.never` 適用）と pass-allowlist（構造化 payload のみ）は次の精緻化。
+3. **Audit Trail** — どの agent が・どの入力で・何を見て・何を外部送信したか。**企業が欲しいのはここ**。→ **✅ 実装（Wave H・hash-chain 改ざん不能・`/api/audit`＋verify）**。記録: redact/deny/approve/send/passport。inbox.json 改ざん→再起動→verify=ok:false を実機確認。
+4. **Build-State Native** — PR merged / test failed / deploy green / review requested を trigger に。**汎用 iPaaS でなく AI 開発作業に寄せる**。→ **✅ 実装（Wave J・IR 語彙 10＋match DSL 8 演算子・`/api/buildstate`／Wave C・trigger→automation）**。
+5. **MCP Control Plane** — 人間の click だけでなく **AI が BuildHUD 自体を操作**して agent/workflow を探し・配線し・実行。→ **✅ 実装（`docs/10`・`prototype/mcp/server.mjs` 18 tools・token-light index／Wave L Ghost Writer＝NL→flow）**。
+
+> ＝**Phase 2（H/I/J）＋ MCP control plane で moat の 5 束は出荷可能な実体**。残るは「製品化（誰に・いくらで）」と細粒度（per-edge・宣言語彙）。
+
+### 作ると儲かりやすい順（= 製品化ロードマップ。marketplace に飛びつかない）
+1. **🥇 Agent Trust Boundary for AI dev teams**（**最初の有料商品にすべき**）— ICP: 2-pizza team / AI-heavy agency / 複数 agent を使う SMB。売り物＝上の 1〜3 の束（passport＋data firewall＋audit）。**素地は Wave H で実装済** → 残は packaging・課金・per-edge/宣言語彙の精緻化。🔴 **GATE-1（「中立・安全層に金を払う非巨人」を名指し）未証明**は不変（`docs/06 §6.9 B`）。
+2. **🥈 Safe Cross-Agent Handoff** — Claude が実装 → Codex が review → Gemini が security check → Slack/GitHub に送る。**ただし機密は渡さず（Data Firewall）・外部送信は承認制（Trust Firewall）**。→ 素地は G（実送信）＋H（fence）＋I（consensus）で実装済 → **1 本の代表 flow＋テンプレ**として商品化。
+3. **🥉 Audit-backed Agent Reputation**（**WORK 市場の前段**）— marketplace を**先に作らない**。実行履歴（Audit Trail）から「この agent は何回 review して何回通ったか」を貯める。→ Audit は実装済＝**基盤あり**。reputation 集計（per-agent 成功率/通過率の派生）は**未実装＝次の素直な一歩**。
+4. **WORK Marketplace**（**最後**）— 売るのは「agent の skill」ではなく **非複製資産へのアクセス**（専有 data・repo access・license・責任・実績）。→ Phase 3 North Star。gate＝上の 1〜3 ＋ GATE-1 実証後。
+
+> 戦略含意: **cockpit/builder は surface（入場料）、有料商品は #1 の Trust Boundary**。「便利さ」で Langflow と正面勝負しない（§2.5f 耐久テスト）。非複製資産＝最終的な堀（`docs/06 §6.9`）。
 
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
