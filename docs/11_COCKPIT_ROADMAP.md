@@ -48,19 +48,19 @@
 - **実装メモ**: pointer-events で port→port 配線（live rubber-band＋valid 緑/invalid 赤 highlight・elementFromPoint で touch 対応＋edge ラベル＝交差型＋click-to-delete）。**node 移動も実装**（本体ドラッグ=ライブ移動・pointer events・エッジ追従）。HTML5 DnD は撤去し pointer events に統一：他ノード上で離す=**送信**（source は元位置へ snap-back＝旧 drag-to-send UX 維持）、空きで離す=**移動**。配線（port）と policy pill は除外。port 型は **agent の契約**として `prototype/agents/*.json` の `skill.accepts/emits` に置き hub preseed→`/api/state` 露出（既定 `*`）。§1 schema 例の `accepts:["*"]` でなく **具体型**（sales `accepts:[brief] emits:[prospects]`／marketing `accepts:[prospects] emits:[outreach]`）にした＝2 agent だけで「型不一致を弾く」を実証するため（marketing→sales=∅）。flow draft の永続化は Wave B。検証: 接続/拒否ロジックを live `/api/state` で全 ✅（sales→marketing valid・型 "prospects"／marketing→sales 拒否／self 拒否／sales→marketing→reviewer 連鎖 valid）。
 
 ### Wave B — flow 保存 + DAG 実行（Langflow export + topo run）
-> B は2分割：**B1（実行基盤・autonomy）✅ DONE** → **B2（保存 + DAG）▶ 次**。
+> B は2分割：**B1（実行基盤・autonomy）✅ DONE** → **B2（保存 + DAG）✅ DONE**。
 
 **B1 — hub in-process executor（worker 無し実行）✅ DONE**
 - LOCAL agent（`prototype/agents/*.json` に config あり）を **hub 自身が in-process で実行**（`runner.mjs` の `runVendorAsync`・非ブロッキング）。submit/approve で発火→結果を post。**worker.mjs 不要**で submit→completed。
 - REMOTE/cross-company agent は broker-only のまま（runtime は相手所有・durable inbox が保持）。`poll()` は local agent には heartbeat のみ（二重実行防止）。**approval フェンス維持**（既定 approval＝人間承認まで走らない）。crash 時は boot sweep で再開。`--vendor stub|codex|claude` で local-exec vendor 指定。
 - files: `runner.mjs`（async runner）、`hub.mjs`（executor/scheduler/sweep）。**done（達成）**: stub で auto→running(hub)→completed・worker ゼロ／approval→awaiting_approval で停止→approve→completed を検証。**設定での on/off は §2.5 f) Wave F**。
 
-**B2 — flow 保存 + DAG 実行 ▶ 次**
-- 「**save as workflow**」→ 配線 DAG を `workflows.json` に保存（**nodes/edges を正**・`steps[]` は派生シムで互換維持＝採用案 (a)）。
-- hub/MCP が **flow を topological 順に実行**（`run_workflow` を steps→DAG 拡張、出力→入力を edge で受け渡し・各 agent node は B1 executor で実行）。「**Run**」ボタン→ hub 実行→結果を canvas に可視化（既存 animate/timeline）。
-- 各保存 flow を MCP `run_workflow` で露出（入口 node から input 導出）。`tweaks` 風の per-node 上書きも受ける。
-- files: `hub.mjs`（保存・topo-run）、`mcp/server.mjs`（flow 実行/ツール化）、`ui.html`（save/run）。
-- **done**: UI で組んだ flow を保存→Run→completed、MCP からも同 flow を実行。
+**B2 — flow 保存 + DAG 実行 ✅ DONE**
+- 「**💾 save**」→ 配線 draft（EDGES＋触れる agent）を flow 化し hub `POST /api/workflows` で保存（**nodes/edges を正**・`steps[]` は topo 線形化で派生＝採用案 (a)・既存 `mcp/workflows.json` に upsert）。
+- hub が **flow を reactive DAG 実行**（`POST /api/runflow`：入口 node=in-degree 0 → handoff 化して B1 executor で走り、完了で入力が揃った下流 node を発火、出力→入力を edge で受け渡し）。「**▶ run**」→ hub 実行→ **既存の handoff edge アニメ**で canvas 可視化。per-agent approval なら途中で停止→承認で続行。crash 時は boot sweep＋`advanceRun` で再開。
+- MCP `run_workflow` は nodes/edges を持つ flow を **hub `/api/runflow` に委譲**（cockpit ▶ と同一エンジン・B1・agent server 不要）。steps-only の旧 flow は従来 `a2aSend` で互換実行。`run_workflow` は呼び出し毎に `workflows.json` を再読込（UI 保存分を反映）。
+- files: `hub.mjs`（toposort/save/runFlow/advanceRun＋routes）、`ui.html`（save/run＋buildFlow）、`mcp/server.mjs`（DAG 委譲＋再読込）、`runner.mjs`（既存 async）。
+- **done（達成）**: cockpit で配線→💾保存（`workflows.json` に nodes/edges＋steps）→▶Run→**topo 順に completed**（sales→marketing、edge で prospects を受け渡し確認）／saved id 実行／draft 実行／MCP は同 flow を hub 経由で実行（委譲を検証）。**未対応**: 分岐 DAG の MCP 線形化は steps[] で近似（true DAG は hub のみ）・1 agent=1 node（多重 instance は将来）・cycle 非対応。
 
 ### Wave C — trigger ノード → automation（n8n）
 - **trigger ノード**（manual/schedule/build_state）を入口に配置・配線。「**save as automation**」→ `automations.json`（trigger＋wired workflow）。manual/`fire_event`/schedule(Trigger.dev seam) で発火。
