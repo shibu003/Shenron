@@ -87,6 +87,7 @@
    - **I** cross-vendor consensus node（Claude＋Codex＋Gemini 合議＝vendor-native と差）
    - **J** build-state IR（trigger 語彙を第一級化＝iPaaS と差）
    - **K** Langflow parity（per-field template/multi-port/sub-flow…＝Langflow 完全互換目標・§4 の非目標を撤回）
+   - **L** Ghost Writer＝**agent を作る agent**（NL から flow も agent も著述する meta-agent・Sierra 流・MCP control plane の頂点）。最小版は今でも実装可
 8. （温存）**GATE-1**: 実在の友人 1 人＋反復タスクを `prototype/gate1/`（招待文/runbook/SCORECARD）で 1 回往復 → 埋める。
 9. （任意）`docs/05` R1/R2/R3 検証 / 投資家 1-pager。
 

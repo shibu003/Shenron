@@ -38,7 +38,7 @@
 - **保存先**：trigger 無し → `workflows.json`（既存）に nodes/edges を併記、trigger あり → `automations.json`。互換のため既存の `steps[]` も導出して残す。
 - **node.kind = `trigger | agent | mcp`**。`agent`=LLM skill（テキスト生成、現状）。`mcp`=**接続済み MCP server の tool 呼び出し＝副作用アクション**（例 `gmail.send_email` / `slack.post_message`）。mcp ノードも同じ typed port で配線。詳細・integrations・on/off は **§2.5**。
 
-## 2. Wave 計画（A→E 完了 ＋ 拡張 F–K。各 Wave＝1〜複数 commit、revertable、verify 付き。拡張性＋差別化戦略は §2.5、ユースケースは docs/06）
+## 2. Wave 計画（A→E 完了 ＋ 拡張 F–L。各 Wave＝1〜複数 commit、revertable、verify 付き。拡張性＋差別化戦略は §2.5、ユースケースは docs/06）
 
 ### Wave A — 配線キャンバス（typed ports + edges）✅ DONE
 - agent ノードに **in(左)/out(右) ポート**、**port→port ドラッグでエッジ**を引く（node-on-node ドラッグから昇格）。`isValidConnection`= type 交差。エッジは status 色 bezier（既存流用）。
@@ -137,6 +137,12 @@
 - **Wave I — cross-vendor consensus node（vs vendor-native）**：同 task を Claude＋Codex＋Gemini に fan-out → hub が diff/投票 → 合意出力。**単一 vendor は構造的に不可能**＝「なぜ Claude native でなく BuildHUD?」への構造回答。**done**: consensus ノードで 3 vendor 並列→多数決/合議結果が下流へ。
 - **Wave J — build-state IR（vs iPaaS）**：trigger 語彙を第一級化（`pr_merged`/`rc_built`/`deploy_green`/`test_red`/`review_completed`…）＋ match DSL。n8n の generic webhook と差を付ける（「IR 深いほど堀」§4）。**done**: 名前付き build-state event で automation 発火、IR スキーマを doc 化。
 - **Wave K — Langflow parity（完全互換目標・user 要望）**：Langflow ができる事を**全部できる**ように（**§4 の「per-field template は非目標」を撤回**）。対象＝per-field component template（node に typed 入力 field）／multi typed port（固定 1-in/1-out を一般化）／component library（input・output・prompt・model・agent・tool・data）／sub-flow（flow-as-component）／Chat I/O／playground（field 入力＋streaming）／`tweaks`（run 時 per-node 上書き）。**done**: 代表 Langflow flow（RAG / agent）を BuildHUD canvas で同等に組める。
+- **Wave L — Ghost Writer（agent を作る agent・flow 自動著述 copilot）**：Langflow（視覚ビルダー）でありながら **NL から flow も agent も著述する meta-agent**（**Sierra 流「agent を作る agent」**・Sierra 具体機能は要 webfetch 検証）。**MCP control plane（docs/10）の頂点**＝「AI が BuildHUD を操作して組む」を copilot 化。
+  - cockpit に Ghost Writer chat：「PR マージ→レビュー→lint 修正→Slack 通知」と書く → `search_agents` で既存 agent 発見 → **nodes/edges 生成＋typed port 配線＋trigger/mcp ノード配置** → canvas に materialize。適合 agent が無ければ **新規 agent config を draft**（name/skill/systemPrompt/accepts/emits）＝「agent を作る agent」。
+  - 反復：「marketing も足して」「prod に触らせないで」→ 差分編集（後者は **Wave H の capability passport を自動付与**＝fenced agent を著述）。
+  - 実装：hub が `runVendorAsync` に **agent index＋flow schema(§1)＋接続 MCP tools** を context で渡し flow JSON 生成 → schema/typed-port で**検証** → canvas/`workflows.json`。**生成≠実行**：human が Run 前にレビュー、Run は approval フェンス維持。vendor 中立（Claude でも Codex でも著述）。
+  - **done**: NL 一文 → canvas に動く flow が出来て Run できる／適合無しなら新規 agent も draft。
+  - 🟡 **fence**：生成品質は不確実 → typed port 検証＋human レビュー＋approval 必須。flashy だが GATE-1 は埋めない（wow＋参入障壁低下＝特に S0 ソロ「書けば組まれる」に効く）。最小版は**今でも実装可**（MCP control plane＋schema＋runner が既存）。F/G/K で部品が増えるほど著述対象がリッチに。
 
 ## 3. 既存資産マッピング
 - canvas/edges → `prototype/hub/ui.html`（cockpit）
