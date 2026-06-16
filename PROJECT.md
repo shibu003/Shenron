@@ -1,7 +1,9 @@
 # PROJECT — BuildHUD（仮）現状サマリ
 
 > 次セッションの **最初に読む** 1 枚。決定事項・到達点・残 gate・入口を集約。詳細は `docs/` と `prototype/`。
-> 更新: 2026-06-16（(a) Trust Boundary 商品化 A/B/C＝`docs/12`／Wave E trust-native builder E1–E3 完了＝`docs/11 §2.7`／**現モード＝使いやすさ Wave pass §5：機能を1つずつ guided UI 化。Wave1=配線 firewall 済・Wave2=trigger/fire event 済・次=MCP node args**）
+> 更新: 2026-06-16（(a) Trust Boundary 商品化 A/B/C＝`docs/12`／Wave E trust-native builder E1–E3 完了＝`docs/11 §2.7`／**現モード＝使いやすさ Wave pass §5：機能を1つずつ guided UI 化。fire/trigger 済・人間ラベル化済・cockpit canvas UX（pan/zoom/resize/port）A・B 済。次＝user の cockpit UX backlog（§5「▶▶ canvas UX」の残り3件）**）
+
+> ⚠️ **clear 直前の handoff（2026-06-16）**: working tree に**自分以外の未 commit 変更あり** → `prototype/hub/hub.mjs`・`prototype/trust.mjs`・`prototype/mcp/integrations.json`（並列セッション/外部の編集。**自分の hub.mjs 作業は `d9612da` で commit 済**）。次セッションは `git status --short` で確認し、**他者の WIP を巻き込まず** safe-commit。canvas UX 系（A `78e100f`／B `7415579`）は `prototype/hub/ui.html` のみで完結・commit 済。
 
 ---
 
@@ -81,7 +83,17 @@
 > 方針（user・2026-06-16）: 各 Wave で **cockpit の 1 機能/1 画面**を取り、**「自由入力/生 JSON → 使い手が判断できる UI」**へ。型は「① その機能に何が流れ・誰が扱うかを**先に見せる** → ② **情報/選択肢ごとに**設定できる → ③ sandbox/approval/trust を**明示**して信頼度を上げる」。⚠️ **これは一例で全機能の解ではない — 問題ごとに解は別**。各 Wave＝**問題点を見つける→判断可能な状態にする→実装→検証**を閉じる（WIP=1）。⚠️ **並列セッションが同 working tree（ui.html）を触る** → commit 前に `git status --short` 必須・safe-commit。
 - **✅ Wave 1（DONE・`ee87e84`）= 配線 data-firewall inspector**: 自由入力 never 単独 → **送り手/受け手 contract カード（role/会社/型）＋受け手 passport（net/fs/external_send）＋情報カテゴリ checkbox（secrets/PII は常時ON、project/customer/strategy は1クリック）＋edge から trust preset ＋Check trust**。`share.classes`(復元用)＋展開した `share.never`(既存 hub 強制経路) で保存。
 - **✅ Wave 2（DONE）= trigger / fire event UI**: 生 JSON `{event,status}` が迷わせていた → **(1) fire modal を build-state IR 駆動**（「何が起きた?」= `/api/buildstate` の 10 event、選ぶと IR の fields を guided 入力＝status は enum select・他は free text、空欄は drop、生 JSON は `<details>` 詳細に格下げ）／**(2) fire 前に「何が起きるか」を自然文プレビュー**（新 read-only dry-run `POST /api/fire/preview`＝fireEvent と同じ matcher で**実行せず**、マッチする automation 名＋chain＋summary＋🔒firewall 有無を列挙、無マッチは「何も実行されません」と明示）／**(3) trigger inspector**＝status を IR-aware（status を持つ event のみ表示）・⚡ plain-language summary・raw JSON match を `<details>` 格下げ。「センス悪い即修正」: deploy_green/test_red に IR 外の status を注入していた `defaultStatusForFire` を撤去（event 名で成否を表現＝IR 準拠）、dead i18n（fire_review/pr/ci/test/deploy・f_type・m_fire_info 等）削除。実機検証: 10 event 露出・match/non-match/別 event preview・実 fire 継続・dry-run は無実行。
-- **▶ backlog（同じ型で順次）= 次は MCP node の args**（生 JSON → tool 別の typed field）。続: automation 保存（いつ何が走るか）／Ghost Writer のレビュー導線／Run 入力（entry ごとの typed 入力）／Consensus vendors／send handoff modal。各 Wave 着手時に「この機能の迷う点」を 1 つ特定してから。
+- **✅ Wave 2.1（DONE・`f655e03`）= 人間ラベル化（user feedback「生の id が分かりずらい」）**: IR の生 id（`review_completed`/`status=green`）を **primary に出していたのを撤回** → 人間語を primary・raw id は括弧で副表示。`EV_LABEL`/`RESULT_LABEL` map＋`evLabel()`/`resultLabel()`（ui.html）で trigger dropdown・trigger summary・fire「何が起きた?」・status select を共有。生 JSON は `{ } JSON を表示`（折りたたみ）の裏に。memory `feedback_human_labels_not_jargon` 保存済。⚠️ **未対応**: fire の field 入力（repo/pr/branch 等）はまだ生 field 名表示（任意・副項目）。
+
+### ▶▶ cockpit canvas UX（user の連続 feedback・2026-06-16）— A/B 済・残り3件
+> user が rapid-fire で要望した cockpit 操作性の backlog。**ui.html のみで完結**（hub 不要）。各 Wave 独立 commit。⚠️ **interactive（drag/zoom/resize）は headless で検証不可 → 実ブラウザで目視確認が必須**。起動: `node prototype/hub/hub.mjs --vendor stub` → http://localhost:8795（ハードリロード ⌘⇧R）。
+- **✅ A（`78e100f`）= port を node 外へ**: IN/OUT の circle を node の外に出っ張らせ、ラベルを node 外（`portlabel.in{right:calc(100%+7px)}` 等）に出して詳細文との被りを解消。
+- **✅ B（`7415579`）= pan/zoom＋パネル可変幅**: node+links を変形レイヤー `#world` に入れ（`transform:translate(PANX,PANY) scale(ZOOM)`）→ **zoom で card がスケール**（旧: node が変形外で zoom 無効だった）。空き地ドラッグ/ホイールで pan・⌘/Ctrl+ホイールでカーソル中心 zoom・右下に −/100%/＋/⤢(fit)。`canvasPt`/`showWireTip` を pan+zoom 対応に。palette/inspector 幅は splitter ドラッグで可変（端まで→隠れる・戻す→再表示、`--palw`/`--inspw` CSS 変数）＝**却下された collapse 2 ボタンを置換＋「開いたら閉じれない」bug 修正**。view/幅は localStorage 永続。
+- **▶ 残り（user 指定・この順で）**:
+  1. **⏹ 実行を停止できるように** — run 中の handoff/flow を停止。hub 側＝`state.runs` を cancelled マーク＋以降の `advanceRun`/`fireNode` を止める新 endpoint（例 `POST /api/runs/:id/stop` か global stop）、in-process agent は途中 abort 困難なので「以降 advance しない＋awaiting/running を停止表示」が現実解。UI＝toolbar か Flow&runs に ⏹。
+  2. **✏️ component ごとに名前＋詳細文を編集** — 今 component は kind 固定ラベル。inspector に name/desc フィールド追加→`c.config.name`/`c.config.desc` 保存→node 本体に表示（`renderNodes` の comp 分岐）→`buildFlow`/`loadFlow` 永続。agent にも波及可。
+  3. **📦 自動化で作った flow を 1 つの sub-flow 部品にまとめる**（⚠️**着手前に挙動を user 確認**）: 想定＝saved workflow/automation を palette から 1 node として配置（`kind:'workflow', ref:<id>`）、Run 時に hub が `runFlow({id:ref})` で sub-flow 実行（「大きな部品の組合せ」哲学に合致）。hub runner（`fireNode`）に workflow-node 対応が要る＝backend あり。
+- **元 backlog（同じ型で順次・上記の後）**: MCP node の args（生 JSON→tool 別 typed field）／automation 保存 UI／Ghost Writer レビュー導線／Run 入力 typed／Consensus vendors／send handoff modal。各 Wave 着手時に「迷う点」を 1 つ特定してから。
 
 ### ✅ (a) #1「Agent Trust Boundary」を**有料商品化**（最初の有料 SKU・`docs/11 §2.6` 収益化 #1）= **A/B/C 完了・実機検証済**
 1-pager＝**`docs/12_TRUST_BOUNDARY_SKU.md`**（ICP・束・課金・正直 fence）。素地は Wave H（`prototype/trust.mjs`）、粒度と packaging を A/B/C で productize:
