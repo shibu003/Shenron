@@ -22,15 +22,17 @@ PORT=8798
 export A2A_SHARED_TOKEN
 
 CFG="$(mktemp -t gate1-dry.XXXXXX)"
-# empty allowlist = accept any repo (dry-run convenience; real runs allowlist exactly one repo)
+AUDIT="$(mktemp -t gate1-dry-audit.XXXXXX)"
+# empty allowlist = accept any repo (dry-run convenience; real runs allowlist exactly one repo).
+# auditLog → temp file so a dry-run never contaminates the real prototype/handoff.log evidence (Codex).
 cat > "$CFG" <<JSON
-{ "port": $PORT, "publicUrl": "http://localhost:$PORT", "repoAllowlist": [], "reviewer": "$REVIEWER", "autoApprove": true }
+{ "port": $PORT, "publicUrl": "http://localhost:$PORT", "repoAllowlist": [], "reviewer": "$REVIEWER", "autoApprove": true, "auditLog": "$AUDIT" }
 JSON
 
 echo "▶ dry-run: reviewer=$REVIEWER  branch=$BRANCH  port=$PORT  (isolated — config.json untouched)"
 node prototype/reviewer-server.mjs --config "$CFG" >/tmp/gate1-dry-b.log 2>&1 &
 BPID=$!
-trap 'kill "$BPID" 2>/dev/null || true; rm -f "$CFG"' EXIT
+trap 'kill "$BPID" 2>/dev/null || true; rm -f "$CFG" "$AUDIT"' EXIT
 
 curl -sf --retry 30 --retry-connrefused --retry-delay 1 \
   -H "authorization: Bearer $A2A_SHARED_TOKEN" \
