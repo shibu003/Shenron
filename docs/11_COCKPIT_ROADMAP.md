@@ -197,3 +197,19 @@
 - React Flow 本体導入（build 必要＝zero-dep 破壊。本番 surface 時に。**Wave K の per-field/multi-port もまずは vanilla SVG で**）。
 - 本物の cross-party 認可（OBO/DPoP・M5＝GATE-2・別軸の North Star）。**Wave H が作るのは data firewall＝「何を渡すか」**であって「誰に＝身元/委譲」ではない（混同禁止）。
 - ~~Langflow の per-field template~~ → **撤回：Wave K で完全互換を目標化**（§2.5 f）。
+
+## 2.8 Wave A — clean-mcp index for integrations（token-light 統一）✅
+> 経緯（2026-06-16 /clear 前のセッション）: cockpit の MCP tool 選択が `INTEGRATIONS` 全 dump（`/api/integrations`）を直読みしており、**integrations だけが clean-mcp の token-light index（§10）を外れていた**（agents/workflows/automations は `search_*`/`get_*` を持つ）。user 指示「cleanmcp で index にしているからそれを常に使うように更新」。
+
+- **Wave A1 — backend index ✅**（commit `e4806b6`）: `server.mjs` に `search_integrations`（SMALL refs: id/label/kind/enabled/toolCount/tags）＋`get_integration`（1 件の full tool list を on demand）を追加（既存 generic `searchIndex` を共有）。tool 登録・`buildhud://integrations` resource・`build_state` の count も追加。`hub.mjs` に `GET /api/integrations/search?q=&limit=`（token-light refs）＋`GET /api/integrations/:id`（full one）。旧 `/api/integrations` dump は back-compat で残置。**検証**: MCP stdio（search/get/resource）＋ hub HTTP（search/filter/get-one/404/旧dump）。files: `server.mjs`・`hub.mjs`。
+- **Wave A2 — cockpit が index を使う（未着手）**: `ui.html` の MCP picker を **server→tool の cascade**（`/api/integrations/search` で server refs → server 選択時に `/api/integrations/:id` を lazy-get して tool を出す）に。`fetchIntegrations()`＝refs だけ取得、`INTEG_TOOLS` cache に lazy-load。`it.tools` 直読みの 4 箇所＝`setMcpTool`(684)・in-node MCP picker(755)・`inspMcp`(1089)・`placeSafeHandoff`(649) を cache 経由に。
+
+## 2.9 Wave B — 右 inspector を node 内に統合（in-node 完結）＋ dynamic node sizing（未着手）
+> user 指示「右側のパネルで設定するものを全て node 内で完結できるように＝node の大きさはそれぞれ拡張」「everything at once だが使いやすさのため機能統合・UI 大改造して可」。
+
+- 現状 in-node: component（kind/fields/result）・mcp（tool/auto/args）は済。**未**: agent（rebind・passport 4 caps・never-strip・presets・policy/autorun・delete）/ trigger（event/status/JSON）/ note（text/color）/ component の name・description・delete。
+- node sizing: 現 `.node*` は kind 別固定幅・高さ auto。→ **content で幅も伸縮**（min/max + auto）。長い textarea（args/never/passport）で縦伸び前提。
+- 方針: **機能統合・UI 大改造可**（user 承認済）。awkward な agent passport は集約 or 折りたたみで node に載せる。
+- 関連: `renderNodes`(715)/`inlineField`(706)/focus guard(`n.contains(activeElement)`)/delegated input・change listeners(1572-1580)/inspector 群(889-1172) を node 側へ移植し inspector を縮小 or 廃止。
+
+> 並行セッション注意: Trust Receipts feature は commit `9690e57` で取り込み済（intermix 解消）。再度 ui.html/hub.mjs が並行編集で混ざったら `/tmp/build_mine2.mjs`（run-level mine-only patch builder）＋ memory [[feedback_stage_mine_only_hunks]] の手順。
