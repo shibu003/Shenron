@@ -1,19 +1,17 @@
 # PROJECT — BuildHUD（仮）現状サマリ
 
 > 次セッションの **最初に読む** 1 枚。決定事項・到達点・残 gate・入口を集約。詳細は `docs/` と `prototype/`。
-> 更新: 2026-06-16（(a) Trust Boundary 商品化 A/B/C＝`docs/12`／Wave E trust-native builder E1–E3 完了＝`docs/11 §2.7`／**現モード＝使いやすさ Wave pass §5：機能を1つずつ guided UI 化。fire/trigger 済・人間ラベル化済・canvas UX A/B 済。cockpit UX backlog ①⏹stop ②component name/desc ④fire field 人間ラベル ③配置モデル刷新（③a comp/mcp/agent＋③b sub-flow＋③b-2 collapse）完了。**＋ (a) node カード Langflow 寄せ restyle `05bb8a5`／(b) note ノード＋bool/secret widget `3fad89b`**。残＝palette/handle のさらなる見た目寄せ・multi-handle は温存（§5 末尾）**／**2026-06-16 cont**: A2 ✅・B1/B2/B3 ✅（設定をカードに集約・右 panel=edge+dashboard）・**floating 接続＋Langflow flow import→fence→native-run** ✅（`e2af61e`）・editor 縮退 ✅（`b2145cd`）・ponytail dedup ✅（`3729fd4`）→ **次＝Langflow run layer（↑ handoff の ▶NEXT 参照）**）
+> 更新: 2026-06-17（Langflow run layer **e2e 全完**＝`cacc9e4`）
 
-> ⚠️ **handoff（2026-06-16 cont）**: 並列セッションの WIP（pass-allowlist / Wave ②）は **commit 済 `406b4cf`**＝working tree は **clean**（旧「Wave R 未commit 温存」注記は解消）。それでも commit 前 `git status --short` 必須・他者変更が出たら **safe-commit / mine-only staging**（`git diff --no-index <baseline> <file>`→header 修正→`git apply --cached`、または stage-all→`git apply --cached -R theirs.patch`）。**この session の commit**: `292c3e1`(A2) `0c59b7b`(B1) `471bfc8`(B2) `6261e53`(B3) `e2af61e`(floating＋Langflow import) `b2145cd`(editor 縮退) `3729fd4`(ponytail dedup)。
+> ⚠️ **handoff（2026-06-17）**: working tree clean（PROJECT.md の更新のみ）。commit 前 `git status --short` 必須。
 >
-> ▶▶ **NEXT（次セッションの最優先作業）= Langflow run layer**（generic 🔗 ノードを本家 `/v1/run` に委譲・fenced）
-> - **到達点**: **Langflow flow(.json) を import → cockpit ネイティブ node 化（`ChatInput→input`/`Prompt→prompt`/`LanguageModel→languagemodel`/`ChatOutput→output`/note・未知→generic `COMP.langflow`=🔗）→ edge は LF handle の `output_types∩inputTypes` で型付け → 🔒firewall/passport で fence → 全ネイティブ flow は hub で実行**（実証済 `e2af61e`：実 "Basic Prompting" を import→firewall 付与→hub run completed・audit verify ok）。toolbar「🔗 Langflow 取込」＝`pickLangflowFile`→`importLangflowFlow`(ui.html:1576)。
-> - **残り = exotic component を含む flow の実行**。要点: **Langflow は単一 component を単独実行できない**・`POST /v1/run/{flowId}` は **flow 丸ごと**実行。よって設計＝「🔗 を含む flow は Run 時に**本家 /v1/run へ丸ごと委譲**し、cockpit が入出力を fence/audit」。
-> - **作るもの**: ① `importLangflowFlow` で **Langflow flow の top-level `id`(=flowId) を捕捉**（今は捨ててる）。② Settings に **Langflow host** 欄（既定 `http://localhost:7860`、`openSettings`）。③ hub 新 endpoint **`POST /api/langflow/run {host,flowId,input}`**：入力を `redact`(firewall)→`fetch(host+'/v1/run/'+flowId, {tweaks/inputで input 差込})`→`auditAppend`(external call)→出力返す。④ `runFlow`(ui.html:1370) は 🔗 を含む flow を③へ分岐（全ネイティブは従来 `/api/runflow`）。
-> - **入口**: ui.html＝`importLangflowFlow`:1576・`runFlow`:1370・`openSettings`。 hub.mjs＝executor `fireNode`:221（'langflow' kind の扱い）・`runFlow`/`/api/runflow`:683・新 endpoint。 fence＝`trust.mjs` の `redact`/`auditAppend`。
-> - 🔴 **gate（ponytail）**: **ローカル Langflow 起動が要る**（`uvx langflow run`→:7860）＋ その flow が Langflow 側に存在（同 .json を Langflow にも import、or cockpit が `POST /v1/flows/upload` で先に上げて runnable id 取得）。**揃うまで書かない**＝テスト不能な統合コードを抱えない。揃えば fetch＋既存 fence/audit で数行・1 セッション。
-> - **検証**: Langflow 起動→exotic 含む starter（例 "Document Q&A"）の .json を cockpit に import→Run→cockpit が入力 fence＋`/v1/run` 呼び＋audit 記録、結果表示。
-> - **sample**: `curl -sL https://raw.githubusercontent.com/langflow-ai/langflow/main/src/backend/base/langflow/initial_setup/starter_projects/Basic%20Prompting.json`（全ネイティブ）／同 dir の "Document Q&A" 等（exotic 含む）。**Langflow flow JSON 形**: node=`{id,data:{type:<Component>,display_name,node:{outputs/base_classes,template}}}`・edge=`{source,target,data:{sourceHandle:{output_types[]},targetHandle:{inputTypes[]}}}`・top-level `id`=flowId。kind map=`LF_KIND`(ui.html)。
-> - **配線モデル（前提）**: in/out は左右固定でなく **floating**（線は相手の面へ＝`borderPoint`/`endpointPos`、`portHtml`は no-op）。draggable handle は ponytail で撤去済（`b2145cd`）。canvas は「**import flow を表示＋fence＋native run する最小ビューア**」方針（自前グラフ編集は深追いしない＝本家 Langflow に委譲）。
+> ▶▶ **NEXT = 未定（Langflow run layer は完全クローズ）**
+> - **Langflow run layer 完了サマリ** (`cacc9e4`): `langflow.mjs`（`langflowRun`/`langflowImport`/`lfRunText`/`lfRunBody`）＋ hub route `/api/langflow/run|import` ＋ 🔗 ガード ＋ ui.html `pushToLangflow()` ＋ ⚙ `lf_host`/`lf_key`。`test_langflow.mjs` green。
+> - **e2e 検証済（2026-06-17）**: `uvx --python 3.12 langflow@1.10.0 run --port 7860` 起動 → `/api/langflow/import`（Basic Prompting 6-node flow）→ `flowId` 取得 ✅ → `/api/langflow/run` → 入力中の `sk-SECRETPASSWORD...` が Langflow 到達前に redact ＋ audit に `egress:true` 記録 ✅ → Langflow `/api/v1/run` まで到達 ✅ → 500（OpenAI key 未設定）は LF 側問題・routing/firewall/audit は完全 green ✅。audit hash-chain 継続 ✅。Langflow down → graceful error ✅。
+> - **⚠️ uvx の注意**: Python 3.14 デフォルトだと `langflow==0.0.55`（古い）が解決される。正しいコマンド: `uvx --python 3.12 langflow@1.10.0 run --port 7860 --no-open-browser`。初回はインストール（526pkg）に約3分かかる。
+> - **⚠️ 正直な限界（要把握）**: cockpit の native executor `runPrompt`(hub.mjs) は vendor グローバル（`EXEC_VENDOR`）で `config.model`/temperature を honor しない。真の model/provider/temperature 忠実度は「Langflow で実行」（登録＋🔗委譲）でのみ出る。native run は template/system/pattern/schema/instructions/input までを反映する簡易プレビュー。
+> - **Langflow flow JSON 形**: node=`{id,data:{type:<Component>,display_name,node:{outputs/base_classes,template}}}`・edge=`{source,target,data:{sourceHandle:{output_types[]},targetHandle:{inputTypes[]}}}`・top-level `id`=flowId。kind map=`LF_KIND`(ui.html)。
+> - **配線モデル（前提）**: in/out は左右固定でなく floating（floating 接続）。canvas は「import flow を表示＋fence＋native run する最小ビューア」方針（自前グラフ編集は深追いしない＝本家 Langflow に委譲）。
 
 ---
 
