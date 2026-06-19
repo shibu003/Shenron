@@ -64,7 +64,7 @@ cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 
 ### D. 堀は二段ゲート（両方とも未検証）
 ```
-ゲート1  gap を正しく「無い」と判定（検出）   ← 機構は未確定・スパイク0 で決める（下記 E/F）
+ゲート1  gap を正しく「無い」と判定（検出）   ← LLM-resolve に決定（スパイク0 済）。誤りは over 方向のみ → §H human-gate が backstop（下記 E/F）
 ゲート2  検出した gap を収束生成              ← 修復ループで（下記 E）
 緩いゲート1のまま生成 = 既存ノードの複製機（堀でない）
 ```
@@ -72,7 +72,7 @@ cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 ### E. 着手順を改訂 — スパイク先行（doc の Wave 順を逆転）
 table-stakes の Wave 1 から始め堀（4-B）を最後に回す現行順は誤り。正:
 ```
-スパイク0（数時間） gap 検出精度: 10 goal で混同行列（過検出/過小検出率）、keyword vs semantic(name+desc) vs LLM-resolve を比較し機構を選ぶ
+スパイク0（済 2026-06-19・prototype/hub/spike0_detect.mjs）23-step ラベル付き混同行列: keyword=過小検出 71%(沈黙の不正・使えない) / LLM-resolve=過小 0%・過検出 13%(safe 方向のみ・stochastic) → gate1 機構＝LLM-resolve に決定。port 代数は * 支配で不可と確認
 スパイク1（半日）  生成収束: gap 1個ハードコード → 生成 → 使い捨て venv で `langflow run` に挿す
                    → 落ちたらエラー全文を返し再生成(≤5反復) → 3種(GitHub/簡単REST/ニッチ)・持ち込み model で
 両方 Yes → Wave 1 を steps[] 限定で最小実装 → 4-B を製品の核に
@@ -81,7 +81,7 @@ table-stakes の Wave 1 から始め堀（4-B）を最後に回す現行順は�
 
 ### F. 既存資産の訂正（在る／新規）
 - 🟢 **trigger 側は完成済・self-test 済**: `match.mjs`(DSL)・`fireEvent`/`firePreview`(`hub.mjs:524,538`)・`POST /api/fire`(`hub.mjs:690`)・`fire_event` MCP(二段 fence `mcp/server.mjs:139,195`)・Trigger.dev seam(`mcp/trigger/`)。**「Wave 6 が最難」は誤り**。合成の継ぎ目＝`fireEvent` の指す先を「静的 workflow id」→「planner」に差し替え（automation type 1個）。
-- 🟡 **gap 検出の機構は未確定（スパイク0 で決める）**: port 代数（`portsOf`/`portIntersect`/`validateFlow` `hub.mjs:561-567`）は **edge 検証**（型が繋がるか）に**正しく流用**できるが、**gap 検出には使えない** — accepts/emits 語彙が粗すぎる（実値 `*`×21/`text`×3/`data`×1＋`sent`/`posted`/`draft`、`*` 支配で何でも交差 true → missing が立たない）。gap 検出＝「その機能のツールが在るか」は **capability/intent match** で、keyword scorer も port 代数も不十分。候補: (a) LLM の capability-resolve pass が name+description で have/missing 判定（semantic・model 依存）/ (b) semantic 類似 / (c) 人 confirm。**スパイク0 で機構を選ぶ**（下記 E）。
+- 🟢 **gap 検出 ＝ LLM-resolve（スパイク0 で決定）**: 候補だった **keyword scorer は真 gap の 71% を「covered」と誤判定**（沈黙の不正 flow）→ 廃棄。**port 代数**（`portsOf`/`portIntersect`/`validateFlow` `hub.mjs:561-567`）も accepts/emits が `*` 支配（実値 `*`×21/`text`×3/`data`×1）で何でも交差＝gap が立たず不可（edge 検証には正しく流用、capability 検出には無力）。採用＝**LLM の capability-resolve pass**（プロンプトに「**generic ツールは specific need を covered しない**」を明記、これが weather/Stripe→http.get の誤マッチを防いだ）＝ **過小検出 0%（真 gap 全 7 検出）・過検出 13%・誤ツール 0%**。誤りは **over 方向のみ**（既存ツールを gap 誤判定→重複生成）で **§H の初回 human-gate が backstop**、危険な under（沈黙）は出ない。**stochastic**（同 step が run 間で揺れる）＝ gate1 も **model 依存**（port 代数案の deterministic は消滅、gate1/gate2 とも BYO model に乗る）。production は **per-goal バッチ**（1 goal=1 call で quota 節約）。
 - 🆕 **使い捨てサンドボックス**（書込可・ネット制限）が新規。生成コードを**実行**して収束を測る物理前提（`runner.mjs:29` の `--sandbox read-only` と同発想を「書込可・使い捨て」で）。
 - 🆕 生成→実行→修復ループ、event payload→plan inputs の data-binding、生成ノードの cache＋初回 human-gate。
 
