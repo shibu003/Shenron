@@ -65,7 +65,7 @@ cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 ### D. 堀は二段ゲート（両方とも未検証）
 ```
 ゲート1  gap を正しく「無い」と判定（検出）   ← LLM-resolve に決定（スパイク0 済）。誤りは over 方向のみ → §H human-gate が backstop（下記 E/F）
-ゲート2  検出した gap を収束生成              ← 修復ループで（下記 E）
+ゲート2  検出した gap を収束生成              ← スパイク1 済: claude が langflow 1.10.0 component を 1-shot 生成（易しい keyless API・API 注入 有/無とも）。#1 killer(API drift) 不発。修復ループは未発火＝robustness 未検証（下記 E）
 緩いゲート1のまま生成 = 既存ノードの複製機（堀でない）
 ```
 
@@ -73,9 +73,9 @@ cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 table-stakes の Wave 1 から始め堀（4-B）を最後に回す現行順は誤り。正:
 ```
 スパイク0（済 2026-06-19・prototype/hub/spike0_detect.mjs）23-step ラベル付き混同行列: keyword=過小検出 71%(沈黙の不正・使えない) / LLM-resolve=過小 0%・過検出 13%(safe 方向のみ・stochastic) → gate1 機構＝LLM-resolve に決定。port 代数は * 支配で不可と確認
-スパイク1（半日）  生成収束: gap 1個ハードコード → 生成 → 使い捨て venv で `langflow run` に挿す
-                   → 落ちたらエラー全文を返し再生成(≤5反復) → 3種(GitHub/簡単REST/ニッチ)・持ち込み model で
-両方 Yes → Wave 1 を steps[] 限定で最小実装 → 4-B を製品の核に
+スパイク1（済 2026-06-19・prototype/hub/spike1_{gen.mjs,runner.py}）keyless 公開 API 4 gap(GitHub stars/天気/xkcd)で 4/4 全 iter1 収束(実データ返却)。claude は langflow 1.10.0 Component API を memory のみでも 1-shot → gate2 ＝易しい端で 🟢。
+  未検証(spike1b 案件): 修復ループの回復力(一度も未発火)・auth/niche API・依存欠落(stdlib 強制で回避)・実 langflow flow 経由(standalone のみ)。harness バグ(sys.modules 未登録→inspect.getfile 落ち)を loop 前に潰した＝環境も収束因子。
+両方 Yes(易しい端) → Wave 1 を steps[] 限定で最小実装 → 4-B を製品の核に。production: gap 検出=LLM-resolve(per-goal batch)、生成=API 注入+修復ループ+使い捨てサンドボックス+初回 human-gate
 両方 No  → planner は NL→flow の劣化コピー、作らない
 ```
 
