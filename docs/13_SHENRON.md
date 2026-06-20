@@ -101,6 +101,14 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 ### I. fence の改訂（§6 を上書き）
 §6 の「生成コードは実行しない（提示のみ）」は **収束検証に限り使い捨てサンドボックスで実行**に改訂（堀の物理前提）。本番無人パスで踏むのは**初回 human-gate を通った vetted ノードのみ**。auto-install は v2・approval gate 必須（不変）。
 
+### J. 実装状況（2026-06-19・/clear ハンドオフ）
+- ✅ スパイク0（gate1=LLM-resolve・危険な過小検出 0%）／スパイク1+1b（gate2=生成 8/8 収束・forced-fail で修復ループ検証）。`prototype/hub/spike0_detect.mjs`・`spike1_{gen,runner}`。
+- ✅ **Wave 1**: `POST /api/shenron/plan`（`prototype/hub/shenron.mjs` = plan→LLM が steps[]→LLM-resolve で have/missing→確定コードで plan IR。`test_shenron.mjs` green）。
+- ✅ **MCP 露出**: `prototype/mcp/server.mjs` の `plan_flow {goal, save?}`（UI 不要）→ hub `/api/shenron/plan` に委譲→ `save:true` で workflow 保存→ web cockpit で確認可。
+- ✅ **web 🗂 一覧**: `ui.html` の 🗂 ボタン＋`GET /api/workflows?id=`（カード click→`loadFlow`）。MCP で作った flow がここに出る。
+- **次**: Wave 2（外部発見 search MCP）／Wave 3（plan→Langflow flow JSON 双方向）／Wave 4（不足ノード生成＝spike1 の production 化: 使い捨てサンドボックス＋修復ループ＋初回 human-gate）／Wave 5 編集／Wave 6 実行。
+- **gotcha**: `claude -p` はフルエージェントで cwd にファイルを書く → production codegen は §H サンドボックスで cwd 隔離必須（安全＋ファイル汚染の両方）。
+
 ---
 
 ## 2. アーキテクチャ全体図
