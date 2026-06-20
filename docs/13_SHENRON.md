@@ -106,7 +106,9 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 - ✅ **Wave 1**: `POST /api/shenron/plan`（`prototype/hub/shenron.mjs` = plan→LLM が steps[]→LLM-resolve で have/missing→確定コードで plan IR。`test_shenron.mjs` green）。
 - ✅ **MCP 露出**: `prototype/mcp/server.mjs` の `plan_flow {goal, save?}`（UI 不要）→ hub `/api/shenron/plan` に委譲→ `save:true` で workflow 保存→ web cockpit で確認可。
 - ✅ **web 🗂 一覧**: `ui.html` の 🗂 ボタン＋`GET /api/workflows?id=`（カード click→`loadFlow`）。MCP で作った flow がここに出る。
-- **次**: Wave 2（外部発見 search MCP）／Wave 3（plan→Langflow flow JSON 双方向）／Wave 4（不足ノード生成＝spike1 の production 化: 使い捨てサンドボックス＋修復ループ＋初回 human-gate）／Wave 5 編集／Wave 6 実行。
+- ✅ **Wave 2（外部発見・v1 最小）**: `shenron.mjs` の `discover(missing, search)`＋`suggestionFromSearch(result)`。gap があれば `kind:'search'` の有効 integration に query → 上位ヒットを `missing[].suggestion={title,url,source:'external'}` に添付。**LLM 変換しない**（§1.5-C「金額は接地データのみ」と整合）。fence は hub（`redact(query)`＋`trail('external-search',{egress})`）。`tavily`（BYO key・`enabled:false`）を template 登録＝有効 search 無しなら graceful skip（内部のみ完走・no throw）。cap 3 gap（超過は `discovery.capped` で surface）。`test_shenron.mjs` に多 shape parse＋cap＋失敗時 no-throw の assert 追加。**設定 endpoint は未実装**（doc の `/api/planner/config`/`planner.search_enabled` は YAGNI＝integration の `enabled` で代替）。
+- **次**: Wave 3（plan→Langflow flow JSON 双方向）／Wave 4（不足ノード生成＝spike1 の production 化: 使い捨てサンドボックス＋修復ループ＋初回 human-gate）／Wave 5 編集／Wave 6 実行。
+- **Wave 2 残（最終形へ）**: 多 backend（MCP registry/Smithery 照合）・ranking/dedup/JSONL キャッシュ・ワンクリック adopt（Wave 4 連結）・実 Tavily での live 検証（現状 unit test の注入 fake のみ）。
 - **gotcha**: `claude -p` はフルエージェントで cwd にファイルを書く → production codegen は §H サンドボックスで cwd 隔離必須（安全＋ファイル汚染の両方）。
 
 ---
