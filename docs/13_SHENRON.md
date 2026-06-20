@@ -23,10 +23,47 @@
 cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 ```
 
-**なぜ Langflow の上に乗るか（3 理由）**:
+### 北極星（最終形の体験・2026-06-19 user 定義）— 「人生ゴールの concierge」
+
+神龍の最終形は「flow を組む」より一段上＝**曖昧な人生ゴール → 適切なサービスを発見 → あなたと一緒に操作 → 足りない道具は作る**、を全部走る。
+
+```
+ユーザー: 「女の子と付き合いたい」
+神龍: ① 検索 → Ditto AI（恋愛 AI サービス）を発見
+      ② そこに登録（computer-use）
+      ③ メッセージのやり取り・写真の選択まで【あなたと一緒に】走る（co-pilot）
+      ④ それを自動化する道具まで生成（gap → 部品生成）
+```
+
+**写像（既存 Wave が既にここを向いている）**: ①=Wave 2 外部発見／②③=**(b) computer-use agent node**（「手」＝未着手の核）／④=Wave 4/8 部品生成＋登録庫／③の「一緒に」=Wave 6 実行＋承認フェンス（原始形）。
+
+**本当に新しい/難しい 2 つ**:
+- **「一緒に」= 協調インタラクション面（roadmap 未着手の唯一の primitive）**: 現フェンスは approve/deny の二択。「写真を一緒に選ぶ・返信を一緒に練る」は richer な co-pilot 面＝止まって「これとこれどっち?」と人に返し続ける。**ここが神龍を「自動化ツール」→「相棒」に変える差**。W4/8 の human-gate がその種。
+- **computer-use の信頼性（🔴 最大の技術リスク）**: 任意サイトの登録・送信・選択＝汎用 computer-use、2026 でも brittle。
+
+**ToS の線引き（生存条件・堀でない）**: プラットフォーム操作の自動化（自動登録/自動送信）= ban されやすい 🔴／**AI が下書き→人が選んで送る（＝「一緒に」）= ほぼ全 platform で OK 🟢**。user の「一緒に走る」は既に正しい側（co-pilot で autopilot でない＝catfish bot でなく恋愛コーチ）。**設計でこの線を踏み外さないことが生存条件**。
+
+**巨人（Operator/Claude computer-use）との差**: 汎用 computer-use は巨人が出す。神龍の差は **gap-tool 生成（W4/8）＋協調フェンス**＝「操作するだけ」でなく「足りない道具を作りながら、あなたと一緒に」。giant-war の「outcome 所有・縦」と整合。
+
+### なぜ Langflow の上に乗っていたか（初期判断・**2026-06-19 に北極星を更新、下記参照**）
 1. **コンポーネントライブラリ（100+ ノード）を再発明しない** — プランナーは参照するだけ
 2. **実行エンジンを書かない** — `langflowImport`+`langflowRun` 完成済、生成は Langflow JSON を吐くだけ
 3. **GioGio の価値＝計画＋信頼レイヤー** — Langflow が持たない部分だけ作る。実行の再発明は巨人と正面戦＝自殺（→ `docs/giant-war`）
+
+### ⚠️ 北極星更新（2026-06-19・上の「乗る 3 理由」を上書き）— **最終目標＝Langflow から独立**
+
+**決定**: 神龍は最終的に **Langflow から独立した standalone** になる。理由は願望でなく構造:
+1. **神龍生成 flow は既に Langflow 無しで走る**（Wave 6 で確認）。神龍は描画可能 kind 限定生成＝全部 hub native `fireNode` が in-process 実行・`/api/runflow` だけで完結、Langflow を一切呼ばない。**独立は神龍 flow に関しては達成済**。
+2. **③コスト最小/ローカルが独立を要求**: `uvx langflow` 常駐は重い外部依存。BYOAI＋完全ローカルの売りは Langflow runtime を切るほど強い。
+3. **per-edge fence は Langflow 経由だと物理的に不可能**（`/api/v1/run` は input/output しか見せない黒箱）。フェンス/audit を出すなら native 実行が前提＝独立が条件。
+
+**残る Langflow の紐（3 本）**: ① `toLangflowFlow`/`importLangflowFlow`＝**interop（他人の flow の on-ramp）として残す**（依存でなく機能）／② exotic node の `langflowRun` 委譲 → **native python-component 実行に置換**／③ model fidelity → **model API 直叩きで native 化**。
+
+**独立で再実装が要る物**: コンポーネント庫 → **神龍は自分で部品生成（W4/8）＝庫を継承不要**（これが独立を現実的にする核）／model fidelity → API 直叩き（容易）／**prod-safe python 実行（サンドボックスを本番昇格）＝唯一の本物の新規作業**（OS サンドボックス/seccomp/egress allowlist）。
+
+**giant-war 整合**: 「実行の再発明＝巨人と正面戦」は市場ポジショニングの話。MCP ツール＋LLM の DAG を in-process で回すのは「Langflow competitor を名乗る」ことでなく内部 runtime。①作って埋める/③コスト最小で名乗る限り矛盾しない（infra に乗るでなく outcome 所有＝独立 runtime はこちら側）。
+
+→ **§J Wave 8 残の「runnable 組込」は Langflow custom_component 登録でなく native python-component 実行に組み替え**（gen 時 `runInSandbox` を実行時昇格・§H 発火フェーズ・approval gate 必須）。
 
 ---
 
@@ -40,6 +77,8 @@ cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 | 編集 | **ステップ編集 ＋ 対話修正 両方** |
 | トークンコスト | plan 実行前の概算（user「最後に考える」＝Wave 7） |
 | skill 自動発動 | 神龍を MCP tool 露出 → MCP control plane から発火（GioGio 完結） |
+| **北極星＝Langflow 独立**（2026-06-19 追加・§0 の「乗る」を上書き） | 最終目標＝**Langflow から独立した standalone**。神龍 flow は既に native `fireNode` で走る（Wave 6）。Langflow は interop（import on-ramp）だけ残し、exotic 実行は native python-component に、fidelity は model API 直叩きに置換。根拠＝③コスト最小/ローカル＋per-edge fence が native 実行を要求 |
+| **北極星＝人生ゴール concierge**（2026-06-19 追加） | 願い→サービス発見→**一緒に操作（co-pilot）**→道具生成、まで走る。新 primitive＝協調インタラクション面（approve/deny を超える co-pilot）。生存条件＝ToS 線（AI 下書き→人が送る側に座る） |
 
 ---
 
@@ -120,7 +159,7 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 - ✅ **Wave 7（flow を local agent の skill に・v1）**: `shenron.mjs` の `flowSkill(wf)`＝保存済み workflow → Claude Code SKILL.md（pure 関数）。frontmatter=`name`(slug)+`description`(flow summary→「Use when…」)、body=**MCP `run_workflow {id,confirm:true}` を呼ぶだけの薄ラッパ**（実行は hub DAG executor＝per-edge fence+audit 込み）。`POST /api/shenron/skill {id}`→ `readWorkflows` で引いた flow を `<repo>/.claude/skills/<slug>/SKILL.md` に書き `{slug,path,content}` 返す（`trail('flow-skill')`）。**slug は `[a-z0-9-]` のみ＝path traversal 不能**・description は YAML-safe 化（`改行`/`": "` 衝突を潰す）。これで skill-aware agent（Claude Code）が自然文発火→flow 実行。**MCP/HTTP しか喋らない agent（openclaw 等）は `run_workflow`/`/api/runflow` 直叩きで md 不要**（§J 上行の3扉）。向き=**(a) agent→flow 呼ぶ**（flow=道具）。前の LinkedIn (b) flow→agent を手に使う、とは逆。検証: `test_shenron.mjs` に slug path-safe＋frontmatter YAML-safe＋body が正 id/confirm で run_workflow 呼ぶ＋id 無し guard。**UI button（🗂 list の 📜）は defer**＝commit 時に並列 claude が `ui.html` を再設計中（`UI_REDESIGN.md` untracked）につき shared-main 汚染回避で未着手。endpoint＋MCP で機能は完結、button は redesign 収束後に追加。
 - **Wave 7 残（最終形へ）**: 🗂 list の 📜 button（ui.html redesign 後）・生成 skill の一覧/削除・`~/.claude/skills` への user-level 出力選択・skill の trigger 語を LLM で磨く・skill→flow 逆同期（flow 更新時に md 再生成）。
 - ✅ **Wave 8（生成部品の登録庫＝①「作って埋める」の build→vet→remember→re-plan ループを閉じる・肉付け開始）**: user 方針転換「最小構成→肉付け」を受け、Wave 4 残の「人ゲート→cache→自動登録」の**登録庫＋再利用＋再 plan 認識**まで実装（runnable 組込だけ次チャンク）。`shenron.mjs`: `componentKey`（what 正規化＝小文字/空白畳み）＋`matchComponent(components,what)`（**approved 済みのみ**拾う・pure）。`buildPlanIR(...,components)` で gap step が vetted 部品に一致したら **missing[] から外し node に `vetted:cmpId`**（⚠️gap → ✓built に格上げ・再生成しない）。`plan(...,components)`＋`inventoryText` に `component:` 行追加（LLM も既存部品を認識）。`hub.mjs`: `mcp/components.json` 登録庫（`readComponents`/`writeComponents`/`saveComponent`＝収束部品を **pending(approved:false)** で登録・再生成は上書きで承認状態維持/`approveComponent`＝人ゲート）。`POST /api/shenron/gen-component` 改修＝**approved 一致なら LLM+サンドボックス skip で即返す（cache hit）**・収束したら登録（pending）。`POST /api/shenron/components/approve {id}`（人ゲート）＋`GET /api/shenron/components`（一覧/`?id=`で full code）。plan route は承認済み部品を inventory に注入。**fence＝§I「無人パスで踏むのは vetted ノードのみ」を強制**＝未承認部品は再利用しない（cache hit も plan 格上げも approved 限定）。検証: `test_shenron.mjs` に componentKey 正規化／matchComponent の人ゲート（未承認は非再利用・承認は ws/case 無視で一致）／buildPlanIR が vetted gap を missing から外し node に ref＋tools_needed を source:'component' have:true／未承認は格上げしない。**runnable 組込（vetted 部品を Langflow custom_component 登録→exotic node として `/api/v1/run` 委譲で実行）と gate UI（ui.html redesign 後）は次チャンク**。現状 vetted=「作成済・承認済」だが flow で走らせるには Langflow 登録が要る（正直: plan は ✓built と示すが実行は組込後）。
-- **Wave 8 残（runnable 組込・肉付け本番）**: vetted 部品の Langflow `/api/v1/custom_component` 登録→`langflow`-kind node で `langflowRun` 委譲実行・gate UI（🗂 隣に「⚠️N pending → 承認」＋部品一覧）・⚠️複数 gap 巡回・部品の編集/削除/再生成・意味的 dedup（現状 what 文字一致のみ）・部品 cache を Wave 2 外部 registry（既存>自作 ladder）と連結・OS サンドボックス（container/seccomp/egress allowlist）。
+- **Wave 8 残（runnable 組込・肉付け本番）**: ⚠️ **Langflow 独立北極星に組み替え（§0 更新）**＝vetted 部品を **native python-component node として実行**（gen 時 `runInSandbox` を実行時に昇格・§H 発火フェーズ・approval gate 必須・prod-safe サンドボックス＝OS/seccomp/egress allowlist）。**Langflow custom_component 登録は不採用**（依存を深めるため）。gate UI（🗂 隣に「⚠️N pending → 承認」＋部品一覧）・⚠️複数 gap 巡回・部品の編集/削除/再生成・意味的 dedup（現状 what 文字一致のみ）・部品 cache を Wave 2 外部 registry（既存>自作 ladder）と連結・OS サンドボックス（container/seccomp/egress allowlist）。
 - **Wave 2 残（最終形へ）**: 多 backend（MCP registry/Smithery 照合）・ranking/dedup/JSONL キャッシュ・ワンクリック adopt（Wave 4 連結）・実 Tavily での live 検証（現状 unit test の注入 fake のみ）。
 - ✅ **ponytail-audit 適用**（9d7753f delete -283／3a8408a dedup -24）: spikes 削除・ui.html dead cluster/portHtml/sfName/copyMcp・`/api/pubkey`・mcp-client/trust 整理・spawn 3 重複を `runner.runVendor` に集約。net -277。見送り＝i18n 37 dead キー（live と同行同居でリスク>価値）・gen-trigger resolver（休眠 emitted-template）・nodeRole/nodeTitle shrink。
 - **gotcha**: `claude -p` はフルエージェントで cwd にファイルを書く → production codegen は §H サンドボックスで cwd 隔離必須（安全＋ファイル汚染の両方）。
