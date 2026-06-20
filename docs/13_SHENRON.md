@@ -102,13 +102,14 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 §6 の「生成コードは実行しない（提示のみ）」は **収束検証に限り使い捨てサンドボックスで実行**に改訂（堀の物理前提）。本番無人パスで踏むのは**初回 human-gate を通った vetted ノードのみ**。auto-install は v2・approval gate 必須（不変）。
 
 ### J. 実装状況（2026-06-19・/clear ハンドオフ）
-- ✅ スパイク0（gate1=LLM-resolve・危険な過小検出 0%）／スパイク1+1b（gate2=生成 8/8 収束・forced-fail で修復ループ検証）。`prototype/hub/spike0_detect.mjs`・`spike1_{gen,runner}`。
+- ✅ スパイク0（gate1=LLM-resolve・危険な過小検出 0%）／スパイク1+1b（gate2=生成 8/8 収束・forced-fail で修復ループ検証）。**結果は本節＋§1.5-E/F に記録済**。spike ファイル（`spike0_detect.mjs`/`spike1_{gen,runner}`）は使い捨て測定で役目完了につき **ponytail-audit で削除**（9d7753f）。Wave 4 で production codegen を実装する時は §1.5-E の手順から再構築する（spike を復活させない）。
 - ✅ **Wave 1**: `POST /api/shenron/plan`（`prototype/hub/shenron.mjs` = plan→LLM が steps[]→LLM-resolve で have/missing→確定コードで plan IR。`test_shenron.mjs` green）。
 - ✅ **MCP 露出**: `prototype/mcp/server.mjs` の `plan_flow {goal, save?}`（UI 不要）→ hub `/api/shenron/plan` に委譲→ `save:true` で workflow 保存→ web cockpit で確認可。
 - ✅ **web 🗂 一覧**: `ui.html` の 🗂 ボタン＋`GET /api/workflows?id=`（カード click→`loadFlow`）。MCP で作った flow がここに出る。
 - ✅ **Wave 2（外部発見・v1 最小）**: `shenron.mjs` の `discover(missing, search)`＋`suggestionFromSearch(result)`。gap があれば `kind:'search'` の有効 integration に query → 上位ヒットを `missing[].suggestion={title,url,source:'external'}` に添付。**LLM 変換しない**（§1.5-C「金額は接地データのみ」と整合）。fence は hub（`redact(query)`＋`trail('external-search',{egress})`）。`tavily`（BYO key・`enabled:false`）を template 登録＝有効 search 無しなら graceful skip（内部のみ完走・no throw）。cap 3 gap（超過は `discovery.capped` で surface）。`test_shenron.mjs` に多 shape parse＋cap＋失敗時 no-throw の assert 追加。**設定 endpoint は未実装**（doc の `/api/planner/config`/`planner.search_enabled` は YAGNI＝integration の `enabled` で代替）。
 - **次**: Wave 3（plan→Langflow flow JSON 双方向）／Wave 4（不足ノード生成＝spike1 の production 化: 使い捨てサンドボックス＋修復ループ＋初回 human-gate）／Wave 5 編集／Wave 6 実行。
 - **Wave 2 残（最終形へ）**: 多 backend（MCP registry/Smithery 照合）・ranking/dedup/JSONL キャッシュ・ワンクリック adopt（Wave 4 連結）・実 Tavily での live 検証（現状 unit test の注入 fake のみ）。
+- ✅ **ponytail-audit 適用**（9d7753f delete -283／3a8408a dedup -24）: spikes 削除・ui.html dead cluster/portHtml/sfName/copyMcp・`/api/pubkey`・mcp-client/trust 整理・spawn 3 重複を `runner.runVendor` に集約。net -277。見送り＝i18n 37 dead キー（live と同行同居でリスク>価値）・gen-trigger resolver（休眠 emitted-template）・nodeRole/nodeTitle shrink。
 - **gotcha**: `claude -p` はフルエージェントで cwd にファイルを書く → production codegen は §H サンドボックスで cwd 隔離必須（安全＋ファイル汚染の両方）。
 
 ---
