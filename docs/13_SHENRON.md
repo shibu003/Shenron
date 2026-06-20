@@ -112,7 +112,9 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 - **Wave 3 残（最終形へ）**: full-fidelity template（全 field/`outputs`/`base_classes`/typed handle の `isValidConnection` 整合/auto-layout）・mcp/agent を Prompt に潰さず exotic 🔗 として保持する選択肢・round-trip safe（import→編集→export 一致）。
 - ✅ **Wave 4（不足ノード生成＝spike1 の production 化・user 選択で「v1＋サンドボックス実行」まで）**: `shenron.mjs` に `genComponent({what})` ＝ **生成→使い捨てサンドボックス収束→修復ループ**（§1.5-E/F/H/I、spike を復活させず §1.5-E 手順から再構築）。`GEN_PROMPT`＝langflow 1.10.0 Component を **stdlib 限定・standalone・default input** で 1-shot。`runInSandbox(code)`＝`mkdtempSync` の使い捨て cwd に `component.py`＋`harness.py` を書き、**langflow を install せず sys.modules に stub 注入**して standalone 実行→`build()` が **Message.text に非空の実データ**を返すか型 assert（spike1 caveat: Data 許容を潰す）。失敗（HARNESS/RUN/TYPE_ERR の traceback 末尾）→ `REPAIR_PROMPT` で LLM に戻し最大 `maxIters=3` 修復（spike1: forced-fail iter1→iter2 回復）。env は **secret を抜く**（KEY/TOKEN/SECRET…）＝生成コードからの exfil 防止。`POST /api/shenron/gen-component {what}`→`{code,iters,converged,output|error}`（`trail('gen-component')`）。cockpit は plan 後に **⚠️ N ボタン**出現→gap[0] を生成→収束バッジ＋実データ＋コードを readonly modal で表示・copy。**auto-install しない**（実行のみ・自動登録は v2）。検証: test に extractCode＋修復ループ制御（fake run/sandbox で iter1収束/iter2修復/maxIters諦め）／runInSandbox 直叩きで good=ok・Data=TYPE_ERR・raise=traceback／**real claude e2e: 「python/cpython の star 数」→ iter1 収束「python/cpython has 73,323 stargazers.」**。
 - **Wave 4 残（v2）**: OS サンドボックス（container/seccomp/egress allowlist）・**初回 human-gate→cache→自動登録/組込**（§H 発火フェーズ）・テスト生成・Wave 2 MCP registry と連結（既存 > 自作 ladder）・⚠️ 複数 gap の巡回 UI（現状 gap[0] のみ）・実 Langflow `/api/v1/custom_component` validate。
-- **次**: Wave 5（対話修正・ステップ編集）／Wave 6（実行）。
+- ✅ **Wave 5（対話修正・ステップ編集・v1）**: (a) plan ノードは canvas で **既存 inline 編集導線でそのまま編集可**（Wave 1 の `loadFlow`＝コード追加なし）。(b) `plan()` に `context={prev_plan,instruction}` 分岐＝`REFINE_PROMPT` で現 steps を見せ「指示の変更だけ当て他 step は維持」させ steps[] 再生成→buildPlanIR で再 synth・have/missing 再解決（§5 Wave5 v1＝再生成。差分適用は最終形）。**refine の LLM 失敗→前 plan を維持**（編集を捨てない）。`run` を注入可能化（test 用）。`POST /api/shenron/plan {goal,context}` に拡張（既存 route へ `context` 通すだけ）。cockpit は plan 後に **✏️ 修正 ボタン**出現→指示モーダル→`applyPlan(r)`（plan/refine 共通描画に refactor）。**多ターン**は `LAST_PLAN` 更新で自然に積み上がる（会話履歴を別持ちしない）。検証: test に refine（slack→email で該当 step だけ変化・他 step 維持・source=refine／LLM 失敗で prev 維持）／browser smoke（✏️ 露出・context 送出・canvas が slack→gmail・source=refine）／**real claude e2e: 「Slack→メール」→ step1「summarize」維持・step2 だけ `slack.post_message`→`echo.send_email`（inventory の実ツール解決）**＝§366 検証達成。
+- **Wave 5 残（最終形へ）**: 差分適用（該当ノードだけ差し替え・全再生成しない）・step DnD/追加削除・undo/redo＋plan version 管理・「なぜこの設計?」説明生成・会話履歴の明示保持。
+- **次**: Wave 6（実行）。
 - **Wave 2 残（最終形へ）**: 多 backend（MCP registry/Smithery 照合）・ranking/dedup/JSONL キャッシュ・ワンクリック adopt（Wave 4 連結）・実 Tavily での live 検証（現状 unit test の注入 fake のみ）。
 - ✅ **ponytail-audit 適用**（9d7753f delete -283／3a8408a dedup -24）: spikes 削除・ui.html dead cluster/portHtml/sfName/copyMcp・`/api/pubkey`・mcp-client/trust 整理・spawn 3 重複を `runner.runVendor` に集約。net -277。見送り＝i18n 37 dead キー（live と同行同居でリスク>価値）・gen-trigger resolver（休眠 emitted-template）・nodeRole/nodeTitle shrink。
 - **gotcha**: `claude -p` はフルエージェントで cwd にファイルを書く → production codegen は §H サンドボックスで cwd 隔離必須（安全＋ファイル汚染の両方）。
@@ -343,6 +345,8 @@ class GitHubCommits(Component):
 ---
 
 ### Wave 5 — 対話修正 ＋ ステップ編集
+
+> ✅ **実装済 v1（§J 参照）**: (a) inline 編集は既存導線で充足／(b) `context={prev_plan,instruction}` 再生成＋✏️ 修正 UI。real e2e で「他 step 維持・該当 step だけ差替」確認。残＝差分適用/DnD/undo/version（最終形）。
 
 **目的**: plan を人が触れる。
 
