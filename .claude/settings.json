@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "cat .claude/giogio-mcp-first.md 2>/dev/null", "statusMessage": "神龍 MCP-first 北極星" }
+        ]
+      }
+    ]
+  }
+}
