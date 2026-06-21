@@ -58,4 +58,5 @@
 - runner.mjs が per-call `model` を受け、API path と `claude -p --model` 両方に適用。
 - power user は flow の node.config に `vendor`/`model` 直指定も可。
 - ✅ **Ollama provider（cheap step を完全無料に）**: runner に `ollama` vendor（`OLLAMA_HOST` 既定 localhost:11434・`/api/generate`）。**`SHENRON_CHEAP_VENDOR=ollama`（＋`ollama serve`）→ cheap step は cloud/API path でもローカル $0**。consensus の vendors に `ollama` を入れても自動で効く。Win/Linux/Mac 同じ。MINIMIZE COST 既定 cheap と合わせ「安い 80% は無料ローカル、判断だけ Claude」。
-- **残**: OpenAI/Gemini adapter（`cost:paid_ok` 時）・mcp/agent ノードの per-node vendor・consensus を planner から emit・discover の自動 routing 提案・auto-escalation（cheap 失敗時だけ strong）。
+- ✅ **OpenAI/GPT provider**（`adab1b0`）+ ✅ **Gemini provider**: runner に `gemini`/`google` vendor（`generativelanguage` v1beta・`x-goog-api-key`・`GEMINI_MODEL` 既定 `gemini-2.0-flash`・BYO `GEMINI_API_KEY`）。**bonus: consensus 既定 vendors=`claude,codex,gemini` で gemini が silently stub 落ちしていた潜在バグを解消**（key 無し時は `[gemini → stub] …未設定` の labeled fallback）。`test_runner.mjs` で no-key stub 契約を検証。
+- **残**: mcp/agent ノードの per-node vendor・consensus を planner から emit・discover の自動 routing 提案・auto-escalation（cheap 失敗時だけ strong）。（Sakana 等の追加 vendor は公開 OpenAI 互換 API が無く、モデルは ollama 経由でローカル実行が筋＝新コード不要）
