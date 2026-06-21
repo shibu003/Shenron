@@ -37,7 +37,7 @@
 
 ## 次にやる（優先順）
 1. 🔬 **discover-first 実機検証**（最優先・全土台）: ngrok 接続済 fresh hub で claude.ai に「SNS 始めたい」→X/Insta/FB を聞くか／「楽天で転売」→ToS/古物商/購入API無しを blocker で止めるか。効いてなければ即補強（プロンプト強化 or hub 側検索 integration）。
-2. **Wave G: multi-AI**（下記・既存 consensus を土台に provider 拡張）。
+2. ~~Wave G: multi-AI~~ **core クローズ**（providers/per-step routing/auto-escalation/consensus-from-planner/per-node vendor 出荷）。残 auto-routing 提案は #1 検証後に着手。
 3. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
 4. Wave D polish（list_workflows に summary+最終実行時刻）。
 5. §16 未確定: Ollama tiering 実装 / OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
@@ -56,9 +56,10 @@
 - buildPlanIR が tier を step + prompt ノード config に持ち越し。
 - 実行時 `firePromptNode`→`runPrompt` が **node の vendor/model 明示 > tier→model > 既定** で解決。`tierModel`: cheap→`SHENRON_MODEL_CHEAP`(既定 haiku) / strong→`SHENRON_MODEL_STRONG`(既定 opus)＝**env で per-budget に上書き**（free 派は cheap→ローカル/haiku）。
 - runner.mjs が per-call `model` を受け、API path と `claude -p --model` 両方に適用。
-- power user は flow の node.config に `vendor`/`model` 直指定も可。
+- power user は flow の **prompt / agent** node に `vendor`/`model` 直指定も可（agent node: `runLocal` が per-node 明示 > `EXEC_VENDOR` > agent 既定で解決・model も runner に渡す。後方互換）。
 - ✅ **Ollama provider（cheap step を完全無料に）**: runner に `ollama` vendor（`OLLAMA_HOST` 既定 localhost:11434・`/api/generate`）。**`SHENRON_CHEAP_VENDOR=ollama`（＋`ollama serve`）→ cheap step は cloud/API path でもローカル $0**。consensus の vendors に `ollama` を入れても自動で効く。Win/Linux/Mac 同じ。MINIMIZE COST 既定 cheap と合わせ「安い 80% は無料ローカル、判断だけ Claude」。
 - ✅ **OpenAI/GPT provider**（`adab1b0`）+ ✅ **Gemini provider**: runner に `gemini`/`google` vendor（`generativelanguage` v1beta・`x-goog-api-key`・`GEMINI_MODEL` 既定 `gemini-2.0-flash`・BYO `GEMINI_API_KEY`）。**bonus: consensus 既定 vendors=`claude,codex,gemini` で gemini が silently stub 落ちしていた潜在バグを解消**（key 無し時は `[gemini → stub] …未設定` の labeled fallback）。`test_runner.mjs` で no-key stub 契約を検証。
 - ✅ **auto-escalation（cheap 失敗時だけ strong）**: `runPrompt` が cheap step の結果に失敗 sentinel `→ stub]`（runner が必ず付ける接頭辞）を検出したら strong route で1回だけ再試行。**成功すれば安いまま・失敗時だけ課金**＝お財布適応の背骨。発火= tier=cheap かつ node が vendor 非明示かつ on（`routing.autoEscalate:false` / `SHENRON_NO_ESCALATE=1` で off）。strong も落ちたら cheap の理由を残す。`test_runner.mjs` が sentinel 契約を固定。
 - ✅ **consensus を planner から emit**: planner が high-stakes step（error-sensitive/不可逆/決定論的チェック無しの判断のみ・「稀に使え N× コスト」と教示）に `kind:'consensus'` を出せる。buildPlanIR が consensus node を emit（built-in・gap でない）・renderPlan が `🗳️ consensus` 表示・実行は既存 fireConsensusNode（N vendor→medoid 投票）。**既定 vendors は cost 連動**（free=`claude,codex,ollama`=$0／paid_ok=`claude,codex,gemini`）。MCP 完全到達（plan_flow→run）。`test_shenron.mjs` 追加。
-- **残**: mcp/agent ノードの per-node vendor・discover の自動 routing 提案。（Sakana 等の追加 vendor は公開 OpenAI 互換 API が無く、モデルは ollama 経由でローカル実行が筋＝新コード不要）
+- ✅ **agent ノードの per-node vendor/model**: flow の agent node に `vendor`/`model` 明示で「この step だけ別 AI」。`runLocal` が per-node 明示 > `EXEC_VENDOR` > agent 既定で解決（後方互換: 未指定の既存 node は従来通り）。mcp node は tool 呼び出しで LLM vendor 概念なし＝対象外。
+- **残**: discover の自動 routing 提案のみ。**これは discover-first（ROADMAP #1・🔬未検証）の上に積む物**＝土台検証が先。→ **Wave G は core クローズ**（providers / per-step routing / auto-escalation / consensus-from-planner / per-node vendor 出荷済み）。（Sakana 等の追加 vendor は公開 OpenAI 互換 API が無く、モデルは ollama 経由でローカル実行が筋＝新コード不要）
