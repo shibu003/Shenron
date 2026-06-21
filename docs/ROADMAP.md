@@ -44,6 +44,32 @@
 
 ---
 
+## 🔬 次セッション手順: discover-first 実機検証（#1・全土台・cleared でもこれを実行）
+
+**クルックス**: `plan_flow`(MCP) → `shenron.mjs plan()` が **hub の `claude -p`** に PROMPT を投げ、その1回の LLM 呼び出しの中で "RESEARCH the goal (use web search if you have it)" を期待。検索は claude.ai 側でなく **hub 側 LLM** で走る。よって核心は「**hub の `claude -p` が実際に web 検索するか**」。`plan()` には `search` seam もある（不合格時の補強路）。
+
+**起動**（従量0 維持＝`ANTHROPIC_API_KEY` を設定しない・`--vendor stub` も付けない＝real `claude -p`）:
+```
+node prototype/hub/hub.mjs            # → :8795（stub なし＝本物の claude -p で planner 実行）
+ngrok http 8795                       # → HTTPS URL（docs/15 §C4）
+# claude.ai → Settings → Connectors → https://<ngrok>/mcp/sse （OAuth は hub auto-approve）
+```
+
+**検証A — behavioral discover（PROMPT ロジック・web 検索非依存で効くはず）**: claude.ai から自然文 → claude が `plan_flow` を呼ぶ。
+- 「SNS を始めたい」→ 期待: `mode:"clarify"` で X / Instagram / Facebook 等を聞き返す（steps を出さない）。
+- 「楽天で転売したい」→ 期待: `blockers` に ToS / 古物商許可 / 購入 API 無し（＋ browser-control の線）を出して止める。
+- ✅判定: clarify/blocker が出れば discover-first の構造は生きてる。steps をいきなり出したら PROMPT 不足。
+
+**検証B — web 検索の接地（🔬 真の crux・A が通っても別問題）**: 「現在の事実」が要る goal で鮮度を見る。
+- probe goal: 「X(旧Twitter) の無料 API だけで自動投稿したい」→ 現実(無料 tier は実質投稿不可・有料)を blocker で出せば**検索 or 最新知識が効いてる**。古い「無料でいける」前提なら未接地。
+- isolate: 別途ターミナルで `claude -p "今日時点で X(Twitter) の無料 API は投稿できる? web で確認して"` を直接実行し、claude -p が**そもそも WebSearch する権限/設定か**を切り分け（plan_flow 内かどうかと独立に）。
+
+**不合格時の補強（順に）**: ① PROMPT 強化（DISCOVER FIRST を更に強制・「検索してから」を明示）→ ② `claude -p` に WebSearch を許可する設定（権限/allowedTools）→ ③ **hub 側検索 integration**（`add_integration kind:'search'` → `plan({search})` seam に結果を流し込む＝LLM の web 権限に依存しない）。③が最も確実（神龍が検索結果を構造化して渡す）。
+
+**この後**: 検証 OK なら Wave G 残「discover の自動 routing 提案」に進める（discover が capability+cost で vendor/tier を提案）。NG なら上記補強を1コミットずつ。
+
+---
+
 ## Wave G — multi-AI（複数 AI 同時）設計メモ
 **現状（既にかなり在る）**: ① `consensus` node kind（同一タスクを N vendor 並列→medoid 投票・既定 `claude,codex,gemini`・`hub.mjs` fireConsensusNode/runConsensus）② per-agent `vendor` ＋ `EXEC_VENDOR` 上書き ③ A2A マルチエージェント handoff（agent→agent）。
 **足りない物**: ① `runner.mjs` が claude(/API)・codex のみ → **OpenAI/Gemini/Ollama の provider adapter 追加**（ANTHROPIC_API_KEY path と同型の fetch wrapper）。② planner が per-node vendor / consensus node を emit しない（plan_flow に vendor 選択が無い）。
