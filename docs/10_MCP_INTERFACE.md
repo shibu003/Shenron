@@ -142,5 +142,10 @@ relay/metering は gateway 勢が商品化済 → **この MCP control plane（�
 - `list_workflows`/`search_workflows` 返りに **summary + 最終実行時刻**（`state.runs` を `flowId` で scan＝workflow→run の逆引きは未実装）。data-piping は Wave B でツール解決後に顕在化する旨も明記。
 - **触る**: `server.mjs`(返りに lastRun)／`hub.mjs`(lastRun 導出 helper)。
 
+### Wave E — discover-first + scheduler（claude.ai mobile 実機 red-team driven・出荷済）
+- **discover-first（3d3b799）**: 願い→plan 前に必ず研究→曖昧/地雷なら `clarify` を返し user に確認→`context.choices` で再 plan。検索は BYO AI 任せ（M1・従量0）。地雷(API無/ToS/許可/法/scheduling)も surface。[[shenron-northstar]] の「発見」本体。
+- **gen_component 修正（1db92d2）**: remote-MCP の vendor 既定 'stub'→'claude'（claude.ai 経由で必ず crash していた）+ vendor 不在 fail-fast。
+- **in-hub scheduler（663e9d1）+ robustness（本 Wave）**: cron(`cronMatch`)で schedule automation を発火。**catch-up**（`lastDue`+`schedule-state.json` 永続・downtime の取りこぼしを次 boot で追い発火・first-sight は baseline）。`POST /api/tick`（無料外部 cron seam）。`add_automation` MCP tool。⚠️ honest limit: hub 起動中のみ→`SHENRON_NO_SCHEDULER=1` で off・saveAutomation/state/planner が「スマホ常駐無しは不可→Apps Script/常駐箱」と正直に出す。設計詳細(常駐箱/pmset+launchd/外部trigger)は docs/15。
+
 ### 着手順
-**B(tool-awareness) → A②(図) → C(クラウド到達) → D(polish)**。feedback により「② フロー図より B が先」に組み替え（available 不正確＝"直 Claude" 感を先に消す）。
+**B(tool-awareness) → A②(図) → C(クラウド到達) → D(polish) → E(discover+scheduler)**。feedback により「② フロー図より B が先」に組み替え（available 不正確＝"直 Claude" 感を先に消す）。E は claude.ai 実機評価で実需が判明して追加。

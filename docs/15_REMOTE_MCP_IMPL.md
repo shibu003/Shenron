@@ -128,3 +128,30 @@ https://shenron-xxxx.up.railway.app/mcp/sse
 
 - DB 移行: volume JSON で十分（C を本採用する時だけ検討）
 - cloud での browser-control（`@playwright/mcp` の pre-install + クラウドのログイン profile）= 別 Wave
+
+## Wave: scheduler robustness — 24/7 常駐なしで定期実行を確実化（2026-06-21）
+
+大原則: 「時刻 T に何かが必ず生きてる」は避けられない → **トリガー(24/7 必須)と実行(間欠OK)を分離**し、実行を取りこぼさない durable に。
+
+### 出荷済（in-hub・従量0）
+- **catch-up**: schedule automation の `lastFired` を `schedule-state.json`(STATE_DIR) に永続。tick(60s)+boot(1.5s)で `lastDue`(直近 cron 一致)>lastFired なら発火。**downtime で過ぎた due を次回 boot で1回追い発火（coalesced）**＝「Mac が次に起きたら必ず走る」。first-sight は baseline のみ（インストール前の履歴は back-fire しない）。
+- **`POST /api/tick`**: 無料外部 cron が叩く seam（now due を発火）。act route ゆえ bearer 必要（外部 cron に token を持たせる）。
+- **discover 振り分け**: 定期ジョブを planner が分類 — API-only → サーバーレス cron(Apps Script/Cloudflare)で常駐不要を提案／login 要 → in-hub(catch-up) or マシン wake、完全 off×スマホのみは不可と正直に。
+
+### トリガーの無料 24/7 候補（接地済み・自分で持たず乗る）
+- **Cloudflare Workers Cron**: 1分粒度・時間正確・無料・コード+fetch 可 ＝ コード走らせる最良
+- **cron-job.org**: URL ping だけ・ゼロ設定・無料（`/api/tick` を叩かせる）
+- GitHub Actions cron: 無料だが 15-60分遅延＝時間シビアは不可。Apps Script: Google・無料・〜15分窓・90分/日上限
+
+### ログインジョブを「常駐なし」で確実化する2択（接地済み）
+browser-control はあなたのマシンに固着（ログイン profile）。cloud 不可。
+- **(a) マシンを定時起動**: `sudo pmset repeat wake MTWRF 08:59:00` でスリープから起床 → `launchd StartCalendarInterval` で hub の `/api/tick` を叩く → 再スリープ。⚠️ **AC 電源必須**（バッテリ+蓋閉じは深いスリープで不発）・スリープからのみ（完全 off は poweron=AC のみ+FileVault 解錠要）。launchd は寝てた分を次回 wake に繰延（coalesce）。
+- **(b) catch-up に任せる**: 起こさず、Mac が次に起きた時に hub boot tick が追い発火。無料・AC 不要だが時間は不正確。
+
+### 一番のおすすめ＝安い常駐箱（cloud より神龍向き）
+**Mac mini / 中古ノート / ミニPC / Pi を 24/7 つけっぱ**にして hub+scheduler を回す:
+- 🟢 24/7・🟢 従量0（LLM は `claude -p`=サブスク or Ollama=ローカル無料）・🟢 電気代だけ（〜数百円/月）・🟢 **browser-control のログイン資産が生きる**（自分の箱）
+- vs cloud(Railway): cloud は API 従量 + browser-control 死ぬ。常駐箱はそれが無い。
+- LLM 選択: サブスクあるなら `claude -p`（賢い・web 検索持つ=discover 効く）> Ollama（無料だが弱い・web 検索 native 無し）。
+- 弱点: cloud 級 SLA は無い（停電/ネット断/自動再起動の設定要）。だが「ノートが寝る」より遥かにマシ。
+- 動かぬ真実: **マシン完全 off で「あなたのログインを使うジョブ」は原理的に不可能**（ログインがそのマシンにしか無い）。「常駐なし」で出来るのは API ジョブのサーバーレス化のみ。
