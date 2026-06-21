@@ -147,5 +147,13 @@ relay/metering は gateway 勢が商品化済 → **この MCP control plane（�
 - **gen_component 修正（1db92d2）**: remote-MCP の vendor 既定 'stub'→'claude'（claude.ai 経由で必ず crash していた）+ vendor 不在 fail-fast。
 - **in-hub scheduler（663e9d1）+ robustness（本 Wave）**: cron(`cronMatch`)で schedule automation を発火。**catch-up**（`lastDue`+`schedule-state.json` 永続・downtime の取りこぼしを次 boot で追い発火・first-sight は baseline）。`POST /api/tick`（無料外部 cron seam）。`add_automation` MCP tool。⚠️ honest limit: hub 起動中のみ→`SHENRON_NO_SCHEDULER=1` で off・saveAutomation/state/planner が「スマホ常駐無しは不可→Apps Script/常駐箱」と正直に出す。設計詳細(常駐箱/pmset+launchd/外部trigger)は docs/15。
 
+### Wave F — サービス化 / デプロイ設計（接地済み・実装は方針決定後）= **docs/16**
+神龍を「サービス」として出す設計を web 検索で接地。核心: **compute は売らない、control plane を売る**（hub をホストすると 従量0＋ローカル・クレデンシャルの堀が死ぬ）。
+- **デプロイ**: 安い常駐箱（Pi5=hub最安/Mac mini M4=hub+ローカルLLM 唯一実用）。LLM は claude -p ≫ Ollama（Ollama は planner 不可・cheap sub-step のみ・"local 検索"も実はクラウド）。
+- **配布先**: OpenClaw（MIT・ローカル・BYO-key・MCP client・~380k★）に神龍を MCP server として挿す。Claude Code/claude.ai/Cursor も同様。
+- **マネタイズ**: BYOK flat-fee / open-core control-plane / governance-marketplace（神龍の trust receipt/passport/audit が governance に効く）。
+- **cost 設定（出荷済み）**: `plan_flow {cost:'free'|'paid_ok'}` を discover が honor。
+- 未確定（user 判断）: マネタイズ軸 / OpenClaw 統合深度 / 常駐箱 one-click 化 / Ollama tiering。
+
 ### 着手順
-**B(tool-awareness) → A②(図) → C(クラウド到達) → D(polish) → E(discover+scheduler)**。feedback により「② フロー図より B が先」に組み替え（available 不正確＝"直 Claude" 感を先に消す）。E は claude.ai 実機評価で実需が判明して追加。
+**B(tool-awareness) → A②(図) → C(クラウド到達) → D(polish) → E(discover+scheduler) → F(service/deploy 設計=docs/16)**。E/F は claude.ai 実機評価で実需が判明して追加。F は設計のみ＝実装は user の方針決定後。
