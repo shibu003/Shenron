@@ -7,6 +7,19 @@
 → **サービス化 = hub をこちらでホストしない**。compute を載せると ①（自分が API 課金）も ②（クラウドにユーザーのログインは無い）も壊れる＝巨人と同じ土俵。
 → **サービス = 「各ユーザーが自分のマシン/サブスクで動かす神龍を、配布・統制する層」**。compute/data はユーザー側、**control plane を売る**（Tailscale/Raycast/n8n の確立パターン・接地済み）。
 
+## §0.5 お財布適応（budget-adaptive）= 設計の背骨
+神龍は**コストを強制しない**。あらゆる能力に「無料パス（正直な制限付き）」と「有料パス（到達/便利さ増）」があり、ユーザーが財布に合わせて選ぶ。default は常に最安（従量0・free）、課金は user の明示 opt-in。
+
+| tier | 入れるもの | LLM | デプロイ/到達 | 外部ツール | automation |
+|---|---|---|---|---|---|
+| **無料（従量0）** | 何も（自分のサブスク or ローカル） | claude -p / Ollama(sub-step) | 自分のマシン / 常駐箱 | 無料/無料枠のみ(`cost:free`) | in-hub scheduler(箱/Mac on)+catch-up |
+| **BYO-key（API 入れたい）** | `ANTHROPIC_API_KEY` | 直 API(claude.ai 不在でも・Haiku で激安可) | ＋managed hub(箱無しで 24/7・API ジョブ) | free のままでも可 | ＋クラウド常駐で確実 24/7(API ジョブ) |
+| **余裕あり** | ＋paid tools | 同上 | 同上 | `cost:paid_ok`=有料ツール可(コスト開示) | 同上 |
+
+- **2 軸が独立**: ① LLM/infra（無料サブスク → BYO-key API → managed hub）② 外部ツール（`cost:free` → `paid_ok`）。混在自由（例: 無料デプロイ＋`paid_ok` ツール、BYO-key managed＋`free` ツール）。
+- 神龍の役目 = discover が各 step で「無料ならこう／有料ならこう速く確実」と**正直に出して選ばせる**（cost 設定 §4 が step レベル、本表が infra レベル・同じ思想）。
+- 実現: 今は `cost` 設定 ＋ `ANTHROPIC_API_KEY` 有無（runner.mjs 分岐）＋ デプロイ形態 の組合せ。将来は単一 `budget` 設定で cost+LLM+デプロイ推奨を束ねる UX もあり。
+
 ## §1 デプロイ形態（self-host が堀を保つ default、+ ホスト済み hub も選べる）
 | 形態 | 24/7 | LLM 課金 | browser-control | 用途 |
 |---|---|---|---|---|
