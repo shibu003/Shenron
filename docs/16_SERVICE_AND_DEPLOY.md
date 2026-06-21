@@ -54,6 +54,23 @@
 - **有効化（出荷済み・cheap を完全無料に）**: `ollama serve` を起動 ＋ `SHENRON_CHEAP_VENDOR=ollama`（任意で `OLLAMA_MODEL`/`OLLAMA_HOST`）→ tier=cheap の step が**ローカル localhost で $0**（cloud/API path でも cheap だけ無料）。strong は `claude -p`/API のまま。
 - **OS 横断（PC 含む）**: hub(Node)・Ollama は **Windows/Linux/Mac 共通**。常駐箱は N100 等の PC でも可（§1 表）。OS で違うのは「スリープから定時起動」のレシピだけ＝Mac:pmset+launchd / Win:タスクスケジューラ"スリープ解除"+BIOS RTC / Linux:systemd timer+rtcwake（docs/15）。常時起動サーバーなら wake 不要。
 
+## §1.7 どのクライアントから繋がるか（接地済み 2026-06）＋ 設定は MCP/自然文で完結
+multi-provider は**神龍（MCP サーバー）の中**で起きる（クライアントは単一 provider の受付・神龍が下流で claude/openai/ollama を tier/consensus で振る）。各クライアントは神龍 1台に繋ぐだけ:
+
+| クライアント | カスタム MCP 追加 | 方法 | 公開 URL 要 | サブスク $0 path |
+|---|---|---|---|---|
+| Claude Code (CLI) | 🟢 | `claude mcp add giogio -- node prototype/mcp/server.mjs`（remote も `--transport http`） | 不要(stdio) | 🟢 Pro/Max |
+| Codex (CLI) | 🟢 | `codex mcp add giogio -- node …`（or `~/.codex/config.toml`） | 不要(stdio) | 🟢 ChatGPT plan |
+| Gemini CLI | 🟢 | `~/.gemini/settings.json` `mcpServers` | 不要(localhost可) | — |
+| **claude.ai**（web/モバイル） | 🟢 | Customize > Connectors > Add custom（URL） | **要**（公開 HTTPS・localhost 不可） | 🟢 |
+| **ChatGPT**（アプリ） | 🟢 | Settings > Connectors > **Developer Mode** ON → URL | **要**（localhost 不可） | Plus/Pro/… |
+| **Manus** | 🟢 | Settings > Integrations > Custom MCP Servers（HTTP） | **要** | — |
+| Gemini アプリ（消費者） | 🔴 | 不可（Google 内蔵拡張のみ） | — | — |
+
+→ **CLI 系 = ローカル stdio で web 不要**。**claude.ai/ChatGPT/Manus = 1 つの公開 HTTPS URL**（神龍の `/mcp/sse`＋streamable・ngrok or 常駐箱 or managed hub）に全部繋ぐ。Gemini は CLI のみ（消費者アプリ不可）。
+
+**設定も MCP/自然文で完結（出荷）**: `get_config`/`set_config`（全設定1か所・cost/scheduler/routing/providers・live 反映・初期設定 hint）+ `add_integration`/`add_automation`（登録）。「cheap を ollama に / 有料OK / 毎週月曜に走らせ」等を自然文で言えば AI が set_config/add_* を呼ぶ＝**設定画面に行かずに完結**。API key だけは secret ゆえ env/.dev.vars（config には在否のみ）。設定 URL（cockpit ページ）は MCP の上の薄い任意 view（managed/非技術者向けにあると親切・必須でない）。
+
 ## §2 配布先: OpenClaw（接地済み）
 OpenClaw = MIT・ローカル/BYO-key の個人 AI エージェント（Peter Steinberger+community・~380k★・openclaw.ai）。**MCP client（stdio/SSE/streamable-http・`openclaw mcp add <name>` or config `mcp.servers`）**＋ skills/ClawHub 文化（5,700+）。
 → **神龍を MCP server として OpenClaw に挿す**（神龍は既に stdio server.mjs + remote `/mcp/sse`/streamable を持つ＝そのまま繋がる）。380k★ = 配布チャネル。OpenClaw 同様に「ローカル・BYO-key・自己ホスト」なので思想が一致＝同じ層のユーザーに自然に届く。Claude Code / claude.ai / Cursor も同じく MCP client として対象。
