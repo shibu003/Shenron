@@ -74,6 +74,12 @@ multi-provider は**神龍（MCP サーバー）の中**で起きる（クライ
 
 **設定も MCP/自然文で完結（出荷）**: `get_config`/`set_config`（全設定1か所・cost/scheduler/routing/providers・live 反映・初期設定 hint）+ `add_integration`/`add_automation`（登録）。「cheap を ollama に / 有料OK / 毎週月曜に走らせ」等を自然文で言えば AI が set_config/add_* を呼ぶ＝**設定画面に行かずに完結**。API key だけは secret ゆえ env/.dev.vars（config には在否のみ）。設定 URL（cockpit ページ）は MCP の上の薄い任意 view（managed/非技術者向けにあると親切・必須でない）。
 
+## §1.8 OpenClaw の3役（multi-provider との関係・正直な区別）
+- **client（神龍に繋ぐ）**: 🟢 `openclaw mcp add` → 神龍が内部で multi-provider 実行（§1.7）。
+- **tool/agent（神龍の flow が使う道具）**: 🟢 `openclaw mcp serve`(OpenClaw を MCP サーバー化) → 神龍に `add_integration` → flow ノードで OpenClaw の機能(messaging/browser 等)を呼ぶ。
+- **LLM provider（claude/openai/ollama の仲間に入れる）**: 🔴 不向き。OpenClaw は LLM endpoint(prompt→text)でなく agent＝tierRoute/runVendorAsync の provider にも consensus にも入らない。神龍の「複数 provider」は LLM endpoint(claude/openai/gemini/ollama)で構成。
+- 補足: OpenClaw 自身は BYO-model(Claude/GPT/Ollama)＝OpenClaw 側でも multi-model だが、それは OpenClaw の設定で神龍の provider 層とは別。
+
 ## §2 配布先: OpenClaw（接地済み）
 OpenClaw = MIT・ローカル/BYO-key の個人 AI エージェント（Peter Steinberger+community・~380k★・openclaw.ai）。**MCP client（stdio/SSE/streamable-http・`openclaw mcp add <name>` or config `mcp.servers`）**＋ skills/ClawHub 文化（5,700+）。
 → **神龍を MCP server として OpenClaw に挿す**（神龍は既に stdio server.mjs + remote `/mcp/sse`/streamable を持つ＝そのまま繋がる）。380k★ = 配布チャネル。OpenClaw 同様に「ローカル・BYO-key・自己ホスト」なので思想が一致＝同じ層のユーザーに自然に届く。Claude Code / claude.ai / Cursor も同じく MCP client として対象。
