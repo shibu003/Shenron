@@ -65,7 +65,10 @@ multi-provider は**神龍（MCP サーバー）の中**で起きる（クライ
 | **claude.ai**（web/モバイル） | 🟢 | Customize > Connectors > Add custom（URL） | **要**（公開 HTTPS・localhost 不可） | 🟢 |
 | **ChatGPT**（アプリ） | 🟢 | Settings > Connectors > **Developer Mode** ON → URL | **要**（localhost 不可） | Plus/Pro/… |
 | **Manus** | 🟢 | Settings > Integrations > Custom MCP Servers（HTTP） | **要** | — |
+| **OpenClaw** | 🟢 | `openclaw mcp add` / config `mcpServers`（stdio）；remote は `url`+`transport:"streamable-http"`+`auth:"oauth"` | stdio:不要 / remote:要 | 🟢 BYO-key(model 自由) |
 | Gemini アプリ（消費者） | 🔴 | 不可（Google 内蔵拡張のみ） | — | — |
+
+- **OpenClaw（接続済みにする手順）**: ローカルなら config(`~/.openclaw/openclaw.json` の `mcpServers`)に `{"giogio":{"command":"node","args":["prototype/mcp/server.mjs"]}}` を足す（標準 MCP shape・正確な CLI flag は `openclaw mcp add --help`）。remote(常駐箱/managed)なら神龍の `/mcp`(streamable-http) URL を `transport:"streamable-http"`+`auth:"oauth"` で。**神龍側は追加実装不要**（既存 stdio server.mjs / remote `/mcp` がそのまま MCP 準拠）。⚠️ 実 OpenClaw での接続テストは未実施（spec 準拠で動くはず・要実機確認）。OpenClaw 自身もローカル/BYO-key 思想なので相性◎。
 
 → **CLI 系 = ローカル stdio で web 不要**。**claude.ai/ChatGPT/Manus = 1 つの公開 HTTPS URL**（神龍の `/mcp/sse`＋streamable・ngrok or 常駐箱 or managed hub）に全部繋ぐ。Gemini は CLI のみ（消費者アプリ不可）。
 
