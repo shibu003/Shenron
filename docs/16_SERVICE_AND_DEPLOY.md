@@ -110,28 +110,39 @@ gap トグル同様、永続は client 側（localStorage）。
 - 📋 §2/§3/§5 = 設計のみ（実装は user の方針決定後）。常駐箱 §1 はハード/OS 設定＝doc レシピ（docs/15）。
 
 ## Fly.io デプロイ手順（Wave F-1）
-```bash
-# 初回: Fly アカウント + CLI
-brew install flyctl && fly auth login
 
-# app 作成（初回のみ）
+### デプロイ先: hub.shibubu.ai（shibubu.ai の Fly.io app と並走する別 app）
+神龍 hub は `shenron-hub`（独立 Fly app）として deploy し、`hub.shibubu.ai` サブドメインを向ける。
+shibubu 本体（app=`shibubu`・lax）には手を加えない。
+
+```bash
+# 0. 前提: flyctl と shibubu への認証済み
+#    GioGio ディレクトリで実行（fly.toml がここにある）
+cd ~/GioGio
+
+# 1. app 作成（初回のみ）
 fly apps create shenron-hub --org personal
 
-# volume 作成（初回のみ・永続 state）
+# 2. volume 作成（初回のみ・永続 state）
 fly volumes create shenron_data --region nrt --size 1
 
-# 環境変数（BYO-key 必須）
-fly secrets set ANTHROPIC_API_KEY=sk-ant-...
+# 3. 環境変数（BYO-key 必須: managed hub は claude -p が無い）
+fly secrets set ANTHROPIC_API_KEY=sk-ant-... -a shenron-hub
 
-# deploy
-fly deploy
+# 4. deploy
+fly deploy --config fly.toml
 
-# URL 確認
-fly status
-# → https://shenron-hub.fly.dev/mcp/sse を claude.ai Connectors に登録
+# 5. カスタムドメイン設定
+fly certs create hub.shibubu.ai -a shenron-hub
+# → 表示される CNAME レコードを shibubu.ai の DNS に追加:
+#   hub.shibubu.ai  CNAME  shenron-hub.fly.dev
+
+# 6. 確認
+fly status -a shenron-hub
+# → https://hub.shibubu.ai/mcp/sse を claude.ai Connectors に登録
 ```
 
-### 必須 env vars（fly secrets set）
+### 必須 env vars（fly secrets set -a shenron-hub）
 | var | 説明 |
 |---|---|
 | `ANTHROPIC_API_KEY` | BYO-key（必須: managed hub は claude -p が無い）|
