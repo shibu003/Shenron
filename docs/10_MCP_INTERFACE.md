@@ -115,6 +115,8 @@ relay/metering は gateway 勢が商品化済 → **この MCP control plane（�
 
 ## 11. 技術設計 & ロードマップ（living・claude.ai 実評価 driven）
 
+> 📍 **wave の一覧・状態の正本は `docs/ROADMAP.md`**。本節は §11 固有の技術設計メモ（B/A/C/D/E/F の中身）。
+
 > 2026-06、claude.ai で実 MCP テスト → 設計ミスマッチが判明。以後 wave をここに追記していく。各 wave = 問題 → 設計 → 触る → 検証。
 
 ### 設計の前提（architecture principles・コード接地）
