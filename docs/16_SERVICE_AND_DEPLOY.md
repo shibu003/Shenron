@@ -18,6 +18,7 @@
 
 - **2 軸が独立**: ① LLM/infra（無料サブスク → BYO-key API → managed hub）② 外部ツール（`cost:free` → `paid_ok`）。混在自由（例: 無料デプロイ＋`paid_ok` ツール、BYO-key managed＋`free` ツール）。
 - 神龍の役目 = discover が各 step で「無料ならこう／有料ならこう速く確実」と**正直に出して選ばせる**（cost 設定 §4 が step レベル、本表が infra レベル・同じ思想）。
+- **コスト最小は受け身でなく能動 default**: planner は常に最安経路を組む — ① **LLM step を最少**（1 prompt で済むものは纏める・決定論 API/MCP/code step は ~$0 で LLM step より優先）② **既存ツール/cache 部品を再利用**（生成より優先）③ 各 step 既定 tier=cheap（本人サブスク/小モデル）で **strong/有料は outcome を変える時だけ escalate**。④ 実行は claude -p(従量0) を優先・API は key がある時だけ。→ **common case（ローカル claude -p）は元から $0**、課金が出る API/cloud path でも既定で最小。
 - 実現: 今は `cost` 設定 ＋ `ANTHROPIC_API_KEY` 有無（runner.mjs 分岐）＋ デプロイ形態 の組合せ。将来は単一 `budget` 設定で cost+LLM+デプロイ推奨を束ねる UX もあり。
 
 ## §1 デプロイ形態（self-host が堀を保つ default、+ ホスト済み hub も選べる）
