@@ -188,6 +188,20 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 - ✅ **ponytail-audit 適用**（9d7753f delete -283／3a8408a dedup -24）: spikes 削除・ui.html dead cluster/portHtml/sfName/copyMcp・`/api/pubkey`・mcp-client/trust 整理・spawn 3 重複を `runner.runVendor` に集約。net -277。見送り＝i18n 37 dead キー（live と同行同居でリスク>価値）・gen-trigger resolver（休眠 emitted-template）・nodeRole/nodeTitle shrink。
 - **gotcha**: `claude -p` はフルエージェントで cwd にファイルを書く → production codegen は §H サンドボックスで cwd 隔離必須（安全＋ファイル汚染の両方）。
 
+### J 追補 — Wave 9 以降の出荷（2026-06-21・全 push 済 origin/main）
+> 詳細ログは memory `next-session-todo`。設計重めは docs/10 §11・docs/15・docs/16。
+
+- ✅ **Wave 9.1 / 10 / 11a-c**: BYO-credential 注入・gate UI・computer-use（stateful browser-worker + allow/ask/deny + 人 checkpoint + agentic NL ループ）。決定木4分岐が全て planner から出る。
+- ✅ **使いやすさ整備**: 登録だけで動く（MCP server が hub を、hub が worker を自動起動）・永続ログイン profile・全機能 MCP 化・e2e。
+- ✅ **Wave B（tool-awareness・438d0d5）**: `add_integration` MCP tool・`availableSummary()`（plan_flow 返りに available＝registered+組込 browser-control/prompt）・`planFlow()` に集約（HTTP と remote-MCP が同一実 plan）・「client 接続は MCP 仕様上見えない」を正直明記。
+- ✅ **Wave A（self-contained・5b16f15）**: `renderPlan()` で Mermaid+ASCII 図 + 人間可読 summary_text。checkpoint CLI は既存ツールで完結。
+- ✅ **Wave C（クラウド到達・eeaf22a/02d7a9a）**: `json()` に CORS・runner.mjs を `ANTHROPIC_API_KEY` あれば直 API/無ければ `claude -p` に分岐・act route を bearerOk（OAuth or `A2A_SHARED_TOKEN`）で gate。Railway は見送り（コスト判断・docs/15 到達性表）。
+- ✅ **gen_component 修正（1db92d2）**: remote-MCP の vendor 既定 'stub'→'claude'（claude.ai 経由で必ず crash していた）+ vendor 不在 fail-fast。
+- ✅ **discover-first（3d3b799）**: 願い→plan 前に研究→曖昧/地雷なら `clarify` で user に確認→`context.choices` で再 plan。検索は BYO AI 任せ（M1・従量0）。地雷(API無/ToS/許可/法/scheduling)も surface。[[shenron-northstar]] の「発見」本体。⚠️未検証＝claude -p/claude.ai が実際に web 検索するか（SNS/楽天 実機）。
+- ✅ **in-hub scheduler + robustness（663e9d1/1b36350）**: `cronMatch`/`lastDue`（match.mjs）・schedule automation を tick+boot で発火・**catch-up**（`schedule-state.json` 永続・downtime の取りこぼしを次 boot で追い発火・first-sight は baseline）・`POST /api/tick`（無料外部 cron seam）・`add_automation` MCP。⚠️ hub 起動中のみ→`SHENRON_NO_SCHEDULER=1` で off・「スマホのみは不可→Apps Script/常駐箱」を正直に出す。
+- ✅ **cost 設定（44bae59）**: `plan_flow {cost:'free'(既定)|'paid_ok'}` を discover が honor（free=有料 step opt-in 化／paid_ok=有料可+コスト開示）。
+- 📋 **Wave F: サービス化/デプロイ設計（docs/16・接地済み・実装は方針決定後）**: compute は売らず control plane を売る／**お財布適応 3 tier（無料 / BYO-key / 有料）**＝コストを強制しない背骨／常駐箱（Pi5・Mac mini・claude -p≫Ollama）／配布先 OpenClaw（MCP client・~380k★）／「hub も使える」= managed hub(BYO-key・browser-control 不可)。未確定（user 判断）=マネタイズ軸/OpenClaw 統合深度/常駐箱 one-click/Ollama tiering/managed hub を立てるか。
+
 ---
 
 ## 2. アーキテクチャ全体図
