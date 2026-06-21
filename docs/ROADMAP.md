@@ -25,7 +25,7 @@
 | **A** | self-contained（`renderPlan`=Mermaid+ASCII 図+人間可読 summary・checkpoint CLI）`5b16f15` | §10 §11 |
 | **C** | クラウド到達（CORS・runner の API 分岐・act route を OAuth/bearer gate）`eeaf22a`/`02d7a9a`。Railway は見送り | §15 |
 | gen_component 修正 | remote-MCP vendor 'stub'→'claude' + vendor 不在 fail-fast `1db92d2` | §13 J |
-| **discover-first** 🔬 | 願い→研究→曖昧/地雷なら `clarify` で確認→`context.choices` で再 plan（検索は BYO AI・M1） `3d3b799`。**未検証=claude が実際に web 検索するか（SNS/楽天 実機）** | §10 §11 |
+| **discover-first** ✅ | 願い→研究→曖昧/地雷なら `clarify` で確認→`context.choices` で再 plan（検索は BYO AI・M1） `3d3b799`。**cockpit view = wish bar `05fbef0`**。**✅実機検証済（2026-06-21・ローカル）**: 検証A behavioral＝「SNS始めたい」→clarify(X/IG/TikTok/note)+blockers、「楽天転売」→clarify+blockers(出店有料/ToS/転売禁止法/RMS API店舗限定)、nodes:0。検証B＝`claude -p` が **WebSearch 発火確認**（出力に `Sources:` + 2026 一次 URL）＝真の crux YES。残=ngrok+claude.ai の MCP transport のみ（他 connector で実証済）。**rough edge**: 同一 goal で claude -p 2回が X-API事実を微妙に違えた（「無料tier廃止」vs「月1500書込OK」）＝非決定的・両方 grounded だが要観測 | §10 §11 |
 | **scheduler + robustness** | cron 発火 + **catch-up**（`lastDue`+`schedule-state.json`・downtime 後 boot で追い発火）+ `POST /api/tick`（外部 cron seam）+ `add_automation`。`SHENRON_NO_SCHEDULER` で off `663e9d1`/`1b36350` | §15 |
 | **cost 設定** | `plan_flow {cost:'free'/'paid_ok'}` を discover が honor `44bae59` | §16 §4 |
 
@@ -36,8 +36,8 @@
 | **G multi-AI / model routing** | 下記「②」参照 | 本 doc |
 
 ## 次にやる（優先順）
-1. 🔬 **discover-first 実機検証**（最優先・全土台）: ngrok 接続済 fresh hub で claude.ai に「SNS 始めたい」→X/Insta/FB を聞くか／「楽天で転売」→ToS/古物商/購入API無しを blocker で止めるか。効いてなければ即補強（プロンプト強化 or hub 側検索 integration）。
-2. ~~Wave G: multi-AI~~ **core クローズ**（providers/per-step routing/auto-escalation/consensus-from-planner/per-node vendor 出荷）。残 auto-routing 提案は #1 検証後に着手。
+1. ~~🔬 discover-first 実機検証~~ **✅完了**（2026-06-21・ローカルで実体検証・上表 discover-first 行参照）。残=ngrok+claude.ai の e2e transport 確認（任意・MCP 標準なので他 connector で実証済）＋ rough edge（claude -p の非決定 X-API事実）を実運用で観測。
+2. **Wave G 残: discover の自動 routing 提案**（土台 #1 が通ったので着手可）: discover が capability+cost で per-node vendor/tier を提案。
 3. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
 4. Wave D polish（list_workflows に summary+最終実行時刻）。
 5. §16 未確定: Ollama tiering 実装 / OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
