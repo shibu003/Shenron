@@ -83,3 +83,30 @@ AI 側の典型フロー：`search_workflows("sales")` → `get_workflow("sales-
 ## 8. capture との関係（`06 §6.6`）
 
 relay/metering は gateway 勢が商品化済 → **この MCP control plane（索引＋オーケストレーション＋trust）が課金面の候補**。AI が BuildHUD 経由で fleet を操作する体験そのものを seat/per-workflow で売る。
+
+---
+
+## 9. 現状アップデート（2026-06・神龍 + 登録だけで動く）
+
+§2 の素の tools に加え、神龍（wish→flow）と self-extension の tool が `prototype/mcp/server.mjs` に載っている:
+- `plan_flow {goal, save?, gap?}` — 願い→plan IR。`gap='off'|'ask'|'auto'`（既定 ask）で「足りない道具を作る枝」を選ぶ。
+- `gen_component {what}` / `list_components` / `approve_component {id}` — 足りない道具を生成→検証→承認で integration 化（ladder rejoin）。
+- `get_permissions` / `set_permission {tool, domain?}` — browser-control の allow/ask/deny（「常に許可」の書込）。
+- `make_skill {id}` — 保存済み workflow → Claude Code SKILL.md。
+- computer-use の3段階承認は `approve_handoff`/`decline_handoff`（checkpoint も同 route）・`get_handoff` で checkpoint(label/screenshot) を確認。
+
+**登録だけで動く（実装済）**: MCP server 起動時に local hub を自動起動（detached・既存は再利用）。hub は browser-control handoff が来たら worker をオンデマンド spawn。＝ユーザーは **MCP を登録するだけ**・`node hub.mjs`/`browser-worker.mjs` を手で起動不要。computer-use のログインは永続 profile(`~/.giogio/browser-profile`)で持続。**LLM は各ユーザーの `claude -p`（本人の Claude サブスク・従量 API なし）**＝原価0で各自のプランに乗る（クラウド他人ホスト時のみ Anthropic API へ差し替え）。
+
+---
+
+## 10. Wave: MCP self-contained（cockpit 無しで使い切る）
+
+**Context**: 今は plan 確認 / フロー俯瞰 / 3段階承認に web cockpit を開く前提が残る。MCP client（Claude Code / claude.ai）**だけ**で完結させる＝買い手が cockpit 無しで「願い→plan 確認→実行→送信承認」を回せる。全部サブスク（`claude -p`）で動き原価0のまま。
+
+- **② フロー図を返す（着手点）**: `plan_flow` の返りに **Mermaid + ASCII のフロー図**を足す（nodes/edges から生成）。CLI/Claude がそのまま描画＝構成が一目。返り例 `{..., diagram_mermaid, diagram_ascii}`。
+- **① 読みやすい plan 確認**: 返りに人間可読の plain 要約（step・解決先/gap・図）を含め、client が「これで実行？」と確認してから `run_workflow`。`plan_flow` は design-only（実行しない）を維持＝確認の自然な間。
+- **③ 3段階承認を CLI で**: computer-use の checkpoint を MCP で完結。client は `list_handoffs {status:'awaiting_approval'}` → `get_handoff` で label/screenshot を提示 → 人に確認 → `approve_handoff`/`decline_handoff`。「常に許可」は `set_permission`。cockpit を開かない。
+
+**検証**: MCP 経由で wish→`plan_flow`(図付き)→確認→`run_workflow`→(browser なら)`get_handoff` で checkpoint を見て `approve_handoff`、を cockpit を開かずに通す。
+
+**着手順**: ② フロー図 → ① 確認整形 → ③ checkpoint CLI 導線。
