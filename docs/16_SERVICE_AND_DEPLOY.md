@@ -105,4 +105,35 @@ gap トグル同様、永続は client 側（localStorage）。
 ## 実装状況
 - ✅ cost 設定（§4）出荷。
 - ✅ 24/7/catch-up/scheduler（§1 のソフト面）= docs/15 + Wave（scheduler robustness）。
+- ✅ **managed hub モード**（Wave F-1）: `SHENRON_MANAGED=1` env で browser-control 無効化（create/ensureBrowserWorker/availableSummary/get_checkpoint/resolve_checkpoint がすべて managed note を返す）。`configStatus()` に `managed` フラグ追加。
+- ✅ **Fly.io deploy config**（Wave F-1）: `fly.toml`（project root）。`SHENRON_MANAGED=1` デフォルト ON・volume mount `/data`・region `nrt`。
 - 📋 §2/§3/§5 = 設計のみ（実装は user の方針決定後）。常駐箱 §1 はハード/OS 設定＝doc レシピ（docs/15）。
+
+## Fly.io デプロイ手順（Wave F-1）
+```bash
+# 初回: Fly アカウント + CLI
+brew install flyctl && fly auth login
+
+# app 作成（初回のみ）
+fly apps create shenron-hub --org personal
+
+# volume 作成（初回のみ・永続 state）
+fly volumes create shenron_data --region nrt --size 1
+
+# 環境変数（BYO-key 必須）
+fly secrets set ANTHROPIC_API_KEY=sk-ant-...
+
+# deploy
+fly deploy
+
+# URL 確認
+fly status
+# → https://shenron-hub.fly.dev/mcp/sse を claude.ai Connectors に登録
+```
+
+### 必須 env vars（fly secrets set）
+| var | 説明 |
+|---|---|
+| `ANTHROPIC_API_KEY` | BYO-key（必須: managed hub は claude -p が無い）|
+| `A2A_SHARED_TOKEN` | act route の bearer（任意・外部 cron 用）|
+| `SHENRON_NO_SCHEDULER` | `1` にすると in-hub scheduler off（外部 cron のみ運用時）|
