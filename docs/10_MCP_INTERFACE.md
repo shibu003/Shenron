@@ -110,3 +110,37 @@ relay/metering は gateway 勢が商品化済 → **この MCP control plane（�
 **検証**: MCP 経由で wish→`plan_flow`(図付き)→確認→`run_workflow`→(browser なら)`get_handoff` で checkpoint を見て `approve_handoff`、を cockpit を開かずに通す。
 
 **着手順**: ② フロー図 → ① 確認整形 → ③ checkpoint CLI 導線。
+
+---
+
+## 11. 技術設計 & ロードマップ（living・claude.ai 実評価 driven）
+
+> 2026-06、claude.ai で実 MCP テスト → 設計ミスマッチが判明。以後 wave をここに追記していく。各 wave = 問題 → 設計 → 触る → 検証。
+
+### 設計の前提（architecture principles・コード接地）
+1. **ツールの出どころ = 3つ**: giogio の `integrations.json` ＋ 生成(`gen_component`) ＋ **computer-use(browser-control)**。**クライアント接続(claude.ai の Gmail 等)は MCP 仕様上 giogio から見えない**（hub.mjs の plan は `readIntegrations()` のみ参照）。Gmail を使わせたい→ giogio に登録 or ブラウザ操作 or 道具生成。
+2. **データはノード間で流れている**: `run.outputs[node]` → `fenceEdge`(per-edge redact) → 下流 `fireNode` 入力（hub.mjs `advanceFrom`/`fenceEdge`/`advanceRun`）。「直 Claude 感」はツール未解決でフローが汎用ノードに退化しただけ＝配管は健全。
+3. **LLM = 各ユーザーの `claude -p`**（本人の Claude サブスク・従量 API 0）。クラウドで他人をホストする時のみ Anthropic API（`runner.mjs` 差し替え・host/BYO key）。
+4. **2つの MCP 面**: `server.mjs`(stdio・`/api` 委譲・real plan) と **hub 内蔵 remote MCP**(`mcpDispatch`＋`/mcp/sse`＋OAuth＋bearer)。claude.ai は後者に接続し、その `plan_flow` は `available`(在庫) のみ返す＝前者の real plan と挙動差 → 統一が要る（Wave B）。
+
+### Wave B — tool-awareness（最優先・最小で効く）
+- **問題**: `available.tools` に登録外の MCP(Gmail 等)が出ない → 「直 Claude」感。
+- **設計**: ① `add_integration {id,label,kind,command|url,tools}` MCP tool（既存 `POST /api/integrations`＝`saveIntegration` の薄ラッパ）で自分の MCP を giogio に登録。② `available` に **browser-control(API 無し＝computer-use)** と **生成済み道具** を明示。③ hub 内蔵 remote-MCP の `plan_flow` を `server.mjs` と同じ real plan に統一。④ 返り/doc に「client 接続は見えない・登録 or browser で解決」を正直に明記。
+- **触る**: `server.mjs`(add_integration tool・list 拡張)／`hub.mjs`(plan_flow 統一・available 拡張)。
+- **検証**: `add_integration` → `plan_flow` の available に出る → flow が gap でなく実 mcp node に解決。
+
+### Wave A — MCP self-contained（§10）
+② `plan_flow` 返りに **Mermaid+ASCII 図** → ① 人間可読の plan 要約で確認 → ③ checkpoint を `list_handoffs{status:awaiting_approval}`→`get_handoff`→`approve_handoff`/`decline_handoff` で CLI 承認。cockpit 不要。
+
+### Wave C — HTTP/クラウド到達性（cloud/sell・Docker は remote-mcp branch で着手中・§15）
+- **問題**: Artifact/CLI から `run_workflow` を叩けない（localhost 不達・応答 CORS 無し）。
+- **設計**: ① `json()` 応答に CORS ヘッダ（今は OPTIONS preflight のみ）。② `/api/runflow` 等 act route にトークン認証（今 open）。③ Docker でクラウド公開 → 公開 URL → 別 origin の fetch から実行可。④ クラウド時のみ LLM を Anthropic API に差し替え。
+- **触る**: `hub.mjs`(CORS＋auth)／`Dockerfile`／`runner.mjs`(cloud API path)。
+- **検証**: 公開 URL の `/api/runflow` を別 origin の fetch から叩き、保存済み workflow をボタン一発実行。
+
+### Wave D — 管理 polish（低）
+- `list_workflows`/`search_workflows` 返りに **summary + 最終実行時刻**（`state.runs` を `flowId` で scan＝workflow→run の逆引きは未実装）。data-piping は Wave B でツール解決後に顕在化する旨も明記。
+- **触る**: `server.mjs`(返りに lastRun)／`hub.mjs`(lastRun 導出 helper)。
+
+### 着手順
+**B(tool-awareness) → A②(図) → C(クラウド到達) → D(polish)**。feedback により「② フロー図より B が先」に組み替え（available 不正確＝"直 Claude" 感を先に消す）。
