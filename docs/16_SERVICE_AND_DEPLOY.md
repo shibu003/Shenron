@@ -51,6 +51,8 @@
 - **Ollama は planner/discover を担えない**: JSON 形は文法制約で全サイズ解決済だが、**判断（tool 選択・多段）は 14-32B で漸く非脆弱、最良の自前(70B)でも frontier Claude 以下**。Mac mini で 14B が脆弱な上限。N100/Pi は planner 不可。
 - **「ローカル検索」は幻**: Ollama の web search も結局**クラウド API（要キー・有料枠）**。ローカルモデルは知識が訓練時点で凍結。
 - **正解 = tiering**: 判断/discover = `claude -p`（サブスク・賢い・web 検索持つ）／cheap sub-step（要約/分類/整形/JSON 化）= ローカル Ollama(3-8B・文法制約で JSON 確実)。「置換」でなく「安い 80% をローカルに逃がす」。
+- **有効化（出荷済み・cheap を完全無料に）**: `ollama serve` を起動 ＋ `SHENRON_CHEAP_VENDOR=ollama`（任意で `OLLAMA_MODEL`/`OLLAMA_HOST`）→ tier=cheap の step が**ローカル localhost で $0**（cloud/API path でも cheap だけ無料）。strong は `claude -p`/API のまま。
+- **OS 横断（PC 含む）**: hub(Node)・Ollama は **Windows/Linux/Mac 共通**。常駐箱は N100 等の PC でも可（§1 表）。OS で違うのは「スリープから定時起動」のレシピだけ＝Mac:pmset+launchd / Win:タスクスケジューラ"スリープ解除"+BIOS RTC / Linux:systemd timer+rtcwake（docs/15）。常時起動サーバーなら wake 不要。
 
 ## §2 配布先: OpenClaw（接地済み）
 OpenClaw = MIT・ローカル/BYO-key の個人 AI エージェント（Peter Steinberger+community・~380k★・openclaw.ai）。**MCP client（stdio/SSE/streamable-http・`openclaw mcp add <name>` or config `mcp.servers`）**＋ skills/ClawHub 文化（5,700+）。

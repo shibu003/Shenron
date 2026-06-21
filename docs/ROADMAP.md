@@ -57,4 +57,5 @@
 - 実行時 `firePromptNode`→`runPrompt` が **node の vendor/model 明示 > tier→model > 既定** で解決。`tierModel`: cheap→`SHENRON_MODEL_CHEAP`(既定 haiku) / strong→`SHENRON_MODEL_STRONG`(既定 opus)＝**env で per-budget に上書き**（free 派は cheap→ローカル/haiku）。
 - runner.mjs が per-call `model` を受け、API path と `claude -p --model` 両方に適用。
 - power user は flow の node.config に `vendor`/`model` 直指定も可。
-- **残**: runner の provider 拡張（Ollama/OpenAI/Gemini adapter）・mcp/agent ノードの per-node vendor・consensus を planner から emit・discover の自動 routing 提案。
+- ✅ **Ollama provider（cheap step を完全無料に）**: runner に `ollama` vendor（`OLLAMA_HOST` 既定 localhost:11434・`/api/generate`）。**`SHENRON_CHEAP_VENDOR=ollama`（＋`ollama serve`）→ cheap step は cloud/API path でもローカル $0**。consensus の vendors に `ollama` を入れても自動で効く。Win/Linux/Mac 同じ。MINIMIZE COST 既定 cheap と合わせ「安い 80% は無料ローカル、判断だけ Claude」。
+- **残**: OpenAI/Gemini adapter（`cost:paid_ok` 時）・mcp/agent ノードの per-node vendor・consensus を planner から emit・discover の自動 routing 提案・auto-escalation（cheap 失敗時だけ strong）。

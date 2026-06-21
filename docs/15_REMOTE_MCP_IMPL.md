@@ -145,7 +145,10 @@ https://shenron-xxxx.up.railway.app/mcp/sse
 
 ### ログインジョブを「常駐なし」で確実化する2択（接地済み）
 browser-control はあなたのマシンに固着（ログイン profile）。cloud 不可。
-- **(a) マシンを定時起動**: `sudo pmset repeat wake MTWRF 08:59:00` でスリープから起床 → `launchd StartCalendarInterval` で hub の `/api/tick` を叩く → 再スリープ。⚠️ **AC 電源必須**（バッテリ+蓋閉じは深いスリープで不発）・スリープからのみ（完全 off は poweron=AC のみ+FileVault 解錠要）。launchd は寝てた分を次回 wake に繰延（coalesce）。
+- **(a) マシンを定時起動**（OS 別・hub/Ollama 自体は Win/Linux/Mac 共通＝下記は「起こす」レシピだけ OS 差）:
+  - **Mac**: `sudo pmset repeat wake MTWRF 08:59:00` でスリープから起床 → `launchd StartCalendarInterval` で hub の `/api/tick` を叩く → 再スリープ。⚠️ **AC 電源必須**（バッテリ+蓋閉じは深いスリープで不発）・スリープからのみ（完全 off は poweron=AC のみ+FileVault 解錠要）。launchd は寝てた分を次回 wake に繰延（coalesce）。
+  - **Windows (PC)**: タスクスケジューラでタスク作成 → トリガー（毎週月 8:59）→ 条件「**タスクの実行時にスリープを解除する** (Wake the computer to run this task)」ON → 操作＝`/api/tick` を叩く（`curl`/PowerShell `Invoke-RestMethod`）。完全シャットダウンからの起動は BIOS/UEFI の **RTC Wake / "Wake on RTC"** ＋ 電源喪失後自動起動は **"Restore on AC Power Loss"**（既定 OFF）。ノート PC は「カバーを閉じたときの動作＝何もしない」+ 電源接続必須。
+  - **Linux (PC/サーバー)**: `systemd` timer（`OnCalendar=Mon 09:00`）で hub を叩く。スリープ運用なら `rtcwake -m no -t $(date +%s -d 'tomorrow 08:59')` で次回 wake をセット（または `systemd` の `WakeSystem=true` 付き timer）。常時起動サーバー（N100 等）なら wake 不要＝そのまま scheduler が動く。
 - **(b) catch-up に任せる**: 起こさず、Mac が次に起きた時に hub boot tick が追い発火。無料・AC 不要だが時間は不正確。
 
 ### 一番のおすすめ＝安い常駐箱（cloud より神龍向き）
