@@ -36,6 +36,12 @@
 | **Wave K** | **First-run**（`bin/shenron.mjs`）: Node≥20 チェック → hub.mjs spawn のエントリーポイント。`package.json bin` フィールド追加 → `npx shenron-hub` または `node bin/shenron.mjs` で起動可。`59a2cdb` | 本 doc |
 | **Wave L** | **Auth**（`auth.mjs`）: 登録・ログイン・メール認証・セッション管理。外部依存ゼロ（Node.js crypto のみ）。scrypt パスワードハッシュ・HMAC-SHA256 セッショントークン・timingSafeEqual・`~/.giogio/users.json`(mode 0o600)。認証リンクをターミナルに出力（メール送信不要）。`shenron_session` cookie(HttpOnly)で Web UI 保護。ユーザー0人の間はオープン（既存動作を維持）。bearerOk 拡張でセッション cookie も受け付け。`list_users` MCP tool。`9063235` | 本 doc |
 | **Wave M** | **M-1**: パスワードリセット（`POST /api/auth/reset-request` → ターミナルにリンク出力・user enumeration 防止 / `POST /api/auth/reset` → token+新PW・timingSafeEqual+expiry）。`reset_password` MCP tool。**M-2**: `GET /api/runs`（直近20件）/ `GET /api/runs/:id`（フル）。`list_runs`/`get_run` MCP tool。**M-3**: `POST /api/notify/test`（enabled notify integration 全件にテスト POST）。`test_notify` MCP tool。**M-4**: `toggle_automation`（既存・hub.mjs:1103+server.mjs:237）。 | 本 doc |
+| **Wave P** | **Agent Factory（作成→即MCP）**: `create_agent`（既存 `createAgent` を MCP 露出・name は `[a-z0-9-]`＝tool id 安全化）/ `delete_agent`（非破壊・新規受付のみ停止）/ `run_agent`（同期実行 `runAgentSync`）。**動的 tool 露出**: 作成した local agent が `tools/list` に **`agent_<name>`** として即出現（hub remote-MCP + stdio server.mjs 両surface・stdio は hub の live state を取得して append）。**`export_agent_mcp`**: agent を hub 非依存の standalone Python MCP server（stdlib のみ・`claude -p` で本人サブスク実行）として `prototype/mcp/generated/<name>-agent.py` に書出 → 任意 MCP client に登録可能なポータブル成果物。検証: 3 route + 動的露出 + 生成 server の MCP ハンドシェイク（initialize/tools/list）往復を実機確認。 | 本 doc |
+| **Wave N-1** | **Credential injection at runtime**: vault に保存した credential をフロー実行時に注入。`runMcp` の生成 server spawn env を `{ ...safeEnv(creds), ...credentialEnv(creds) }` に（vault 値が process.env を上書き＝同名なら vault 優先）。`credentialEnv(names)` は宣言済み allowlist 名のうち vault に在るものだけ `{NAME:value}` を返す（null skip・値は log/audit に出さない）。**vault の価値を初めて実現**。検証: vault に TEST_KEY 保存 → それを宣言した生成 component を run → `os.environ` に届くこと＋input→mcp 送信が承認フェンスに留まること（egress 境界が壊れていない）を実機確認。 | 本 doc |
+| **Wave O2** | **Flow テンプレートライブラリ（同梱テンプレ＋ワンクリック install＋MCP両surface）**: `prototype/templates/*.json` に runnable な同梱フローを3本同梱（`price-watch`/`daily-summary`＝組込 kind のみで install 後すぐ top-run可・`github-pr-notify`＝slack mcp ノード参照で honest gap 開示）。hub に `readTemplates()`/`templateGaps()`（requires 未設定 credential＋未登録/無効 integration を warning に集約・**値は出さず名前のみ**）+ `GET /api/templates`（token-light refs+gap警告）+ `POST /api/templates/:id/install`（`saveWorkflow` へ複製＝編集可能 workflow 化・id 上書き冪等・`trail('template-install')` は件数のみ）。MCP **両surface**: `list_templates`/`install_template`（hub.mjs `MCP_TOOLS`+`mcpDispatch`＝install は `saveWorkflow` 直呼び / server.mjs `TOOLS`+`callTool`＝hub `GET /api/templates`・`POST .../install` へ proxy）。ノード kind は実在（input/prompt/mcp/output）のみ・捏造ゼロ。 | 本 doc |
+| **Wave S** | **セッション横断メモリ（グローバル注入・最小）**: `prototype/hub/memory.mjs`（vault.mjs と同型の自己完結 store・`~/.giogio/memory.json` mode 0o600・stdlib のみ・新依存ゼロ）に `addMemory`/`listMemories`/`deleteMemory`/`relevantMemories`（server.mjs の keyword/tag スコアラを流用＝embedding 無し・tag 重み2・query 未指定で新しい順 topN）。`runAgentSync` の prompt 組立に `relevantMemories(input,3)` を前置注入＝以降の local agent 実行（`run_agent`/`agent_<name>`/`POST /api/agents/:name/run` の3経路）に自動で効く（該当無しなら memBlock='' でプロンプト不変）。MCP **両surface**: `remember`/`recall`/`forget`（hub.mjs `MCP_TOOLS`+`mcpDispatch`＝`addMemory`/`relevantMemories`/`deleteMemory` 直呼び・recall は `{ memories:[...] }` で HTTP route と shape 統一 / server.mjs `TOOLS`+`callTool`＝hub `POST /api/memory {action:add|recall|delete}` へ proxy・relevantMemories は hub 単一実装を共有）。hub `POST /api/memory`（add/list/recall/delete・credentials route と同型・既存 bearerOk gate 配下）。秘密値は description で禁止明記（prompt 前置されるため）。 | 本 doc |
+| **Wave O1** | **SSE 実行ストリーム（各ノード完了をライブ push）**: 長いフローが「動いているか死んでいるか」見えない問題を解消。`advanceFrom` 先頭に `emitRunEvent(run.id,{type:'node',...})` を注入し、in-memory listener レジストリ（`runListeners` Map + `emitRunEvent`/`closeRunListeners`・永続化なし）で全 SSE client に push。完了/キャンセル時に `{type:'done'}` を流して close（`stopRun` の cancelled 経路含む）。`GET /api/runs/:id/stream`（`:id` より前に分岐・既存 bearerOk gate 配下・接続時に現 outputs を node イベントで snapshot 配信→listener 登録→terminal なら done で即 end）。MCP 両surface: `stream_run`（hub.mjs `MCP_TOOLS`+`mcpDispatch` / server.mjs `TOOLS`+`callTool`）＝常駐 SSE を保持しない claude.ai/stdio 向けに「接続時 snapshot＋完了/キャンセルまで（最大 timeout 秒・既定30/上限120）待って集約 1ショット返却」セマンティクス。server.mjs は hub `POST /mcp` を直叩きして mcpDispatch を再利用。UI: shenron.html `poll()` に `liveSubscribe()` を重ね running run へ EventSource を1本張り outputs を即時 in-place パッチ（3s poll は保険）。 | 本 doc |
+| **Wave Q** | **モバイル PWA（shenron.html をホーム画面インストール可能に）**: UI のみ。新規 `prototype/hub/manifest.json`（🐉絵文字を slate-900 背景に描いた SVG data URI アイコン＝バイナリ依存ゼロ・`start_url:/shenron`・standalone・theme `#0f172a`）+ 新規 `prototype/hub/sw.js`（最小 service worker・`CACHE='giogio-v1'`・app shell `[/shenron,/manifest.json]` を cache-first・`/api/*` `/mcp/*` `/oauth/*` `/.well-known/*` は network-only ＝承認/inbox/egress がキャッシュされない・POST は不介入＝trust 境界不変）。hub.mjs に既存静的配信と同パターンの `GET /manifest.json`（`application/manifest+json`）+ `GET /sw.js`（root 配信で scope='/'・`cache-control:no-cache`）を `/shenron` route 直後・OPTIONS より前に追加（`MANIFEST_FILE`/`SW_FILE` 定数）。shenron.html `<head>` に manifest link + apple-touch-icon(SVG data URI) + theme-color/apple-mobile-web-app メタ群、末尾に `load` 後の `navigator.serviceWorker.register('/sw.js')`（失敗は warn のみ＝非対応ブラウザでも UI 無傷）。MCP tool は不要（UI のみ）。 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -46,11 +52,8 @@
 | **Wave M-2** | **`list_runs` / `get_run` MCP tool**: flow を実行できるが「最近の結果を見る」MCP ツールがない。`/api/state` の runs を整形して返す（last 20件・status/outputs/flowId）。`get_run` で特定 runId の全出力を取得。 | 本 doc |
 | **Wave M-3** | **`test_notify` ツール**: 通知 webhook URL を登録しても疎通確認方法がない。テスト payload を1発送信 → 成功/失敗を返す。`/api/notify/test` route + `test_notify` MCP tool。 | 本 doc |
 | **Wave M-4** | **Automation enable/disable**: cron を止めるには削除するしかない。`toggle_automation(id, on)` で一時停止/再開。hub `/api/automations/:id/toggle` route + `toggle_automation` MCP tool。 | 本 doc |
-| **Wave N-1** | **Credential injection at runtime**: Vault に保存した credential をフロー実行時に自動注入。component の `credentials` フィールドを runner.mjs が vault から取得し環境変数として渡す。これがないと vault の価値が半減。 | 本 doc |
 | **Wave N-2** | **セッション永続化**: ハブ再起動のたびにログインし直しが必要。`~/.giogio/sessions.json` に in-memory sessions をシリアライズ・デシリアライズ（expiry 付き）。起動時にロードし期限切れを自動パージ。 | 本 doc |
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
-| **Wave O-1** | **Run ログのリアルタイムストリーム**: 長いフローが「動いているのか死んでいるのか」確認できない。SSE `/api/runs/:id/stream` で各ノード完了をプッシュ。UI の Runs タブでライブ表示に対応。 | 本 doc |
-| **Wave O-2** | **Flow テンプレートライブラリ**: `import_skill` はあるが「何を入れると何ができるか」が不明。よく使うフロー（価格監視・日次サマリー・GitHub PR 通知等）を `templates/` に同梱し `list_templates` / `install_template` MCP tool で導入。 | 本 doc |
 | **Wave O-3** | **ハブ死活監視（self-ping）**: scheduler が動いているか外から確認する方法がない。`/api/health` エンドポイント（認証不要・uptime/scheduler/version を返す）。外部 cron から叩いて応答なし時は notify 通知を送る self-watchdog。 | 本 doc |
 
 ## 次にやる（優先順）
@@ -112,3 +115,119 @@ ngrok http 8795                       # → HTTPS URL（docs/15 §C4）
 - ✅ **agent ノードの per-node vendor/model**: flow の agent node に `vendor`/`model` 明示で「この step だけ別 AI」。`runLocal` が per-node 明示 > `EXEC_VENDOR` > agent 既定で解決（後方互換: 未指定の既存 node は従来通り）。mcp node は tool 呼び出しで LLM vendor 概念なし＝対象外。
 - ✅ **discover の auto-routing 提案（`f643b75`・Wave G フルクローズ）**: planner の tier(=capability) × user の cost 設定(=vendor) を合成し、各 step が「どの AI で・いくらか」を plan に surface。`shenron.mjs` 純粋 `routeFor(node,step,ctx)` + `renderPlan(ir,ctx?)` が route ラベル（cheap→your Claude/ollama ~$0 ↑strong on fail・strong→your Claude・mcp→tool call $0・🗳️ consensus→N vendors N×）+ 🧭 Routing 提案行 + 構造化 `routing` 配列を返す（ctx 無し=従来通り・後方互換）。`hub.mjs` `routingCtx()` が実行時と同じ tierRoute/defaultConsensusVendors/cost/autoEscalate から ctx を作る＝**提案 = 実行と一致（truthful）**。moat 整合: planner は vendor を押し付けず tier だけ・vendor は財布設定が決める＝従量0 維持。bonus: `server.mjs` plan_flow が cost/context を転送（discover clarify ループが stdio MCP で完結しない既存バグ解消）。e2e: 「要約→go/no-go」で step1=cheap(haiku ~$0)・step2=planner が自動 consensus(claude,codex,ollama 3×) を選び routing に出た。test_shenron 検証追加。（Sakana 等の追加 vendor は公開 OpenAI 互換 API 無し→ollama 経由ローカルが筋＝新コード不要）
 - → **Wave G は完全クローズ**（providers / per-step routing / auto-escalation / consensus-from-planner / per-node vendor / auto-routing 提案 すべて出荷）。
+
+---
+
+# 大規模 Wave 計画（設計のみ・2026-06-22 追記・未着手）
+
+> 神龍は「願い→道具生成→実行→定期化」まで閉じている。欠けているのは **生成の*後*の世界** — 作った道具が壊れた/期待外れだった/ゴールに届かない時に誰が面倒を見るか。下記 4 Wave 群はその穴を埋める。**設計の正本として一旦ここに置く**（実装着手時に詳細は §13 へ移送可）。各群とも **agile**：最小スライス(縦串1本)を先に出荷 → 肉付け。**WIP=1**（1 Wave=1 commit、終わるまで次に手を付けない）。北極星制約：**何を足しても同 commit で `server.mjs` の MCP tool 化**（cockpit-only な穴を作らない）。
+>
+> 既存 Wave A〜P と記号衝突を避けるためテーマ名で呼ぶ：**R=Resilience / Goals / Login / Ambient**。
+
+## 実装順序（3-pass Pass-3 の結論）
+`R-1 → Login-1 → Goals-1 → Ambient-1`（各最小スライス）→ 以降は肉付けを優先度順。
+理由：**R が最も独立**（既存 run 経路 1 点に挿す）かつ堀直球（信頼性=moat killer）。Login は browser-worker 単独で**並列可**。Goals は新データ層で独立。Ambient は🔴リスク最大なので**最後＋最小縦串**から。
+
+---
+
+## Wave R — Resilience：成果検証 → 自己修復 ［元案A・🟢］
+**狙い**：定期 run のたびに「**期待した成果が出たか**」を神龍が判定し、壊れたら気づいて直す。`gen_component` の修復ループを**本番監視**に接続。巨人(Zapier)はコネクタが壊れたら人を待つだけ — **道具を生成できる神龍だけが道具を直せる**。
+
+**アーキテクチャ（接続点）**
+- **検証 hook = `hub.mjs:606`**（`run.status='completed'` の直後・全 run 経路の合流点）。同期再帰の中なので `setImmediate(() => checkOutcome(run))` で**非同期に投げる**（advanceFrom を止めない）。
+- 成果＝`flowResult(run)`（`hub.mjs:321`・最終出力）を期待と突き合わせ。
+- 自己修復＝`genComponent`（`shenron.mjs:367`）を再利用。run が使った generated component が壊れた時だけ再生成。
+- 失敗通知＝既存 `emitRunNotify(run, status)`（`hub.mjs:647`）に `'check_failed'` を流す（新経路を作らない）。audit は `trail('outcome-check', …)`。
+
+**データモデル**：automation / flow に `expect` を1個持たせる（`automations.json` に追記）。
+```
+expect: { kind: 'assert'|'judge', rule: '<JSONPath/正規表現>' | '<NL期待文>', onFail: 'notify'|'repair'|'retry', maxRetry: 1 }
+```
+`assert`＝決定論（出力に文字列含む/JSON フィールド一致・$0・即時）。`judge`＝cheap tier LLM judge（従量0・本人サブスク・「期待を満たすか yes/no」）。
+
+**MCP tools**（`server.mjs` + hub route）
+- `set_check(target, expect)` — flow/automation に期待を付与
+- `list_check_results(limit)` — 直近の検証結果（pass/fail/理由）
+- `repair_run(runId)` — 壊れた component を手動で再生成トリガ（R-2）
+
+**Wave 分割**
+- **R-1（最小・縦串）**：606 hook → `checkOutcome` → assert/judge 判定 → fail なら `emitRunNotify('check_failed')` + audit。`set_check` / `list_check_results`。**これだけで「静かに壊れて気づかない」最大リスクが消える**。
+- **R-2（肉付け）**：`onFail:'repair'` → 壊れた generated component を `genComponent` で再生成 → approve gate → 差し替え。`maxRetry=1`(無限ループ防止)。`repair_run`。
+- **R-3（肉付け）**：drift 検出 — 連続 fail / 出力構造の急変を「壊れ始め」として早期通知。
+
+**risk / scope**：judge コスト → cheap tier 既定・assert 優先。検証の非同期化を誤ると二重 advance（→ setImmediate + run terminal チェック必須）。**scope 落とし候補=R-3**。
+**検証**：assert 期待を付けた flow を壊して(出力を変えて) run → `check_failed` 通知 + audit に記録されること。judge は cheap vendor で yes/no が返ること。
+
+---
+
+## Wave Goals — ゴール記憶 concierge ［元案B・🟡 需要要接地・最大規模］
+**狙い**：「3ヶ月でフォロワー1000」のような**長期ゴール**を覚え、進捗を追い、停滞したら次の手を出す。flow の上に `goal` 上位概念を新設＝北極星①ど真ん中（協調面という新 primitive）。
+
+**アーキテクチャ**
+- `goals.json`（`automations.json` と同型・`readGoals`/`saveGoal` は `readAutomations`/`saveAutomation`(`hub.mjs:673`) を踏襲）。
+- 進捗 tick は **`tickScheduler`(`hub.mjs:723`) に相乗り**（新ループを作らない）— deadline 接近 / 停滞を検出。
+- 「次の手」は内部で `planFlow`(`hub.mjs:902`) を呼んで提案（既存 discover-first を再利用）。
+
+**データモデル**
+```
+goal: { id, wish, metric, target, current, unit, deadline, automationIds[], checkins:[{ts,value,note}], status:'active'|'reached'|'stalled' }
+```
+
+**MCP tools**：`set_goal` / `get_goal` / `list_goals` / `goal_checkin(id, value, note)` / `goal_suggest(id)`(Goals-3)
+
+**Wave 分割**
+- **Goals-1（最小）**：CRUD + **手動 checkin** で進捗表示。metric 自動計測はしない（最小は人が値を入れる）。`set_goal/get_goal/list_goals/goal_checkin`。**これを Mom Test の台にする**（本当にゴールを神龍に預けたい人がいるか）。
+- **Goals-2（肉付け）**：tick 相乗りで deadline 接近 / 停滞を `emitRunNotify` 通知。bound automation の run 成功を checkin に自動反映。
+- **Goals-3（肉付け）**：停滞時に `planFlow` を内部呼び → 「次の手」提案（能動 concierge）。
+
+**risk / scope**：需要未接地(🟡)→ **Goals-1 で需要検証してから 2/3**。metric 自動計測は難 → 手動 checkin 既定。**scope 落とし候補=Goals-3**。
+**検証**：goal を set → checkin で current が動く → list で進捗率が出る。tick で deadline 接近時に通知。
+
+---
+
+## Wave Login — クレデンシャル生命管理 ［元案C・🟢］
+**狙い**：無人ログインの信頼性を固める。ログインが切れたら気づき、自動で再ログイン or 人にエスカレーション、2FA は人へ、トークン期限を追跡。堀(クレデンシャル×ローカル)の角を深掘り。
+
+**アーキテクチャ**
+- ログイン検出＝`browser-worker.mjs:runGoal`(`130`) の snapshot ループに heuristic（"password"/"sign in"/"ログイン"/redirect to /login）を追加。
+- エスカレーション＝既存 `runOne`(`74`) の **ask checkpoint 経路を再利用**（人がログインを完了 → 続行）。
+- 自動入力＝**vault**（`set_credential` 済み・Keychain）から `{site → user/pass}` を取り `browser_type`。永続 profile（`PROFILE=~/.giogio/browser-profile`・`38`）にログインが焼かれる。
+
+**データモデル**：vault に `login:<domain>` 名前空間で `{user, pass}` を保存（値は AI context に出ない既存契約のまま）。`login-state.json` に `{domain: {lastOk, expiresHint}}`。
+
+**MCP tools**：`set_login(domain, user, pass)`（vault ラッパ）/ `login_status(domain?)`（profile ごとの最終ログイン状態）
+
+**Wave 分割**
+- **Login-1（最小・安全）**：ログイン画面**検出 → ask checkpoint で人を呼ぶ** + audit + `login_status`。自動入力しない（ToS 安全）。**「切れたのに気づかず延々失敗」を消す**。
+- **Login-2（肉付け・opt-in）**：vault の credential で**自動ログイン入力**。2FA は必ず checkpoint で人に渡す。opt-in フラグ必須。
+- **Login-3（肉付け）**：cookie / token 期限を追跡し、切れる**前**に先回り通知。
+
+**risk / scope**：自動ログインは多くのサイトで ToS grey(🔴)→ **既定は Login-1(検出して人を呼ぶ)**、Login-2 は明示 opt-in。2FA は構造的に人必須。**scope 落とし候補=Login-2/3（opt-in 化で逃がす）**。
+**検証**：ログイン切れた profile で run → checkpoint が立ち人に出ること。Login-2：vault に login 保存 → 自動入力でログインが通り profile に焼けること（値が audit/context に漏れないこと）。
+
+---
+
+## Wave Ambient — 観察 → 提案（pull→push）［元案D・🔴 ToS/同意が生存条件・最後］
+**狙い**：神龍から「これ自動化できます」と先回り。concierge の能動性。ただし**プライバシー/同意の線が崩れたら即死**なので、自分データのみの安全版から。
+
+**アーキテクチャ**
+- 観察源＝**自分の `state.runs` / audit**（手動 fire の反復・連続 fail）。`matchingAutomations`/`fireEvent`(`hub.mjs:691`) の trigger 機構を流用（read-only 観察）。
+- 提案キュー＝`suggestions.json`（dismiss 可）。
+
+**データモデル**：`suggestion: { id, kind:'automate'|'fix'|'goal', reason, evidence:[runId…], status:'open'|'dismissed'|'applied' }`
+
+**MCP tools**：`list_suggestions` / `dismiss_suggestion(id)` / `apply_suggestion(id)`(→ plan_flow/set_check 等へ橋渡し)
+
+**Wave 分割**
+- **Ambient-1（最小・安全）**：**外部受信箱を読まない**。自分の run/audit から「同じ手動 fire を N 回」「特定 flow が連続 fail」を検出 → 提案。同意問題が軽い（自分のデータのみ）。
+- **Ambient-2（肉付け・opt-in・要方針決定）**：integration(Gmail 等)を read-only poll → 繰り返しパターン検出。**明示 opt-in + 同意フラグ必須**。§16 のプライバシー/ToS 方針が決まってから。
+
+**risk / scope**：🔴 受信箱観察は重い同意 → **Ambient-1 は自分データのみで安全**、Ambient-2 は opt-in gate + 方針決定待ち。**scope 落とし候補=Ambient-2（方針未決なら作らない）**。
+**検証**：同じ automation を手動で複数回 fire → `list_suggestions` に「定期化しませんか」が出ること。
+
+---
+
+### 横断メモ
+- **MCP-FIRST 監査**：上記 16 個の新 tool すべて `server.mjs` の `case` + hub route で露出。cockpit(shenron.html/ui2.html)は薄い view として後追い。
+- **テスト**：各最小スライスに `test_shenron.mjs` の assert を1本（606 hook の二重発火なし / goal checkin / login 値非漏洩 / suggestion 検出）。
+- **rollback 単位**：1 Wave=1 commit。R-1/Login-1/Goals-1/Ambient-1 が緑になってから肉付けへ。
