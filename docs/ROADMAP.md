@@ -35,6 +35,7 @@
 | **Wave J** | **Skill共有**（export/import）: `export_skill` でコンポーネントをポータブル JSON に export（credentials/ID 除去・安全に共有可）、`import_skill` で pending として import → `approve_component` で有効化。hub `/api/components/export|import` route。`59a2cdb` | 本 doc |
 | **Wave K** | **First-run**（`bin/shenron.mjs`）: Node≥20 チェック → hub.mjs spawn のエントリーポイント。`package.json bin` フィールド追加 → `npx shenron-hub` または `node bin/shenron.mjs` で起動可。`59a2cdb` | 本 doc |
 | **Wave L** | **Auth**（`auth.mjs`）: 登録・ログイン・メール認証・セッション管理。外部依存ゼロ（Node.js crypto のみ）。scrypt パスワードハッシュ・HMAC-SHA256 セッショントークン・timingSafeEqual・`~/.giogio/users.json`(mode 0o600)。認証リンクをターミナルに出力（メール送信不要）。`shenron_session` cookie(HttpOnly)で Web UI 保護。ユーザー0人の間はオープン（既存動作を維持）。bearerOk 拡張でセッション cookie も受け付け。`list_users` MCP tool。`9063235` | 本 doc |
+| **Wave M** | **M-1**: パスワードリセット（`POST /api/auth/reset-request` → ターミナルにリンク出力・user enumeration 防止 / `POST /api/auth/reset` → token+新PW・timingSafeEqual+expiry）。`reset_password` MCP tool。**M-2**: `GET /api/runs`（直近20件）/ `GET /api/runs/:id`（フル）。`list_runs`/`get_run` MCP tool。**M-3**: `POST /api/notify/test`（enabled notify integration 全件にテスト POST）。`test_notify` MCP tool。**M-4**: `toggle_automation`（既存・hub.mjs:1103+server.mjs:237）。 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -58,7 +59,7 @@
 3. ~~Wave H/I/J/K~~ **✅完了**（`59a2cdb`）= Push通知・Credential Vault・Skill共有・First-run。
 4. ~~Wave L: Auth~~ **✅完了**（`9063235`）= 登録・ログイン・メール認証・セッション管理。
 5. **UI への認証フォーム追加**（登録/ログイン画面 → 他 Claude 担当 UI 完成後に連携）。
-6. **Wave M-1〜4**（パスワードリセット・list_runs・test_notify・Automation toggle）— 各5〜20行・今のセッションで全部入れられる規模。
+6. ~~Wave M-1〜4~~ **✅完了** — パスワードリセット・list_runs/get_run・test_notify・toggle_automation 全出荷。
 7. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
 8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つに絞る）→ Wave M: 縦串デモ実装。
 9. §16 未確定: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
