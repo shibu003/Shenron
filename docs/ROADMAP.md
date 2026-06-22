@@ -37,6 +37,7 @@
 | **Wave L** | **Auth**（`auth.mjs`）: 登録・ログイン・メール認証・セッション管理。外部依存ゼロ（Node.js crypto のみ）。scrypt パスワードハッシュ・HMAC-SHA256 セッショントークン・timingSafeEqual・`~/.giogio/users.json`(mode 0o600)。認証リンクをターミナルに出力（メール送信不要）。`shenron_session` cookie(HttpOnly)で Web UI 保護。ユーザー0人の間はオープン（既存動作を維持）。bearerOk 拡張でセッション cookie も受け付け。`list_users` MCP tool。`9063235` | 本 doc |
 | **Wave M** | **M-1**: パスワードリセット（`POST /api/auth/reset-request` → ターミナルにリンク出力・user enumeration 防止 / `POST /api/auth/reset` → token+新PW・timingSafeEqual+expiry）。`reset_password` MCP tool。**M-2**: `GET /api/runs`（直近20件）/ `GET /api/runs/:id`（フル）。`list_runs`/`get_run` MCP tool。**M-3**: `POST /api/notify/test`（enabled notify integration 全件にテスト POST）。`test_notify` MCP tool。**M-4**: `toggle_automation`（既存・hub.mjs:1103+server.mjs:237）。 | 本 doc |
 | **Wave P** | **Agent Factory（作成→即MCP）**: `create_agent`（既存 `createAgent` を MCP 露出・name は `[a-z0-9-]`＝tool id 安全化）/ `delete_agent`（非破壊・新規受付のみ停止）/ `run_agent`（同期実行 `runAgentSync`）。**動的 tool 露出**: 作成した local agent が `tools/list` に **`agent_<name>`** として即出現（hub remote-MCP + stdio server.mjs 両surface・stdio は hub の live state を取得して append）。**`export_agent_mcp`**: agent を hub 非依存の standalone Python MCP server（stdlib のみ・`claude -p` で本人サブスク実行）として `prototype/mcp/generated/<name>-agent.py` に書出 → 任意 MCP client に登録可能なポータブル成果物。検証: 3 route + 動的露出 + 生成 server の MCP ハンドシェイク（initialize/tools/list）往復を実機確認。 | 本 doc |
+| **Wave N-1** | **Credential injection at runtime**: vault に保存した credential をフロー実行時に注入。`runMcp` の生成 server spawn env を `{ ...safeEnv(creds), ...credentialEnv(creds) }` に（vault 値が process.env を上書き＝同名なら vault 優先）。`credentialEnv(names)` は宣言済み allowlist 名のうち vault に在るものだけ `{NAME:value}` を返す（null skip・値は log/audit に出さない）。**vault の価値を初めて実現**。検証: vault に TEST_KEY 保存 → それを宣言した生成 component を run → `os.environ` に届くこと＋input→mcp 送信が承認フェンスに留まること（egress 境界が壊れていない）を実機確認。 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -47,7 +48,6 @@
 | **Wave M-2** | **`list_runs` / `get_run` MCP tool**: flow を実行できるが「最近の結果を見る」MCP ツールがない。`/api/state` の runs を整形して返す（last 20件・status/outputs/flowId）。`get_run` で特定 runId の全出力を取得。 | 本 doc |
 | **Wave M-3** | **`test_notify` ツール**: 通知 webhook URL を登録しても疎通確認方法がない。テスト payload を1発送信 → 成功/失敗を返す。`/api/notify/test` route + `test_notify` MCP tool。 | 本 doc |
 | **Wave M-4** | **Automation enable/disable**: cron を止めるには削除するしかない。`toggle_automation(id, on)` で一時停止/再開。hub `/api/automations/:id/toggle` route + `toggle_automation` MCP tool。 | 本 doc |
-| **Wave N-1** | **Credential injection at runtime**: Vault に保存した credential をフロー実行時に自動注入。component の `credentials` フィールドを runner.mjs が vault から取得し環境変数として渡す。これがないと vault の価値が半減。 | 本 doc |
 | **Wave N-2** | **セッション永続化**: ハブ再起動のたびにログインし直しが必要。`~/.giogio/sessions.json` に in-memory sessions をシリアライズ・デシリアライズ（expiry 付き）。起動時にロードし期限切れを自動パージ。 | 本 doc |
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
 | **Wave O-1** | **Run ログのリアルタイムストリーム**: 長いフローが「動いているのか死んでいるのか」確認できない。SSE `/api/runs/:id/stream` で各ノード完了をプッシュ。UI の Runs タブでライブ表示に対応。 | 本 doc |
