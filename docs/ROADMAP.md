@@ -55,6 +55,41 @@
 | **Wave N-2** | **セッション永続化**: ハブ再起動のたびにログインし直しが必要。`~/.giogio/sessions.json` に in-memory sessions をシリアライズ・デシリアライズ（expiry 付き）。起動時にロードし期限切れを自動パージ。 | 本 doc |
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
 | **Wave O-3** | **ハブ死活監視（self-ping）**: scheduler が動いているか外から確認する方法がない。`/api/health` エンドポイント（認証不要・uptime/scheduler/version を返す）。外部 cron から叩いて応答なし時は notify 通知を送る self-watchdog。 | 本 doc |
+| **Wave UI — 成果物UI（操作面）** | 神龍が足りない道具を自作する性質上、**操作必須の UI 付き生成物が頻発**する。ui2.html 内で特定 flow の成果物 UI を見て操作 → その操作で自動化フローが進む（人在ループのリッチ checkpoint）。スマホ+PC 両対応。神龍は **plan 段階で UI 要否を判断**（承認だけ→通知で十分=UI無し／操作+可視化が要る時だけ生成）。sandbox iframe(JSX+Babel)で描画・**鍵は箱に残す fetch-shim**・操作→bridge→hub が advance。Lovable(bespoke アプリ生成/別ホスト deploy)ではなく control-plane 内で「成果物に顔を付ける」。 | 下記メモ |
+
+## Wave UI — 成果物UI（操作面）設計メモ
+
+> 出発点（user 2026-06-22）: 「自動化された際に制作物によっては UI が必要。承認だけならメール/Slack/message で十分だが、制作物によっては**操作と可視化**まで要求される。神龍が足りない道具を自作する性質上このケースが**頻発**する。ui2.html の中に、自分の作った特定 flow に対する制作物 UI を見る場所が要り、そこで**操作するとフローが進む**仕組みも要る。デプロイではなく**ユーザーが新たな作成物を見れる場所**。」
+
+**位置づけ**: Lovable / v0 とは別物。bespoke アプリ生成や別ホスト deploy ではなく、control-plane(hub)内で生成物に「**操作できる顔**」を付ける。出力カテゴリが違う（[[docs/17]] の扉3定理＝堀は「鍵を箱の外に出さない」）。
+
+### A. 神龍の plan 判断（UI 要否・必須）
+plan_flow が **UI を作るべきか**を分類する（過剰生成しない=YAGNI）:
+- 出力チャネルで足りる（通知・承認のみ）→ **UI を生成しない**（メール/Slack/message へ）。
+- **操作 + 可視化**が要る（一覧から選ぶ・編集する・ダッシュボード・人が途中で判断して進める）→ **成果物 UI を生成**。
+- 判断は plan の各 step / 成果物の性質から（例: human-in-the-loop な編集ステップ・可視化要求）。
+
+### B. 配置・体験
+- **ui2.html 内**にビューア面。flow を選ぶ → 成果物 UI を表示・操作。
+- **スマホ + PC 両対応**（レスポンシブ・スマホはフルスクリーン寄り）。
+
+### C. レンダリング & セキュリティ（load-bearing）
+- 形式 = **JSX + Babel standalone**（実物が `import {useState} from "react"` + `export default function App` 形式 → import/export を剥がし global React に束ねて描画）。
+- 生成物は **untrusted コード** → **`<iframe sandbox="allow-scripts">`（same-origin 無し＝origin-null）** で隔離。親の cookie/localStorage/credential に触れない。
+- iframe の `fetch` を **shim**し `api.anthropic.com` 宛を **親→hub に転送**（`/api/artifact-llm` proxy）。**鍵は箱に残り生成物は鍵を見ない**（[[docs/17]] の bearer 整合）。CORS も hub 経由で解決・既存生成物（直 fetch）も無改変で安全動作。
+- bridge = postMessage **ホワイトリスト**（親が `e.source===iframe.contentWindow` を検証・許可アクションのみ）。
+- ⚠️ 実物の教訓: 貼られた CSUEB_MAIL artifact は `fetch("https://api.anthropic.com/v1/messages")` を**ブラウザから直接**叩く（鍵ブラウザ露出 + CORS 失敗）→ shim が必須。gen_component の Python サンドボックスの**ブラウザ版**。
+
+### D. 操作 → フロー前進
+artifact は `run.outputs` / 承認待ち(handoff awaiting_approval)を読んで描画 → 操作（承認/編集/選択）→ bridge → hub が **advanceFrom / approve**（既存 checkpoint・handoff approval 機構の**リッチ版**として再利用）。
+
+### E. 実装スライス（WIP=1・実装は方針決定後）
+- **S1**: ui2 内 sandbox ビューア（描画 + レスポンシブ + fetch-shim → `/api/artifact-llm` proxy）。
+- **S2**: 操作 → flow advance（approve/advance bridge・ホワイトリスト）。
+- **S3**: 成果物 UI を flow に紐付け（`saveWorkflow` に `ui` 欄 + `/api/workflows/:id/ui` + `set_flow_ui`/`get_flow_ui` MCP tool）。
+- **S4**: 神龍が成果物 UI を**生成**（gen プロンプトが bridge 規約で JSX 出力・`api.anthropic.com` 直 fetch 禁止・レスポンシブ強制）。
+- **S5**: plan 段階の UI 要否判断（A）。
+- MCP-FIRST: 全 step に対応 MCP tool。関連: 既存 checkpoint/handoff approval・gen_component。
 
 ## 次にやる（優先順）
 1. ~~🔬 discover-first 実機検証~~ **✅完了**（2026-06-21・ローカルで実体検証・上表 discover-first 行参照）。残=ngrok+claude.ai の e2e transport 確認（任意・MCP 標準なので他 connector で実証済）＋ rough edge（claude -p の非決定 X-API事実）を実運用で観測。
