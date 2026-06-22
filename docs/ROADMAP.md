@@ -30,6 +30,10 @@
 | **cost 設定** | `plan_flow {cost:'free'/'paid_ok'}` を discover が honor `44bae59` | §16 §4 |
 | **Wave D** | `list_workflows` / `GET /api/workflows` / `search_workflows` に `summary` + `lastRun` を追加 `bc392e4` | 本 doc |
 | **Wave F-2 shenron.html** | 神龍全機能を最小 UI で提供（6タブ: 🐉Wish / 📋Workflows / ⚡Runs / ✅Handoffs / 🔧Deployments / ⚙Settings）。Tailwind Play CDN + Alpine.js 単一ファイル。hub に `/shenron` ルート追加。 | §16 |
+| **Wave H** | **Push通知**（`emitRunNotify`）: flow run 完了/キャンセル時に `kind:'notify'` integration へ webhook POST。`set_notify` MCP tool で Slack/LINE/Discord URL を登録。integrations.json に `slack-notify`/`webhook-notify` テンプレート追加。`59a2cdb` | 本 doc |
+| **Wave I** | **Credential Vault**（`vault.mjs`）: macOS Keychain (`security` コマンド) primary + `~/.giogio/credentials.json` file fallback。`set_credential` / `get_credential` / `list_credentials` / `delete_credential` MCP tools。hub `/api/credentials` route。`59a2cdb` | 本 doc |
+| **Wave J** | **Skill共有**（export/import）: `export_skill` でコンポーネントをポータブル JSON に export（credentials/ID 除去・安全に共有可）、`import_skill` で pending として import → `approve_component` で有効化。hub `/api/components/export|import` route。`59a2cdb` | 本 doc |
+| **Wave K** | **First-run**（`bin/shenron.mjs`）: Node≥20 チェック → hub.mjs spawn のエントリーポイント。`package.json bin` フィールド追加 → `npx shenron-hub` または `node bin/shenron.mjs` で起動可。`59a2cdb` | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -39,10 +43,11 @@
 
 ## 次にやる（優先順）
 1. ~~🔬 discover-first 実機検証~~ **✅完了**（2026-06-21・ローカルで実体検証・上表 discover-first 行参照）。残=ngrok+claude.ai の e2e transport 確認（任意・MCP 標準なので他 connector で実証済）＋ rough edge（claude -p の非決定 X-API事実）を実運用で観測。
-2. ~~Wave G 残: discover の自動 routing 提案~~ **✅完了**（`f643b75`）= **Wave G フルクローズ**。planner の tier(capability) × cost 設定(vendor) を合成し各 step の宛先 vendor/model/cost を plan に surface（renderPlan `routing` + 🧭 提案行・実行時 tierRoute と一致＝truthful）。stdio MCP の cost/context 転送バグも同時修正。
-3. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
-4. Wave D polish（list_workflows に summary+最終実行時刻）。
-5. §16 未確定: Ollama tiering 実装 / OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
+2. ~~Wave G 残: discover の自動 routing 提案~~ **✅完了**（`f643b75`）= **Wave G フルクローズ**。
+3. ~~Wave H/I/J/K~~ **✅完了**（`59a2cdb`）= Push通知・Credential Vault・Skill共有・First-run。
+4. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
+5. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つに絞る）→ Wave L: 縦串デモ実装。
+6. §16 未確定: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
 
 ---
 
