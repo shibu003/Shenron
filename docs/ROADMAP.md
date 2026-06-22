@@ -41,6 +41,16 @@
 |---|---|---|
 | **F サービス化/デプロイ** | compute 売らず control plane を売る／お財布適応 3 tier／常駐箱(Pi5・Mac mini・claude -p≫Ollama)／配布先 OpenClaw(MCP client ~380k★)／「hub も使える」=managed hub(BYO-key・browser-control 不可) | §16 |
 | **G multi-AI / model routing** | 下記「②」参照 | 本 doc |
+| **Wave M-1** | **パスワードリセット**: `/api/auth/reset-request` → terminal にリセットリンク出力（verify と同パターン）→ `/api/auth/reset?token=` で新パスワード受付。忘れた時に `users.json` 手編集が不要になる。`reset_password` MCP tool。 | 本 doc |
+| **Wave M-2** | **`list_runs` / `get_run` MCP tool**: flow を実行できるが「最近の結果を見る」MCP ツールがない。`/api/state` の runs を整形して返す（last 20件・status/outputs/flowId）。`get_run` で特定 runId の全出力を取得。 | 本 doc |
+| **Wave M-3** | **`test_notify` ツール**: 通知 webhook URL を登録しても疎通確認方法がない。テスト payload を1発送信 → 成功/失敗を返す。`/api/notify/test` route + `test_notify` MCP tool。 | 本 doc |
+| **Wave M-4** | **Automation enable/disable**: cron を止めるには削除するしかない。`toggle_automation(id, on)` で一時停止/再開。hub `/api/automations/:id/toggle` route + `toggle_automation` MCP tool。 | 本 doc |
+| **Wave N-1** | **Credential injection at runtime**: Vault に保存した credential をフロー実行時に自動注入。component の `credentials` フィールドを runner.mjs が vault から取得し環境変数として渡す。これがないと vault の価値が半減。 | 本 doc |
+| **Wave N-2** | **セッション永続化**: ハブ再起動のたびにログインし直しが必要。`~/.giogio/sessions.json` に in-memory sessions をシリアライズ・デシリアライズ（expiry 付き）。起動時にロードし期限切れを自動パージ。 | 本 doc |
+| **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
+| **Wave O-1** | **Run ログのリアルタイムストリーム**: 長いフローが「動いているのか死んでいるのか」確認できない。SSE `/api/runs/:id/stream` で各ノード完了をプッシュ。UI の Runs タブでライブ表示に対応。 | 本 doc |
+| **Wave O-2** | **Flow テンプレートライブラリ**: `import_skill` はあるが「何を入れると何ができるか」が不明。よく使うフロー（価格監視・日次サマリー・GitHub PR 通知等）を `templates/` に同梱し `list_templates` / `install_template` MCP tool で導入。 | 本 doc |
+| **Wave O-3** | **ハブ死活監視（self-ping）**: scheduler が動いているか外から確認する方法がない。`/api/health` エンドポイント（認証不要・uptime/scheduler/version を返す）。外部 cron から叩いて応答なし時は notify 通知を送る self-watchdog。 | 本 doc |
 
 ## 次にやる（優先順）
 1. ~~🔬 discover-first 実機検証~~ **✅完了**（2026-06-21・ローカルで実体検証・上表 discover-first 行参照）。残=ngrok+claude.ai の e2e transport 確認（任意・MCP 標準なので他 connector で実証済）＋ rough edge（claude -p の非決定 X-API事実）を実運用で観測。
@@ -48,9 +58,10 @@
 3. ~~Wave H/I/J/K~~ **✅完了**（`59a2cdb`）= Push通知・Credential Vault・Skill共有・First-run。
 4. ~~Wave L: Auth~~ **✅完了**（`9063235`）= 登録・ログイン・メール認証・セッション管理。
 5. **UI への認証フォーム追加**（登録/ログイン画面 → 他 Claude 担当 UI 完成後に連携）。
-6. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
-7. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つに絞る）→ Wave M: 縦串デモ実装。
-6. §16 未確定: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
+6. **Wave M-1〜4**（パスワードリセット・list_runs・test_notify・Automation toggle）— 各5〜20行・今のセッションで全部入れられる規模。
+7. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
+8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つに絞る）→ Wave M: 縦串デモ実装。
+9. §16 未確定: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
 
 ---
 
