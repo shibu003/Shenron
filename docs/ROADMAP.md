@@ -153,7 +153,7 @@ ngrok http 8795                       # → HTTPS URL（docs/15 §C4）
 
 ---
 
-# 大規模 Wave 計画（設計のみ・2026-06-22 追記・未着手）
+# 大規模 Wave 計画（設計・2026-06-22）
 
 > 神龍は「願い→道具生成→実行→定期化」まで閉じている。欠けているのは **生成の*後*の世界** — 作った道具が壊れた/期待外れだった/ゴールに届かない時に誰が面倒を見るか。下記 4 Wave 群はその穴を埋める。**設計の正本として一旦ここに置く**（実装着手時に詳細は §13 へ移送可）。各群とも **agile**：最小スライス(縦串1本)を先に出荷 → 肉付け。**WIP=1**（1 Wave=1 commit、終わるまで次に手を付けない）。北極星制約：**何を足しても同 commit で `server.mjs` の MCP tool 化**（cockpit-only な穴を作らない）。
 >
@@ -166,6 +166,8 @@ ngrok http 8795                       # → HTTPS URL（docs/15 §C4）
 ---
 
 ## Wave R — Resilience：成果検証 → 自己修復 ［元案A・🟢］
+**✅ R-1 実装済み（`f4be4df`・main 反映済）**: automation の `expect`→完了ブロック `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`(shenron.mjs 純粋・**判定中核 assert/judge は TODO(human)＝次の Learn by Doing**)→ fail で `emitRunNotify('check_failed')`+`state.checkResults`(cap50)。MCP 両surface(`set_check`/`list_check_results`)。実機 e2e + review 4 lens 済。⚠️ 下記の接続点行番号は設計時のもの（O1 統合で実際は変動）。**R-2/R-3 未着手**。
+
 **狙い**：定期 run のたびに「**期待した成果が出たか**」を神龍が判定し、壊れたら気づいて直す。`gen_component` の修復ループを**本番監視**に接続。巨人(Zapier)はコネクタが壊れたら人を待つだけ — **道具を生成できる神龍だけが道具を直せる**。
 
 **アーキテクチャ（接続点）**
