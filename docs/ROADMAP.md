@@ -47,6 +47,7 @@
 | **Wave Ambient-1** | **観察→提案（自分データのみ）**: `detectSuggestions()`（tickScheduler 相乗り）→ `suggestions.json`（kind:automate/fix・冪等・cap100）。`list_suggestions`/`dismiss_suggestion`/`apply_suggestion` MCP 両surface。settings.html に 💡 神龍の提案 UI。`5187618`/`f20e64f` | 本 doc |
 | **Wave UI S1〜S5** | **成果物 UI ビューア→plan UI 要否判断（全スライス完走）**: S1=ui2.html に 🎨 ボタン + `<iframe sandbox="allow-scripts">` + fetch-shim→`/api/artifact-llm` proxy（鍵はブラウザ不可視）`598b8c0`。S2=approve/advance bridge（postMessage ホワイトリスト）`9de279d`。S3=flow↔UI 紐付け（`set_flow_ui`/`get_flow_ui` MCP tool + hub route）`fbb5274`。S4=`gen_artifact_ui`（bridge 規約付き JSX 生成）`829457c`。S5=plan 段階 `ui_hint:"none"|"generate"` 要否判断（PROMPT+buildPlanIR+renderPlan+tools.mjs）`a6d53b2`。 | 本 doc |
 | **Wave R-1** | **成果検証→通知（Resilience 最小スライス・✅判定中核も完成）**: automation の `expect`→run 完了ブロックの `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`（shenron.mjs 純粋）→ fail で `emitRunNotify('check_failed')`＋`state.checkResults`(cap50)。MCP 両surface `set_check`/`list_check_results`。`f4be4df`（merge `5d1af31`・O1 SSE と completedAt で統合）。**判定中核 `evalExpect` 実装済 `99aa25b`**: assert=決定論($0・contains/!contains/equals/regex/json:path=val・bad regex/non-JSON は fail)、judge=cheap-LLM yes/no（**送信前 redact() で secret/PII firewall＝新 egress を塞ぐ**・stub sentinel/例外は fail-closed・reason に生 output 無し）。R-2/R-3 は↓大規模計画 | 本 doc |
+| **Wave Remix-1** | **フロー fork→改造→部品化**: 既存 flow を fork して改造し別 flow に sub-flow ノードで再利用。`cloneWorkflow`(deep-copy `structuredClone`→`${id}-copy-<rand4>` 一意化→`saveWorkflow`・ui/summary/tags 引継ぎ・lastRun/automation束縛は引き継がない)。MCP 両surface `clone_workflow`(remote・mcpDispatch)＋`POST /api/workflows/:id/clone`＋shenron.html 🗂「⧉複製」。再利用(部品化)側は既存 sub-flow ノードで既に稼働＝欠けてた fork のみ追加。`76979ba`(未push)。HTTP e2e 7 assert+surface guard green | 本 doc |
 | **Wave UI-Compat-1/2/3** | **backend 機能の UI 反映（settings.html 整合性監査 driven）**: UI-Compat-1=Credential Vault + Webhook 通知セクション（登録/削除/Test ボタン）`cd6cb40`。UI-Compat-2=Goals CRUD + 手動 checkin + 成果検証 set_check expect 設定（直近 check-results 表示）`454d941`。UI-Compat-3=テンプレート install（ワンクリック + gap 警告）+ 登録ユーザー一覧 `7d5cdb9`。 | 本 doc |
 | **Wave N-2 / O-3** | **N-2 セッション永続化**: auth.mjs sessions を `~/.shenron/sessions.json` に永続化（起動時ロード・期限切れ自動パージ・ハブ再起動後もログイン維持）。**O-3 ハブ死活監視**: `GET /api/health`（認証不要・uptime/scheduler/version）+ `hub_health` MCP 両surface。`824e3a2` | 本 doc |
 | **Wave R-2** | **repair loop**: `onFail:'repair'` 時に fail した run の generated component を `genComponent` で自動再生成 → `approved:false`（`approve_component` 待ち）。`maxRetry` でループ防止。`repair_run` MCP tool で手動トリガーも可能。stdio 71 / remote 59 tools。`552431c` | 本 doc |
@@ -141,7 +142,7 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 5. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
 6. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
 
-7. 🚧 **Wave Remix-1**（`clone_workflow`・フロー fork→改造→部品化）— scaffold 配線済（hub `cloneWorkflow` + `mcpDispatch` + POST `/api/workflows/:id/clone`・tools.mjs `clone_workflow` remote）。**中核ロジックは Learn by Doing 待ち**（deep-copy / 新 id 一意化 / 引継ぎ判断）。詳細↓「## Wave Remix」。
+7. ~~**Wave Remix-1**（`clone_workflow`・フロー fork→改造→部品化）~~ — **✅完了 `76979ba`（ローカル・未push）**: `cloneWorkflow`(deep-copy→新id一意化→`saveWorkflow`) + MCP両surface + `POST /api/workflows/:id/clone` + 🗂 Flows「⧉複製」ボタン。HTTP e2e 7 assert + surface guard green。詳細↓「## Wave Remix」。Remix-2/3 は意図的 skip（理由+いつやるか 記載済）。
 
 ### B. user 判断（方針）
 8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
@@ -156,11 +157,11 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 
 **現状認識**: 「再利用（部品化）」の半分は **既に動く** — 保存済み flow は sub-flow ノード（`kind:'workflow'` + `node.ref` → `fireWorkflowNode` hub.mjs）として別 flow に nested run で組み込める。`install_template` も「clone して編集可能 workflow にする」パターンを実証済（`saveWorkflow`・同梱テンプレ限定）。**欠けていた primitive = 自分の既存 flow を fork（コピー）して改造する手段**（`saveWorkflow` は同 id 上書きでコピーを作れない）。
 
-**Remix-1（最小縦串・🚧 scaffold 済・中核 Learn by Doing 待ち）= `clone_workflow`**
+**Remix-1（最小縦串・✅出荷 `76979ba`・未push）= `clone_workflow`**
 - hub `cloneWorkflow(id, name)` = 保存済み flow を deep-copy → 新 id 採番 → `saveWorkflow`。元は不変、コピーを改造して sub-flow ノードで別 flow の部品に再利用。
 - MCP 両surface: tools.mjs `clone_workflow`（`surfaces:['remote']`・`save_workflow` と同型）+ hub `mcpDispatch` 直呼び。
 - HTTP: `POST /api/workflows/:id/clone {name?}`（UI 用・既存 bearerOk gate 配下）。
-- **中核ロジックは TODO(human)**（hub.mjs `cloneWorkflow` 本体）: ① deep-copy（structuredClone・参照共有禁止＝コピー編集が元を壊さない）② 新 id 一意化（slug 衝突で上書きを防ぐ）③ 引継ぎ/リセット（ui/summary/tags は引継ぎ・lastRun はコピー毎・automation 束縛は引き継がない）。
+- **中核ロジック（実装済 hub.mjs `cloneWorkflow`）**: ① deep-copy（`structuredClone`・参照共有禁止＝コピー編集が元を壊さない）② 新 id 一意化（`${src.id}-copy-<rand4>`・slug 衝突で上書きを防ぐ）③ 引継ぎ/リセット（ui/summary/tags は引継ぎ・lastRun はコピー毎で非コピー・automation 束縛は引き継がない＝無束縛で始まる）。
 - 検証（中核実装後）: flow を clone → 新 id で 🗂 に出る → コピーを改造 → 別 flow に sub-flow ノードで挿す → run（元 flow 無傷）。
 - **UI 反映（同 commit・[[feedback_ui_sync]]）**: shenron.html 🗂 Flows に「複製」ボタン（`POST .../clone` 叩き）。
 
@@ -367,8 +368,11 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
 
-- **✅ origin/main = `829457c`**（2026-06-23）。
-- **✅ 直近** = `a6d53b2` Wave UI S5 ui_hint（plan 段階の UI 要否判断・Wave UI S 完走）。
+- **⚠️ origin/main = `b86e82d`／local HEAD = `76979ba`＝未push 6 commit**（次セッション最初に `git push` 候補）: `76979ba` Remix-1 / `98c965e`･`35a521c`･`552431c` R-2 repair / `a3056f1`･`824e3a2` N-2・O-3。
+- **✅ 直近（local）** = `76979ba` Wave Remix-1 clone_workflow（フロー fork→改造→部品化・🗂「⧉複製」・HTTP e2e 7 assert green）。
+- **✅ その前** = `552431c` Wave R-2 repair loop（onFail:repair で生成コンポーネント自動再生成）。
+- **✅ その前** = `824e3a2` Wave N-2・O-3（セッション永続化 + ハブ死活監視）。
+- **✅ その前** = `a6d53b2` Wave UI S5 ui_hint（plan 段階の UI 要否判断・Wave UI S 完走）。
 - **✅ その前** = `fbb5274` Wave UI S3 flow↔UI 紐付け（set_flow_ui/get_flow_ui）。
 - **✅ その前** = `9de279d` Wave UI S2 approve/advance bridge（postMessage ホワイトリスト）。
 - **✅ その前** = `598b8c0` Wave UI S1 成果物 UI ビューア（sandbox iframe + fetch-shim + `/api/artifact-llm` proxy）。
