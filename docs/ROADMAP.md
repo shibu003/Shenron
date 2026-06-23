@@ -44,7 +44,7 @@
 | **Wave U-1** | **MCP 両surface統一（共有 tool レジストリ）**: 新規 `prototype/mcp/tools.mjs`（単一 `TOOLS`＋`PROXY`＋`forStdio`/`forRemote`/`REMOTE_DENY`）を server.mjs/hub.mjs が両 import＝定義 drift 不可能。hub `mcpDispatch`＝`proxySelf` ループバック＋`list/get_handoff` in-process で **remote 23→44 tool**。`REMOTE_DENY`(秘密値/権限/認証だけ claude.ai 遮断・mcpDispatch でも dispatch 拒否)。surface 乖離ガード test 同梱。`cad8618`（origin/main 反映済） | 本 doc |
 | **Wave Q** | **モバイル PWA（shenron.html をホーム画面インストール可能に）**: UI のみ。新規 `prototype/hub/manifest.json`（🐉絵文字を slate-900 背景に描いた SVG data URI アイコン＝バイナリ依存ゼロ・`start_url:/shenron`・standalone・theme `#0f172a`）+ 新規 `prototype/hub/sw.js`（最小 service worker・`CACHE='giogio-v1'`・app shell `[/shenron,/manifest.json]` を cache-first・`/api/*` `/mcp/*` `/oauth/*` `/.well-known/*` は network-only ＝承認/inbox/egress がキャッシュされない・POST は不介入＝trust 境界不変）。hub.mjs に既存静的配信と同パターンの `GET /manifest.json`（`application/manifest+json`）+ `GET /sw.js`（root 配信で scope='/'・`cache-control:no-cache`）を `/shenron` route 直後・OPTIONS より前に追加（`MANIFEST_FILE`/`SW_FILE` 定数）。shenron.html `<head>` に manifest link + apple-touch-icon(SVG data URI) + theme-color/apple-mobile-web-app メタ群、末尾に `load` 後の `navigator.serviceWorker.register('/sw.js')`（失敗は warn のみ＝非対応ブラウザでも UI 無傷）。MCP tool は不要（UI のみ）。 | 本 doc |
 | **Wave G** | **multi-AI / per-step model routing（完全クローズ）**: provider adapter（Ollama/OpenAI/Gemini）＋ planner が step ごとに `tier:cheap/strong` 付与 → `tierModel` で vendor/model 解決（env で per-budget 上書き・cheap→無料ローカル/haiku）＋ auto-escalation（cheap 失敗 sentinel `→ stub]` 検出時だけ strong 再試行）＋ planner が high-stakes step に `consensus` node emit（N vendor 投票・cost 連動既定）＋ agent/prompt node の per-node vendor/model 明示 ＋ discover の auto-routing 提案（tier×cost を plan に surface・実行と一致）。`adab1b0`/`f643b75` ほか。詳細メモ↓ | 本 doc |
-| **Wave R-1** | **成果検証→通知（Resilience 最小スライス）**: automation の `expect`→run 完了ブロックの `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`（shenron.mjs 純粋・**判定中核 assert/judge は TODO(human)＝Learn by Doing で完成**）→ fail で `emitRunNotify('check_failed')`＋`state.checkResults`(cap50)。MCP 両surface `set_check`/`list_check_results`。`f4be4df`（merge `5d1af31`・O1 SSE と completedAt で統合）。R-2/R-3 は↓大規模計画 | 本 doc |
+| **Wave R-1** | **成果検証→通知（Resilience 最小スライス・✅判定中核も完成）**: automation の `expect`→run 完了ブロックの `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`（shenron.mjs 純粋）→ fail で `emitRunNotify('check_failed')`＋`state.checkResults`(cap50)。MCP 両surface `set_check`/`list_check_results`。`f4be4df`（merge `5d1af31`・O1 SSE と completedAt で統合）。**判定中核 `evalExpect` 実装済 `99aa25b`**: assert=決定論($0・contains/!contains/equals/regex/json:path=val・bad regex/non-JSON は fail)、judge=cheap-LLM yes/no（**送信前 redact() で secret/PII firewall＝新 egress を塞ぐ**・stub sentinel/例外は fail-closed・reason に生 output 無し）。R-2/R-3 は↓大規模計画 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -97,7 +97,7 @@ artifact は `run.outputs` / 承認待ち(handoff awaiting_approval)を読んで
 
 ### A. 実装（コード）
 1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— U-1 の remote 44 tool / ui2 / settings / 神龍パネル がまだ本番未デプロイ（コードは origin/main）。
-2. **Wave R-1 の Learn by Doing**（`evalExpect`・shenron.mjs の判定中核）— **assert**（rule 文法を決める・決定論・LLM 不使用）と **judge**（cheap LLM yes/no・flowResult を vendor に送る前に `redact` 必須＝未 firewall egress）を実装すると R-1 が完全動作（現 stub は常に pass）。
+2. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
 3. **Wave UI S1**（成果物UI ビューア）— ui2 内 sandbox iframe + fetch-shim→`/api/artifact-llm` proxy。設計＝↓「Wave UI 設計メモ」。
 4. **UI への認証フォーム**（登録/ログイン画面・Wave L backend は出荷済）。
 5. 小バックログ: **N-2** セッション永続化 / **N-3** `shenron doctor` / **O-3** ハブ死活監視 / **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。
@@ -310,5 +310,6 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
 
 - **✅ origin/main = `b5c7817`**。直近出荷 = **Wave U-1: MCP 両surface統一**（`cad8618`・main 反映＋push 済）。共有レジストリ `tools.mjs` で stdio/remote の定義 drift を撲滅・**remote 23→44 tool**・`REMOTE_DENY`（秘密値/権限/認証だけ claude.ai 遮断・mcpDispatch でも dispatch 拒否）。全テスト緑＋remote `/mcp` E2E 実機。詳細＝出荷済み表 Wave U-1。
-- **✅ その前** = Wave R-1（成果検証→通知・merge `5d1af31`）。判定中核 `evalExpect` の assert/judge は未実装（→「次にやる」A-2）。
+- **✅ 直近** = Wave R-1 判定中核 `evalExpect` 実装（`99aa25b`・未 push）。assert 決定論 + judge cheap-LLM（送信前 redact で egress firewall・fail-closed）。R-1 完全動作。全テスト緑。
+- **✅ その前** = Wave R-1 骨格（成果検証→通知・merge `5d1af31`）。
 - **意図的見送り** = U-2 MCP 完全統一（→「設計のみ」表）。
