@@ -135,10 +135,10 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 > 全ての「次にやる」をここに一本化（旧: 各 doc/CLAUDE.md/memory に散在）。完了は出荷済み表へ。状態の正本＝この doc。
 
 ### A. 実装（コード）
-1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— U-1 の remote 44 tool / ui2 / settings / 神龍パネル がまだ本番未デプロイ（コードは origin/main）。
+1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— remote 64 tool / ui2 / settings（drift 検出 UI 含む）/ 神龍パネル / UI 認証フォーム がまだ本番未デプロイ（コードは origin/main `ea4f296` まで反映済）。
 2. ~~大規模 Wave: **Goals-1**~~ — **✅完了（出荷済 `802d0c8` backend / `454d941` UI）**: 確認 Wave で backend(両surface)+UI が実機動作することを実証し、欠けていた e2e test（MCP 経由 set→checkin→reached→list 4 assert）を補完。**⚠️同 Wave で P0 リグレッション発見・修正**: `6f12c04` N-3 doctor が `await runDoctor()` を非 async handler に入れ **hub.mjs が起動不能だった**（main が壊れていた・一度も動いていない）→ Promise を `.then()` で返す 1 行修正。R-1/Login-1/Goals-1/Ambient-1 全 4 本これで実 green。
-3. 小バックログ: ~~**N-3** `shenron doctor`~~（✅出荷 `6f12c04`・上記の起動 bug は修正済）/ **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。N-2/O-3 は出荷済。
-4. **UI への認証フォーム**（登録/ログイン画面・Wave L backend は出荷済）。
+3. 小バックログ: ~~**N-3** `shenron doctor`~~（✅出荷 `6f12c04`・上記の起動 bug は修正済）/ ~~**U-2 安価スライス**~~（**✅出荷 `4121f26`**: `fire_event`・`run_automation` を remote 露出＝claude.ai から即発火・mcpDispatch 実装・surface guard remote 64 緑）。N-2/O-3 は出荷済。
+4. ~~**UI への認証フォーム**~~ — **✅出荷 `0078c68`**: shenron.html に三状態（接続中/ログイン/アプリ）+ ログイン/新規登録/ログアウト・同一オリジン cookie で session 維持・`x-text` で XSS firewall（Wave L backend の上の薄い view）。
 5. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
 6. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
 
@@ -259,7 +259,7 @@ expect: { kind: 'assert'|'judge', rule: '<JSONPath/正規表現>' | '<NL期待�
 **Wave 分割**
 - **R-1（最小・縦串）**：606 hook → `checkOutcome` → assert/judge 判定 → fail なら `emitRunNotify('check_failed')` + audit。`set_check` / `list_check_results`。**これだけで「静かに壊れて気づかない」最大リスクが消える**。
 - **R-2（肉付け）**：`onFail:'repair'` → 壊れた generated component を `genComponent` で再生成 → approve gate → 差し替え。`maxRetry=1`(無限ループ防止)。`repair_run`。
-- **R-3（肉付け）**：drift 検出 — 連続 fail / 出力構造の急変を「壊れ始め」として早期通知。
+- **✅ R-3 出荷済 `2dd56db`（UI `ea4f296`）**：drift 検出 — 連続 fail（3連続）/ 出力構造の急変（`structureSig`）を run 完了即時に検出 → `state.driftAlerts`(cap50) + `emitRunNotify('drift_detected')`。`list_drift_alerts` MCP **両surface** + `GET /api/drift-alerts` + settings.html「🚨 ドリフト検出」カード（読み取り専用）。冪等＝`run.driftAlert` ガード・current rec push 後に評価で二重計上なし。
 
 **risk / scope**：judge コスト → cheap tier 既定・assert 優先。検証の非同期化を誤ると二重 advance（→ setImmediate + run terminal チェック必須）。**scope 落とし候補=R-3**。
 **検証**：assert 期待を付けた flow を壊して(出力を変えて) run → `check_failed` 通知 + audit に記録されること。judge は cheap vendor で yes/no が返ること。
