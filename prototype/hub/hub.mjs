@@ -27,7 +27,7 @@ import { setCredential, getCredential, listCredentials, deleteCredential } from 
 import { TOOLS, PROXY, forRemote, REMOTE_DENY } from '../mcp/tools.mjs';   // Wave U-1: tool defs single-sourced (shared with stdio server.mjs)
 import { addMemory, listMemories, deleteMemory, relevantMemories } from './memory.mjs';
 import { register, verifyEmail, login, checkSession, logout, listUsers, userCount, resetRequest, resetPassword } from './auth.mjs';
-import { plan as shenronPlan, toLangflowFlow, genComponent, genArtifactUi, flowSkill, componentKey, matchComponent, neededCredentials, renderPlan, evalExpect } from './shenron.mjs';
+import { plan as shenronPlan, toLangflowFlow, genComponent, genArtifactUi, flowSkill, componentKey, matchComponent, neededCredentials, renderPlan, evalExpect, parseAgentStep, agentLoopPrompt } from './shenron.mjs';
 import { redact, applyPass, auditAppend, auditVerify, reputationFrom, buildReceipt, signReceipt, DEFAULT_PASSPORT, normalizePassport, sendMode, CAP_VOCAB } from '../trust.mjs';
 import { readPermissions, writePermissions, addAllowRule } from '../permissions.mjs';   // Wave 11b: browser-control allow/ask/deny ruleset
 import { MATCH_OPS, triggerMatches, cronMatch, lastDue } from '../match.mjs';
@@ -914,12 +914,12 @@ function tickScheduler() {
 // reviews on the canvas and Run keeps the approval fence. Uses the agent index + connected MCP tools + the
 // component kinds. A real vendor (claude/codex) generates the flow JSON; otherwise a deterministic heuristic
 // builds one from the index so it works offline/stub. Every edge is typed-port validated (bad ones dropped). ----------
-function createAgent({ name, skill, systemPrompt, accepts, emits, stub, vendor, model, company }) {
+function createAgent({ name, skill, systemPrompt, accepts, emits, stub, vendor, model, company, tools }) {
   if (!name) throw new Error('name required');
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error('name must be lowercase [a-z0-9-] (used as the MCP tool id agent_<name>)');   // P-2: name は agent_<name> tool id になる → 安全な文字に限定
   const a = agent(name); a.skill = skill || a.skill || 'task'; a.company = company || a.company || null;
   a.accepts = Array.isArray(accepts) ? accepts : (a.accepts || ['*']); a.emits = Array.isArray(emits) ? emits : (a.emits || ['*']);
-  a.local = { skillId: a.skill, vendor: vendor || 'stub', systemPrompt: systemPrompt || '', stub: stub || '', ...(model ? { model } : {}) };   // runnable in-process
+  a.local = { skillId: a.skill, vendor: vendor || 'stub', systemPrompt: systemPrompt || '', stub: stub || '', ...(model ? { model } : {}), ...(Array.isArray(tools) && tools.length ? { tools } : (a.local && a.local.tools ? { tools: a.local.tools } : {})) };   // runnable in-process（P-4: tools=read-only allowlist）
   a.autorun = true; save(); return publicAgents().find((x) => x.id === name);
 }
 // P-1: エージェント定義を削除（state から消して save）。進行中の run/handoff は触らない＝新規受付を止めるだけの非破壊削除。
@@ -929,22 +929,49 @@ function removeAgent(name) {
   delete state.agents[name]; save(); trail('agent-delete', { name });
   return { name, deleted: true };
 }
-// P-2: 作ったエージェントを「すぐ使える MCP tool」に — local agent を同期実行して結果を返す純経路。
-async function runAgentSync(name, input) {
+// Wave P-4 — tool 使用エージェントが呼べる道具の allowlist（read-only・承認フェンス不要なものだけ）。
+// 副作用/承認要(set_*/run_*/gen_*/credential 等)は同期ループでは扱わない＝fence を壊さない。side-effect は次スライス(非同期 checkpoint)。
+const SAFE_AGENT_TOOLS = new Set(['recall', 'hub_health', 'list_workflows', 'list_templates', 'list_check_results', 'get_goal', 'list_goals', 'list_suggestions', 'list_handoffs', 'get_handoff']);
+const agentToolAllowed = (t) => typeof t === 'string' && (t.startsWith('agent_') || SAFE_AGENT_TOOLS.has(t));
+// P-2/P-4: local agent を同期実行。lc.tools があれば有界 ReAct ループ（道具使用）、無ければ従来の単発（後方互換）。
+async function runAgentSync(name, input, { run = runVendorAsync, dispatch = mcpDispatch, depth = 0 } = {}) {
   const a = state.agents[name];
   if (!a || !a.local) throw new Error(`no local agent "${name}"`);
   const lc = a.local; const vendor = EXEC_VENDOR || lc.vendor || 'stub';
-  const mem = relevantMemories(input || '', 3);   // Wave S: セッション横断メモリをグローバル注入（該当無しなら空配列＝プロンプト不変）
+  const mem = relevantMemories(input || '', 3);   // Wave S: セッション横断メモリをグローバル注入
   const memBlock = mem.length ? `関連する記憶:\n${mem.map((r) => `- ${r.text}`).join('\n')}\n\n` : '';
-  const prompt = `${memBlock}${lc.systemPrompt}\n\n--- INPUT ---\n${input || ''}\n--- END INPUT ---`;   // Wave S: memBlock を systemPrompt の前に前置
-  const result = await runVendorAsync(vendor, prompt, lc.stub, { model: lc.model });
-  trail('agent-run', { agent: name, vendor, bytes: (result || '').length });
-  return { agent: name, vendor, result };
+  const tools = (depth < 2 && Array.isArray(lc.tools)) ? lc.tools.filter(agentToolAllowed) : [];   // depth<2: sub-agent 再帰を有界化
+  if (!tools.length) {   // 道具なし → 従来通り単発（後方互換・既存 agent は不変）
+    const prompt = `${memBlock}${lc.systemPrompt}\n\n--- INPUT ---\n${input || ''}\n--- END INPUT ---`;
+    const result = await run(vendor, prompt, lc.stub, { model: lc.model });
+    trail('agent-run', { agent: name, vendor, bytes: (result || '').length });
+    return { agent: name, vendor, result };
+  }
+  // tool 使用エージェント: 有界 ReAct ループ（LLM が {tool,args} か {answer} を JSON 出力）
+  const MAX = 4; const calls = [];
+  let convo = agentLoopPrompt({ memBlock, systemPrompt: lc.systemPrompt, tools, input: input || '' });
+  for (let i = 0; i <= MAX; i++) {
+    const hint = i === MAX ? '\n\n[最大ステップ到達。今ある情報で {"answer":...} を出力]' : '';
+    const out = await run(vendor, convo + hint, lc.stub, { model: lc.model });
+    const step = parseAgentStep(out);
+    if (step.kind === 'answer' || i === MAX) {
+      trail('agent-run', { agent: name, vendor, steps: calls.length });
+      return { agent: name, vendor, result: step.kind === 'answer' ? step.answer : out, toolCalls: calls, ...(i === MAX && step.kind !== 'answer' ? { capped: true } : {}) };
+    }
+    if (!tools.includes(step.tool)) { convo += `\n\n[道具 "${step.tool}" は不許可。許可: ${tools.join(', ')}。{"answer":...} か許可された道具を出力]`; continue; }
+    let tres;
+    try { tres = step.tool.startsWith('agent_') ? await runAgentSync(step.tool.slice(6), typeof step.args.input === 'string' ? step.args.input : JSON.stringify(step.args), { run, dispatch, depth: depth + 1 }) : await dispatch(step.tool, step.args); }
+    catch (e) { tres = { error: e.message }; }
+    calls.push({ tool: step.tool, ok: !(tres && tres.error) });
+    trail('agent-tool', { agent: name, tool: step.tool, ok: !(tres && tres.error) });
+    const red = redact(JSON.stringify(tres));   // ⚠️ egress firewall: 道具結果を vendor に戻す前に secret/PII を strip（philosophy #4）
+    convo += `\n\n[道具 ${step.tool} の結果]\n${red.text}`;
+  }
 }
 // P-2: 各 local agent を agent_<name> という MCP tool として動的に露出（create_agent 直後に client の tools/list に出る）。
 const agentTools = () => Object.values(state.agents).filter((a) => a.local).map((a) => ({
   name: `agent_${a.id}`,
-  description: `エージェント「${a.id}」を実行${a.skill && a.skill !== 'task' ? `（skill: ${a.skill}）` : ''}。create_agent で作成された local agent。input にタスク内容を渡す。`,
+  description: `エージェント「${a.id}」を実行${a.skill && a.skill !== 'task' ? `（skill: ${a.skill}）` : ''}${a.local.tools && a.local.tools.length ? `・道具使用(${a.local.tools.length})` : ''}。create_agent で作成された local agent。input にタスク内容を渡す。`,
   inputSchema: { type: 'object', properties: { input: { type: 'string', description: 'エージェントへの入力（タスク内容）' } }, required: ['input'] },
 }));
 // P-3: local agent を hub 非依存の standalone stdio MCP server（Python・stdlib のみ）として書出 →
@@ -1110,7 +1137,7 @@ async function mcpDispatch(name, args) {
     return saved ? { ...r, id: saved.id, approved: false } : r;
   }
   if (name === 'gen_artifact_ui')    return genArtifactUi({ what: args.what, vendor: EXEC_VENDOR || 'claude' });
-  if (name === 'create_agent')       return createAgent({ name: args.name, systemPrompt: args.instructions, vendor: args.vendor, model: args.model });   // P-1: 作成 → 直後に agent_<name> が tools/list に出る
+  if (name === 'create_agent')       return createAgent({ name: args.name, systemPrompt: args.instructions, vendor: args.vendor, model: args.model, skill: args.skill, stub: args.stub, accepts: args.accepts, emits: args.emits, company: args.company, tools: args.tools });   // P-1/P-4: 作成 → 直後に agent_<name> が tools/list に出る
   if (name === 'run_agent')          return runAgentSync(args.name, args.input);                 // P-2
   if (name === 'delete_agent')       return removeAgent(args.name);                              // P-1
   if (name === 'export_agent_mcp')   return exportAgentMcp(args.name);                           // P-3

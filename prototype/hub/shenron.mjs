@@ -29,6 +29,29 @@ export const matchComponent = (components, what) => {
   return (components || []).find((c) => c.approved && componentKey(c.what) === k) || null;
 };
 
+// Wave P-4 — tool 使用エージェント: LLM 出力を「道具呼び出し」か「最終回答」に解釈する純パーサ。
+// claude -p は native tool-calling 不可（生テキスト）→ JSON {tool,args} / {answer} を自前抽出。
+// JSON でなければ全体を最終回答とみなす（壊れた出力でもループが止まらない・後方互換）。
+export function parseAgentStep(text) {
+  const s = String(text ?? '').trim();
+  const m = s.match(/\{[\s\S]*\}/);
+  if (m) {
+    try {
+      const o = JSON.parse(m[0]);
+      if (o && typeof o.tool === 'string') return { kind: 'tool', tool: o.tool, args: (o.args && typeof o.args === 'object') ? o.args : {} };
+      if (o && typeof o.answer === 'string') return { kind: 'answer', answer: o.answer };
+    } catch { /* JSON でない → 最終回答へ */ }
+  }
+  return { kind: 'answer', answer: s };
+}
+// Wave P-4 — tool 使用エージェントの初期プロンプト（道具一覧 + 出力規約）。pure。
+export function agentLoopPrompt({ memBlock = '', systemPrompt = '', tools = [], input = '' }) {
+  const list = tools.map((t) => `- ${t}`).join('\n');
+  return `${memBlock}${systemPrompt}\n\nあなたは次の道具（read-only・安全なものに限定）を使えます:\n${list}\n` +
+    `道具を使うには JSON を1つだけ出力: {"tool":"<名前>","args":{...}}。\n` +
+    `結論が出せたら: {"answer":"<最終回答>"} を出力。\n\n--- INPUT ---\n${input}\n--- END INPUT ---`;
+}
+
 const PROMPT = (goal, inv, choices, cost) => `You plan an automation flow. Goal: "${goal}".${choices ? `\nThe user already answered these — use them and proceed to a plan:\n${choices}` : ''}
 Inventory — tools/agents already registered here (use these exact ids in step.tool, or null):
 ${inv}
