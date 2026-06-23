@@ -51,12 +51,12 @@
 | **Wave UI-Compat-1/2/3** | **backend 機能の UI 反映（settings.html 整合性監査 driven）**: UI-Compat-1=Credential Vault + Webhook 通知セクション（登録/削除/Test ボタン）`cd6cb40`。UI-Compat-2=Goals CRUD + 手動 checkin + 成果検証 set_check expect 設定（直近 check-results 表示）`454d941`。UI-Compat-3=テンプレート install（ワンクリック + gap 警告）+ 登録ユーザー一覧 `7d5cdb9`。 | 本 doc |
 | **Wave N-2 / O-3** | **N-2 セッション永続化**: auth.mjs sessions を `~/.shenron/sessions.json` に永続化（起動時ロード・期限切れ自動パージ・ハブ再起動後もログイン維持）。**O-3 ハブ死活監視**: `GET /api/health`（認証不要・uptime/scheduler/version）+ `hub_health` MCP 両surface。`824e3a2` | 本 doc |
 | **Wave R-2** | **repair loop**: `onFail:'repair'` 時に fail した run の generated component を `genComponent` で自動再生成 → `approved:false`（`approve_component` 待ち）。`maxRetry` でループ防止。`repair_run` MCP tool で手動トリガーも可能。stdio 71 / remote 59 tools。`552431c` | 本 doc |
+| **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright Chromium 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正コマンドを表示。`bin/shenron.mjs doctor` CLI ＋ `GET /api/doctor`（認証不要）＋ `hub_doctor` MCP 両surface（stdio 72 / remote 61 tools）。`prototype/hub/doctor.mjs` に共有チェックロジック。 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
 |---|---|---|
 | **F サービス化/デプロイ** | compute 売らず control plane を売る／お財布適応 3 tier／常駐箱(Pi5・Mac mini・claude -p≫Ollama)／配布先 OpenClaw(MCP client ~380k★)／「hub も使える」=managed hub(BYO-key・browser-control 不可) | §16 |
-| **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
 | **U-2 MCP 完全統一（見送り）** | 完全統一（stdio attended dry-run 撤去・server pure proxy 化）＋ run_handoff の a2a を hub 移植。「限界価値小×リスク大」で**意図的見送り**（U-1 で主目的達成・hub は agent URL を持たない in-process モデル）。再開時の安価スライス=`fire_event`(=/api/fire 既存)・`run_automation`(find→runFlow) を remote 露出のみ。 | 本 doc |
 | **Wave UI — 成果物UI（操作面）** | 神龍が足りない道具を自作する性質上、**操作必須の UI 付き生成物が頻発**する。ui2.html 内で特定 flow の成果物 UI を見て操作 → その操作で自動化フローが進む（人在ループのリッチ checkpoint）。スマホ+PC 両対応。神龍は **plan 段階で UI 要否を判断**（承認だけ→通知で十分=UI無し／操作+可視化が要る時だけ生成）。sandbox iframe(JSX+Babel)で描画・**鍵は箱に残す fetch-shim**・操作→bridge→hub が advance。Lovable(bespoke アプリ生成/別ホスト deploy)ではなく control-plane 内で「成果物に顔を付ける」。 | 下記メモ |
 | **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
