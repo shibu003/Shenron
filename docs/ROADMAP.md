@@ -112,3 +112,24 @@ ngrok http 8795                       # → HTTPS URL（docs/15 §C4）
 - ✅ **agent ノードの per-node vendor/model**: flow の agent node に `vendor`/`model` 明示で「この step だけ別 AI」。`runLocal` が per-node 明示 > `EXEC_VENDOR` > agent 既定で解決（後方互換: 未指定の既存 node は従来通り）。mcp node は tool 呼び出しで LLM vendor 概念なし＝対象外。
 - ✅ **discover の auto-routing 提案（`f643b75`・Wave G フルクローズ）**: planner の tier(=capability) × user の cost 設定(=vendor) を合成し、各 step が「どの AI で・いくらか」を plan に surface。`shenron.mjs` 純粋 `routeFor(node,step,ctx)` + `renderPlan(ir,ctx?)` が route ラベル（cheap→your Claude/ollama ~$0 ↑strong on fail・strong→your Claude・mcp→tool call $0・🗳️ consensus→N vendors N×）+ 🧭 Routing 提案行 + 構造化 `routing` 配列を返す（ctx 無し=従来通り・後方互換）。`hub.mjs` `routingCtx()` が実行時と同じ tierRoute/defaultConsensusVendors/cost/autoEscalate から ctx を作る＝**提案 = 実行と一致（truthful）**。moat 整合: planner は vendor を押し付けず tier だけ・vendor は財布設定が決める＝従量0 維持。bonus: `server.mjs` plan_flow が cost/context を転送（discover clarify ループが stdio MCP で完結しない既存バグ解消）。e2e: 「要約→go/no-go」で step1=cheap(haiku ~$0)・step2=planner が自動 consensus(claude,codex,ollama 3×) を選び routing に出た。test_shenron 検証追加。（Sakana 等の追加 vendor は公開 OpenAI 互換 API 無し→ollama 経由ローカルが筋＝新コード不要）
 - → **Wave G は完全クローズ**（providers / per-step routing / auto-escalation / consensus-from-planner / per-node vendor / auto-routing 提案 すべて出荷）。
+
+---
+
+# 大規模 Wave 計画（設計・2026-06-22）＋ Wave R-1 実装済み
+
+> 神龍は「願い→道具生成→実行→定期化」まで閉じている。欠けは*生成の後*の世界（作った道具が壊れる/期待外れ/ゴール未達の面倒を誰が見るか）。4 Wave 群でその穴を埋める。実装順 **R-1→Login-1→Goals-1→Ambient-1**。各群の詳細設計は memory [[next-session-todo]]（session-7）。
+
+## Wave R — Resilience（成果検証→自己修復）🟢
+**R-1 実装済み**（worktree `worktree-wave-r-resilience`・origin/main 9c15d59 base・未 main・ultracode+workflow 駆動）:
+- automation に `expect:{kind:'assert'|'judge', rule, onFail:'notify', maxRetry}`（`set_check` で付与・canvas 再保存でも保持）。
+- run 完了 hook（hub.mjs 完了ブロック）に **`completedAt` exactly-once ガード**（＝ネスト親再入での既存二重 notify バグも同時修正）→ `setImmediate(checkOutcome)`。
+- `checkOutcome`: fromAutomation→expect→`flowResult`→`evalExpect`(shenron.mjs・純粋)→ fail なら `emitRunNotify('check_failed')` + `state.checkResults`(ring cap50) + `trail`(save 込み)。
+- MCP **両 surface**: `set_check`/`list_check_results`（hub MCP_TOOLS+mcpDispatch / server.mjs TOOLS+callTool / HTTP `/api/check`・`/api/check-results`）。
+- **判定中核 `evalExpect`(assert/judge) = TODO(human)**（Learning style・stub は常に pass）。唯一の設計判断＝次の Learn by Doing。
+- 検証: 構文OK・`test_shenron` 緑（evalExpect 契約 + completedAt 冪等 + ringbuffer の isolation test）・実機 e2e（fire→checkOutcome→check-results・**manual run は no-op=後方互換**・MCP 両surface）・review 4 lens（冪等/後方互換/正しさ/MCP-secret）。
+- review 対応済み: `if(run.check)return` 冪等二重防御 / `set_check` に judge egress 警告 / reason 契約明示。
+- **既知制約（R-3 へ）**: ① restart が run 完了と同一 event-loop tick で起きると checkOutcome 取りこぼし（極小・boot replay は R-3）。② judge egress（flowResult→vendor）の redact は evalExpect 実装時の human 判断（コメント警告済み）。
+- **R-2/R-3 未着手**: R-2=`onFail:'repair'`（壊れた generated component を genComponent で再生成・maxRetry）。R-3=drift 検出 + boot replay。
+
+## Wave Login / Goals / Ambient（設計のみ・未着手）
+memory [[next-session-todo]] session-7 に技術設計。Login=ログイン切れ検出→人を呼ぶ(🟢) / Goals=ゴール記憶 concierge(🟡 需要要接地) / Ambient=観察→提案(🔴 同意が生存条件・最後)。
