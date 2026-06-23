@@ -49,6 +49,7 @@
 | **Wave R-1** | **成果検証→通知（Resilience 最小スライス・✅判定中核も完成）**: automation の `expect`→run 完了ブロックの `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`（shenron.mjs 純粋）→ fail で `emitRunNotify('check_failed')`＋`state.checkResults`(cap50)。MCP 両surface `set_check`/`list_check_results`。`f4be4df`（merge `5d1af31`・O1 SSE と completedAt で統合）。**判定中核 `evalExpect` 実装済 `99aa25b`**: assert=決定論($0・contains/!contains/equals/regex/json:path=val・bad regex/non-JSON は fail)、judge=cheap-LLM yes/no（**送信前 redact() で secret/PII firewall＝新 egress を塞ぐ**・stub sentinel/例外は fail-closed・reason に生 output 無し）。R-2/R-3 は↓大規模計画 | 本 doc |
 | **Wave UI-Compat-1/2/3** | **backend 機能の UI 反映（settings.html 整合性監査 driven）**: UI-Compat-1=Credential Vault + Webhook 通知セクション（登録/削除/Test ボタン）`cd6cb40`。UI-Compat-2=Goals CRUD + 手動 checkin + 成果検証 set_check expect 設定（直近 check-results 表示）`454d941`。UI-Compat-3=テンプレート install（ワンクリック + gap 警告）+ 登録ユーザー一覧 `7d5cdb9`。 | 本 doc |
 | **Wave N-2 / O-3** | **N-2 セッション永続化**: auth.mjs sessions を `~/.shenron/sessions.json` に永続化（起動時ロード・期限切れ自動パージ・ハブ再起動後もログイン維持）。**O-3 ハブ死活監視**: `GET /api/health`（認証不要・uptime/scheduler/version）+ `hub_health` MCP 両surface。`824e3a2` | 本 doc |
+| **Wave R-2** | **repair loop**: `onFail:'repair'` 時に fail した run の generated component を `genComponent` で自動再生成 → `approved:false`（`approve_component` 待ち）。`maxRetry` でループ防止。`repair_run` MCP tool で手動トリガーも可能。stdio 71 / remote 59 tools。`552431c` | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
