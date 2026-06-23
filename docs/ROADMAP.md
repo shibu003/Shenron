@@ -142,7 +142,7 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 5. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
 6. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
 
-7. ~~**Wave Remix-1**（`clone_workflow`・フロー fork→改造→部品化）~~ — **✅完了 `76979ba`（ローカル・未push）**: `cloneWorkflow`(deep-copy→新id一意化→`saveWorkflow`) + MCP両surface + `POST /api/workflows/:id/clone` + 🗂 Flows「⧉複製」ボタン。HTTP e2e 7 assert + surface guard green。詳細↓「## Wave Remix」。Remix-2/3 は意図的 skip（理由+いつやるか 記載済）。
+7. ~~**Wave Remix-1**（`clone_workflow`・フロー fork→改造→部品化）~~ — **✅完了 `76979ba`（push 済）**: `cloneWorkflow`(deep-copy→新id一意化→`saveWorkflow`) + MCP両surface + `POST /api/workflows/:id/clone` + 🗂 Flows「⧉複製」ボタン。HTTP e2e 7 assert + surface guard green。詳細↓「## Wave Remix」。Remix-2/3 は意図的 skip（理由+いつやるか 記載済）。
 
 ### B. user 判断（方針）
 8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
@@ -157,7 +157,7 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 
 **現状認識**: 「再利用（部品化）」の半分は **既に動く** — 保存済み flow は sub-flow ノード（`kind:'workflow'` + `node.ref` → `fireWorkflowNode` hub.mjs）として別 flow に nested run で組み込める。`install_template` も「clone して編集可能 workflow にする」パターンを実証済（`saveWorkflow`・同梱テンプレ限定）。**欠けていた primitive = 自分の既存 flow を fork（コピー）して改造する手段**（`saveWorkflow` は同 id 上書きでコピーを作れない）。
 
-**Remix-1（最小縦串・✅出荷 `76979ba`・未push）= `clone_workflow`**
+**Remix-1（最小縦串・✅出荷 `76979ba`・push 済）= `clone_workflow`**
 - hub `cloneWorkflow(id, name)` = 保存済み flow を deep-copy → 新 id 採番 → `saveWorkflow`。元は不変、コピーを改造して sub-flow ノードで別 flow の部品に再利用。
 - MCP 両surface: tools.mjs `clone_workflow`（`surfaces:['remote']`・`save_workflow` と同型）+ hub `mcpDispatch` 直呼び。
 - HTTP: `POST /api/workflows/:id/clone {name?}`（UI 用・既存 bearerOk gate 配下）。
