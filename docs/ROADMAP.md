@@ -144,10 +144,6 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 8. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
 9. **§16 未確定**: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか / Ollama tiering。
 
-### C. 運用
-10. discover-first の ngrok+claude.ai e2e transport 確認 / claude -p の非決定 X-API 事実を実運用で観測（任意）。
-11. **Railway「Dragon Balls」teardown**（hub+MySQL 常時課金中・ダッシュボード Delete Project + key ローテート + Hobby 解約）。
-
 ---
 
 ## 🔬 次セッション手順: discover-first 実機検証（#1・全土台・cleared でもこれを実行）
