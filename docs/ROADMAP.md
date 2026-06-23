@@ -368,7 +368,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
 
-- **⚠️ origin/main = `b86e82d`／local HEAD = `76979ba`＝未push 6 commit**（次セッション最初に `git push` 候補）: `76979ba` Remix-1 / `98c965e`･`35a521c`･`552431c` R-2 repair / `a3056f1`･`824e3a2` N-2・O-3。
+- **✅ origin/main 同期済（push 完了・未push なし）**。直近スタック: `76979ba` Remix-1 / `552431c` R-2 repair / `824e3a2` N-2・O-3（+ docs）。
 - **✅ 直近（local）** = `76979ba` Wave Remix-1 clone_workflow（フロー fork→改造→部品化・🗂「⧉複製」・HTTP e2e 7 assert green）。
 - **✅ その前** = `552431c` Wave R-2 repair loop（onFail:repair で生成コンポーネント自動再生成）。
 - **✅ その前** = `824e3a2` Wave N-2・O-3（セッション永続化 + ハブ死活監視）。
