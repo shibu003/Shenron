@@ -145,7 +145,7 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 7. ~~**Wave Remix-1**（`clone_workflow`・フロー fork→改造→部品化）~~ — **✅完了 `76979ba`（push 済）**: `cloneWorkflow`(deep-copy→新id一意化→`saveWorkflow`) + MCP両surface + `POST /api/workflows/:id/clone` + 🗂 Flows「⧉複製」ボタン。HTTP e2e 7 assert + surface guard green。詳細↓「## Wave Remix」。Remix-2/3 は意図的 skip（理由+いつやるか 記載済）。
 
 ### B. user 判断（方針）
-8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
+8. ~~**beachhead ジャンル選定**~~ — **✅ 開発者自動化に決定。縦串デモ実装済み**: `prototype/templates/` に 3 本追加（`dev-code-review` / `dev-changelog` / `dev-incident-triage`）。全て `requires:[]`＝install 直後に run 可能・`claude -p`（本人サブスク）で従量ゼロ。**dog-food シナリオ**: `fire_event {type:"ci_fail", log:"..."}` → `dev-incident-triage` automation → `set_check` assert → `drift_detected` まで全スタックが連結（Waves B+C を即使える）。
 9. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
 10. **§16 未確定**: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか / Ollama tiering。
 
