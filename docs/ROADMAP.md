@@ -41,18 +41,17 @@
 | **Wave O2** | **Flow テンプレートライブラリ（同梱テンプレ＋ワンクリック install＋MCP両surface）**: `prototype/templates/*.json` に runnable な同梱フローを3本同梱（`price-watch`/`daily-summary`＝組込 kind のみで install 後すぐ top-run可・`github-pr-notify`＝slack mcp ノード参照で honest gap 開示）。hub に `readTemplates()`/`templateGaps()`（requires 未設定 credential＋未登録/無効 integration を warning に集約・**値は出さず名前のみ**）+ `GET /api/templates`（token-light refs+gap警告）+ `POST /api/templates/:id/install`（`saveWorkflow` へ複製＝編集可能 workflow 化・id 上書き冪等・`trail('template-install')` は件数のみ）。MCP **両surface**: `list_templates`/`install_template`（hub.mjs `MCP_TOOLS`+`mcpDispatch`＝install は `saveWorkflow` 直呼び / server.mjs `TOOLS`+`callTool`＝hub `GET /api/templates`・`POST .../install` へ proxy）。ノード kind は実在（input/prompt/mcp/output）のみ・捏造ゼロ。 | 本 doc |
 | **Wave S** | **セッション横断メモリ（グローバル注入・最小）**: `prototype/hub/memory.mjs`（vault.mjs と同型の自己完結 store・`~/.giogio/memory.json` mode 0o600・stdlib のみ・新依存ゼロ）に `addMemory`/`listMemories`/`deleteMemory`/`relevantMemories`（server.mjs の keyword/tag スコアラを流用＝embedding 無し・tag 重み2・query 未指定で新しい順 topN）。`runAgentSync` の prompt 組立に `relevantMemories(input,3)` を前置注入＝以降の local agent 実行（`run_agent`/`agent_<name>`/`POST /api/agents/:name/run` の3経路）に自動で効く（該当無しなら memBlock='' でプロンプト不変）。MCP **両surface**: `remember`/`recall`/`forget`（hub.mjs `MCP_TOOLS`+`mcpDispatch`＝`addMemory`/`relevantMemories`/`deleteMemory` 直呼び・recall は `{ memories:[...] }` で HTTP route と shape 統一 / server.mjs `TOOLS`+`callTool`＝hub `POST /api/memory {action:add|recall|delete}` へ proxy・relevantMemories は hub 単一実装を共有）。hub `POST /api/memory`（add/list/recall/delete・credentials route と同型・既存 bearerOk gate 配下）。秘密値は description で禁止明記（prompt 前置されるため）。 | 本 doc |
 | **Wave O1** | **SSE 実行ストリーム（各ノード完了をライブ push）**: 長いフローが「動いているか死んでいるか」見えない問題を解消。`advanceFrom` 先頭に `emitRunEvent(run.id,{type:'node',...})` を注入し、in-memory listener レジストリ（`runListeners` Map + `emitRunEvent`/`closeRunListeners`・永続化なし）で全 SSE client に push。完了/キャンセル時に `{type:'done'}` を流して close（`stopRun` の cancelled 経路含む）。`GET /api/runs/:id/stream`（`:id` より前に分岐・既存 bearerOk gate 配下・接続時に現 outputs を node イベントで snapshot 配信→listener 登録→terminal なら done で即 end）。MCP 両surface: `stream_run`（hub.mjs `MCP_TOOLS`+`mcpDispatch` / server.mjs `TOOLS`+`callTool`）＝常駐 SSE を保持しない claude.ai/stdio 向けに「接続時 snapshot＋完了/キャンセルまで（最大 timeout 秒・既定30/上限120）待って集約 1ショット返却」セマンティクス。server.mjs は hub `POST /mcp` を直叩きして mcpDispatch を再利用。UI: shenron.html `poll()` に `liveSubscribe()` を重ね running run へ EventSource を1本張り outputs を即時 in-place パッチ（3s poll は保険）。 | 本 doc |
-| **Wave U-1** | **MCP 両surface統一（共有 tool レジストリ）**: 新規 `prototype/mcp/tools.mjs`（単一 `TOOLS`＋`PROXY`＋`forStdio`/`forRemote`/`REMOTE_DENY`）を server.mjs/hub.mjs が両 import＝定義 drift 不可能。hub `mcpDispatch`＝`proxySelf` ループバック＋`list/get_handoff` in-process で **remote 23→44 tool**。`REMOTE_DENY`(秘密値/権限/認証だけ claude.ai 遮断・mcpDispatch でも dispatch 拒否)。surface 乖離ガード test 同梱。`cad8618`（branch・未merge） | 本 doc |
+| **Wave U-1** | **MCP 両surface統一（共有 tool レジストリ）**: 新規 `prototype/mcp/tools.mjs`（単一 `TOOLS`＋`PROXY`＋`forStdio`/`forRemote`/`REMOTE_DENY`）を server.mjs/hub.mjs が両 import＝定義 drift 不可能。hub `mcpDispatch`＝`proxySelf` ループバック＋`list/get_handoff` in-process で **remote 23→44 tool**。`REMOTE_DENY`(秘密値/権限/認証だけ claude.ai 遮断・mcpDispatch でも dispatch 拒否)。surface 乖離ガード test 同梱。`cad8618`（origin/main 反映済） | 本 doc |
 | **Wave Q** | **モバイル PWA（shenron.html をホーム画面インストール可能に）**: UI のみ。新規 `prototype/hub/manifest.json`（🐉絵文字を slate-900 背景に描いた SVG data URI アイコン＝バイナリ依存ゼロ・`start_url:/shenron`・standalone・theme `#0f172a`）+ 新規 `prototype/hub/sw.js`（最小 service worker・`CACHE='giogio-v1'`・app shell `[/shenron,/manifest.json]` を cache-first・`/api/*` `/mcp/*` `/oauth/*` `/.well-known/*` は network-only ＝承認/inbox/egress がキャッシュされない・POST は不介入＝trust 境界不変）。hub.mjs に既存静的配信と同パターンの `GET /manifest.json`（`application/manifest+json`）+ `GET /sw.js`（root 配信で scope='/'・`cache-control:no-cache`）を `/shenron` route 直後・OPTIONS より前に追加（`MANIFEST_FILE`/`SW_FILE` 定数）。shenron.html `<head>` に manifest link + apple-touch-icon(SVG data URI) + theme-color/apple-mobile-web-app メタ群、末尾に `load` 後の `navigator.serviceWorker.register('/sw.js')`（失敗は warn のみ＝非対応ブラウザでも UI 無傷）。MCP tool は不要（UI のみ）。 | 本 doc |
+| **Wave G** | **multi-AI / per-step model routing（完全クローズ）**: provider adapter（Ollama/OpenAI/Gemini）＋ planner が step ごとに `tier:cheap/strong` 付与 → `tierModel` で vendor/model 解決（env で per-budget 上書き・cheap→無料ローカル/haiku）＋ auto-escalation（cheap 失敗 sentinel `→ stub]` 検出時だけ strong 再試行）＋ planner が high-stakes step に `consensus` node emit（N vendor 投票・cost 連動既定）＋ agent/prompt node の per-node vendor/model 明示 ＋ discover の auto-routing 提案（tier×cost を plan に surface・実行と一致）。`adab1b0`/`f643b75` ほか。詳細メモ↓ | 本 doc |
+| **Wave R-1** | **成果検証→通知（Resilience 最小スライス）**: automation の `expect`→run 完了ブロックの `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`（shenron.mjs 純粋・**判定中核 assert/judge は TODO(human)＝Learn by Doing で完成**）→ fail で `emitRunNotify('check_failed')`＋`state.checkResults`(cap50)。MCP 両surface `set_check`/`list_check_results`。`f4be4df`（merge `5d1af31`・O1 SSE と completedAt で統合）。R-2/R-3 は↓大規模計画 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
 |---|---|---|
 | **F サービス化/デプロイ** | compute 売らず control plane を売る／お財布適応 3 tier／常駐箱(Pi5・Mac mini・claude -p≫Ollama)／配布先 OpenClaw(MCP client ~380k★)／「hub も使える」=managed hub(BYO-key・browser-control 不可) | §16 |
-| **G multi-AI / model routing** | 下記「②」参照 | 本 doc |
-| **Wave M-1** | **パスワードリセット**: `/api/auth/reset-request` → terminal にリセットリンク出力（verify と同パターン）→ `/api/auth/reset?token=` で新パスワード受付。忘れた時に `users.json` 手編集が不要になる。`reset_password` MCP tool。 | 本 doc |
-| **Wave M-2** | **`list_runs` / `get_run` MCP tool**: flow を実行できるが「最近の結果を見る」MCP ツールがない。`/api/state` の runs を整形して返す（last 20件・status/outputs/flowId）。`get_run` で特定 runId の全出力を取得。 | 本 doc |
-| **Wave M-3** | **`test_notify` ツール**: 通知 webhook URL を登録しても疎通確認方法がない。テスト payload を1発送信 → 成功/失敗を返す。`/api/notify/test` route + `test_notify` MCP tool。 | 本 doc |
-| **Wave M-4** | **Automation enable/disable**: cron を止めるには削除するしかない。`toggle_automation(id, on)` で一時停止/再開。hub `/api/automations/:id/toggle` route + `toggle_automation` MCP tool。 | 本 doc |
+| **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
+| **U-2 MCP 完全統一（見送り）** | 完全統一（stdio attended dry-run 撤去・server pure proxy 化）＋ run_handoff の a2a を hub 移植。「限界価値小×リスク大」で**意図的見送り**（U-1 で主目的達成・hub は agent URL を持たない in-process モデル）。再開時の安価スライス=`fire_event`(=/api/fire 既存)・`run_automation`(find→runFlow) を remote 露出のみ。 | 本 doc |
 | **Wave N-2** | **セッション永続化**: ハブ再起動のたびにログインし直しが必要。`~/.giogio/sessions.json` に in-memory sessions をシリアライズ・デシリアライズ（expiry 付き）。起動時にロードし期限切れを自動パージ。 | 本 doc |
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
 | **Wave O-3** | **ハブ死活監視（self-ping）**: scheduler が動いているか外から確認する方法がない。`/api/health` エンドポイント（認証不要・uptime/scheduler/version を返す）。外部 cron から叩いて応答なし時は notify 通知を送る self-watchdog。 | 本 doc |
@@ -92,16 +91,26 @@ artifact は `run.outputs` / 承認待ち(handoff awaiting_approval)を読んで
 - **S5**: plan 段階の UI 要否判断（A）。
 - MCP-FIRST: 全 step に対応 MCP tool。関連: 既存 checkpoint/handoff approval・gen_component。
 
-## 次にやる（優先順）
-1. ~~🔬 discover-first 実機検証~~ **✅完了**（2026-06-21・ローカルで実体検証・上表 discover-first 行参照）。残=ngrok+claude.ai の e2e transport 確認（任意・MCP 標準なので他 connector で実証済）＋ rough edge（claude -p の非決定 X-API事実）を実運用で観測。
-2. ~~Wave G 残: discover の自動 routing 提案~~ **✅完了**（`f643b75`）= **Wave G フルクローズ**。
-3. ~~Wave H/I/J/K~~ **✅完了**（`59a2cdb`）= Push通知・Credential Vault・Skill共有・First-run。
-4. ~~Wave L: Auth~~ **✅完了**（`9063235`）= 登録・ログイン・メール認証・セッション管理。
-5. **UI への認証フォーム追加**（登録/ログイン画面 → 他 Claude 担当 UI 完成後に連携）。
-6. ~~Wave M-1〜4~~ **✅完了** — パスワードリセット・list_runs/get_run・test_notify・toggle_automation 全出荷。
-7. **マネタイズ軸の決定**（user・BYOK flat / control-plane / governance-marketplace）→ §16 §5。
-8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つに絞る）→ Wave M: 縦串デモ実装。
-9. §16 未確定: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか。
+## 次にやる（TODO 集約・正本）
+
+> 全ての「次にやる」をここに一本化（旧: 各 doc/CLAUDE.md/memory に散在）。完了は出荷済み表へ。状態の正本＝この doc。
+
+### A. 実装（コード）
+1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— U-1 の remote 44 tool / ui2 / settings / 神龍パネル がまだ本番未デプロイ（コードは origin/main）。
+2. **Wave R-1 の Learn by Doing**（`evalExpect`・shenron.mjs の判定中核）— **assert**（rule 文法を決める・決定論・LLM 不使用）と **judge**（cheap LLM yes/no・flowResult を vendor に送る前に `redact` 必須＝未 firewall egress）を実装すると R-1 が完全動作（現 stub は常に pass）。
+3. **Wave UI S1**（成果物UI ビューア）— ui2 内 sandbox iframe + fetch-shim→`/api/artifact-llm` proxy。設計＝↓「Wave UI 設計メモ」。
+4. **UI への認証フォーム**（登録/ログイン画面・Wave L backend は出荷済）。
+5. 小バックログ: **N-2** セッション永続化 / **N-3** `shenron doctor` / **O-3** ハブ死活監視 / **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。
+6. 大規模 Wave: **Login-1 → Goals-1 → Ambient-1**（↓大規模 Wave 計画・R-1 は出荷済）。
+
+### B. user 判断（方針）
+7. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
+8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
+9. **§16 未確定**: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか / Ollama tiering。
+
+### C. 運用
+10. **Railway「Dragon Balls」teardown**（hub+MySQL 常時課金中・ダッシュボード Delete Project + key ローテート + Hobby 解約）。
+11. 任意観測: discover-first の ngrok+claude.ai e2e transport 確認 / claude -p の非決定 X-API 事実を実運用で観測。
 
 ---
 
@@ -272,9 +281,34 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 ---
 
-## 🔖 次セッション hand-off（2026-06-22・ここから始める）
-- **✅ Wave R-1 main 統合済み**（merge `5d1af31`）。hub.mjs 完了ブロックで O1 SSE(`emitRunEvent`/`closeRunListeners`) と R-1(`completedAt` ガード) を統合＝completedAt が O1 の二重発火も防ぐ。全 syntax/test 緑・実機 e2e + review 4 lens 済。
-- **✅ Wave U-1: MCP 両surface統一 出荷**（branch `wave-u1-mcp-surface` `cad8618`・**未 merge/未 push**）。非対称（stdio 56 vs remote 21・38 tool が claude.ai 不可）を**共有レジストリ**で解消: 新規 `prototype/mcp/tools.mjs`（単一 `TOOLS` ＋ `PROXY` マップ＝pure /api-proxy tool の dispatch 知識を共有＝route が唯一の真実 ＋ `forStdio`/`forRemote`/`REMOTE_DENY`）を server.mjs と hub.mjs が両 import → 定義 drift が構造的に不可能に。hub `mcpDispatch` に `proxySelf` ループバック（hub が自身の `/api` を呼ぶ＝再実装ゼロ）＋ `list/get_handoff` in-process を追加 → **remote 23→44 tool**。**`REMOTE_DENY`={set_credential,set_permission,reset_password,list_users}**（user 判断: 生の秘密値・権限緩和・認証/列挙だけ claude.ai 経由を遮断・通常操作はモバイルに残す）。セキュリティ修正: REMOTE_DENY は advertise を絞るだけでなく mcpDispatch 先頭で dispatch も拒否（hidden≠blocked の穴を E2E で発見し封鎖）。`test_shenron.mjs` に surface 乖離ガード（advertise==dispatch 機械検証）。検証: test_shenron / e2e 10/10 / langflow / runner 緑 ＋ remote `/mcp` E2E 実機。
-- **▷ U-2 は意図的に見送り**（user 判断 2026-06-22）: 完全統一（stdio attended dry-run 撤去・server pure proxy 化）と run_handoff の a2a を hub 移植＝「限界価値小×リスク大」。`run_workflow` は U-1 で既にモバイル動作＝主目的達成済。hub は agent URL を持たない in-process モデルなので run_handoff a2a 移植は大工事。再開するなら安価スライス（`fire_event`=`/api/fire` 既存・`run_automation`=find→runFlow の小 route）だけが候補。
-- **▶ Wave R-1 の Learn by Doing（保留）**: `evalExpect`(shenron.mjs・判定中核) が TODO(human)・stub は常に pass。**assert**(rule 文法を決める・決定論・LLM 不使用) と **judge**(cheap LLM yes/no・flowResult を vendor に送る前に `redact` 必須＝未 firewall egress) を実装すると R-1 が完全動作。
-- **▶ 大規模 Wave 計画の残り**: Login-1 → Goals-1 → Ambient-1（上記設計通り）。
+## 別系統: trust / BuildHUD cockpit waves（branch `trust`・未merge・⚠️letter scheme が神龍と別）
+
+> ⚠️ **重要**: `trust` branch は神龍以前の「BuildHUD（cross-owner trust cockpit）」product line で、**wave の letter が神龍 waves と衝突する別体系**（trust の `H`=Trust Boundary ≠ 神龍の `H`=Push通知）。意図的に未merge の parked line（user 判断「価値未確証ゆえ main に載せない」・memory [[trust-worktree-separation]]/[[trust-moat-whitespace-findings]]）。**詳細は `trust:docs/11_COCKPIT_ROADMAP.md` ＋ `trust:PROJECT.md`**（本 doc は index のみ）。神龍 waves と混同しないこと。
+
+**BuildHUD cockpit waves（全 ✅ DONE・letter は BuildHUD 系）**:
+| Wave | 内容 |
+|---|---|
+| A | 配線キャンバス（typed ports + edges・pointer-events 配線） |
+| B | flow 保存 + DAG 実行（Langflow export + topo run・hub 代理実行 worker無し） |
+| C | trigger ノード → automation（n8n 流） |
+| D | agent palette + MCP export |
+| E | open-core「kills 手配線 cross-agent glue」ピッチ（docs/06 §6.8） |
+| F | integrations & settings（autorun on/off・MCP server 接続/on-off・mcp ノード） |
+| G | MCP tool ノード＋実 side-effect（`mcp-client.mjs`・approval フェンス・`echo-mcp-server.mjs` 検証） |
+| **H ★** | **Agent Trust Boundary（wedge・最重要差別化）**: `trust.mjs`＝data firewall(redact)＋tamper-evident audit(hash-chain)＋capability passport。hub 毎ホップ強制。＝巨人/Langflow に書けない cross-owner trust flow |
+| I | cross-vendor consensus node（N vendor fan-out→medoid 投票・vs vendor-native） |
+| J | build-state IR（trigger 語彙10＋no-eval match DSL 8演算子・vs iPaaS） |
+| K | Langflow parity（component library・per-field typed・⚠️差別化でなく入場料） |
+| L | Ghost Writer（NL→flow 著述 meta-agent・⚠️Langflow Assistant が既出→差別化は H とセット時のみ） |
+
+**使いやすさ Wave pass（`trust:PROJECT.md §5`・cockpit を1機能ずつ guided UI 化）**: Wave 1（配線 data-firewall inspector ✅）/ Wave 2（trigger/fire event UI ✅）/ Wave 2.1（人間ラベル化 ✅）ほか。詳細は `trust:PROJECT.md`。
+
+> 注: `wave-r-resilience` branch の ROADMAP は古いスナップショットで、内容（N-1/O-1/O-2・R-1・大規模計画）は**全て main に統合済**＝固有な未収載なし。
+
+## 🔖 最新ステータス（2026-06-22）
+
+> 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
+
+- **✅ origin/main = `b5c7817`**。直近出荷 = **Wave U-1: MCP 両surface統一**（`cad8618`・main 反映＋push 済）。共有レジストリ `tools.mjs` で stdio/remote の定義 drift を撲滅・**remote 23→44 tool**・`REMOTE_DENY`（秘密値/権限/認証だけ claude.ai 遮断・mcpDispatch でも dispatch 拒否）。全テスト緑＋remote `/mcp` E2E 実機。詳細＝出荷済み表 Wave U-1。
+- **✅ その前** = Wave R-1（成果検証→通知・merge `5d1af31`）。判定中核 `evalExpect` の assert/judge は未実装（→「次にやる」A-2）。
+- **意図的見送り** = U-2 MCP 完全統一（→「設計のみ」表）。
