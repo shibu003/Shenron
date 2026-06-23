@@ -52,6 +52,7 @@
 | **Wave N-2 / O-3** | **N-2 セッション永続化**: auth.mjs sessions を `~/.shenron/sessions.json` に永続化（起動時ロード・期限切れ自動パージ・ハブ再起動後もログイン維持）。**O-3 ハブ死活監視**: `GET /api/health`（認証不要・uptime/scheduler/version）+ `hub_health` MCP 両surface。`824e3a2` | 本 doc |
 | **Wave R-2** | **repair loop**: `onFail:'repair'` 時に fail した run の generated component を `genComponent` で自動再生成 → `approved:false`（`approve_component` 待ち）。`maxRetry` でループ防止。`repair_run` MCP tool で手動トリガーも可能。stdio 71 / remote 59 tools。`552431c` | 本 doc |
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright Chromium 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正コマンドを表示。`bin/shenron.mjs doctor` CLI ＋ `GET /api/doctor`（認証不要）＋ `hub_doctor` MCP 両surface（stdio 72 / remote 61 tools）。`prototype/hub/doctor.mjs` に共有チェックロジック。 | 本 doc |
+| **Wave Goals-2** | **ゴール concierge 能動化（自動 checkin + 期限/停滞通知）**: tick 相乗り `checkGoals()` が active ゴールの期限接近(3日前・overdue 含む)/停滞(14日無活動)を検出→`emitGoalNotify` push（`notified` 冪等）。bound automation の成功 run を `advanceFrom` 完了ブロックで自動 checkin（`current+=1` カウント式・stalled→active 復帰）。判定核＝`shenron.goalStatus`(純粋)。通知ループを `pushNotify` に単一化。`set_goal` に `automationIds`。新 MCP tool 無し（内部 hook）。settings.html status 色分け。 | 本 doc §Goals |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -283,8 +284,8 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 **Wave 分割**
 - **✅ Goals-1 出荷済 `802d0c8`（UI `454d941`・UI-Compat-2）**：CRUD + **手動 checkin** で進捗表示。metric 自動計測はしない（最小は人が値を入れる）。`set_goal/get_goal/list_goals/goal_checkin`（+`delete_goal`）MCP **両surface**（surfaces タグ無し＝stdio/remote 両方・surface guard 緑）。データ層＝`goals.json`/`saveGoal`/`goalCheckin`/`goalView`(pure `goalPct`)・hub `GET|POST /api/goals`(+`/checkin`・`/delete`)。検証＝test_e2e に MCP 経由 4 assert（set→checkin 250(active)→checkin 1000(reached)→list）green。**これを Mom Test の台にする**（本当にゴールを神龍に預けたい人がいるか）。
-- **Goals-2（肉付け）**：tick 相乗りで deadline 接近 / 停滞を `emitRunNotify` 通知。bound automation の run 成功を checkin に自動反映。
-- **Goals-3（肉付け）**：停滞時に `planFlow` を内部呼び → 「次の手」提案（能動 concierge）。
+- **✅ Goals-2 出荷済（本 Wave）**：tick 相乗り（`checkGoals()`＝`detectSuggestions()` の隣）で **期限接近(3日前・overdue 含む) / 停滞(14日無活動)** を検出→`emitGoalNotify` で notify integration に push（`goalPct`/wish のみ・値なし・`notified` フラグで冪等）。**bound automation の成功 run を自動 checkin**＝`advanceFrom` 完了ブロック（`completedAt` 冪等下）で `run.fromAutomation` を束ねるゴールの `current += 1`（**カウント式**・auto checkin 記録・stalled→active 復帰）。判定中核＝`shenron.goalStatus(g,now,{stallMs,deadlineMs})`(純粋・export・test_shenron 直検証)。通知ループは `pushNotify` に単一化（run/goal 共有・原則1）。`set_goal` schema に `automationIds` を追加（binding が load-bearing 化）。検証＝goalStatus 純粋 7 assert + e2e（bound automation fire→`get_goal` current +1・auto checkin）。**新 MCP tool 無し**（内部 hook・出力は既存 list/get_goal で surface）。UI＝settings.html で status を色分け（停滞=amber/到達=green）。
+- **Goals-3（肉付け・本 Wave 続き）**：停滞時に `planFlow` を内部呼び → 「次の手」提案（能動 concierge）。`goal_suggest(id)` MCP 両surface + tick 停滞検出で `suggestions.json` に kind:'goal' を自動 push。
 
 **risk / scope**：需要未接地(🟡)→ **Goals-1 で需要検証してから 2/3**。metric 自動計測は難 → 手動 checkin 既定。**scope 落とし候補=Goals-3**。
 **検証**：goal を set → checkin で current が動く → list で進捗率が出る。tick で deadline 接近時に通知。
