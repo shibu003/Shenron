@@ -245,7 +245,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 **MCP tools**：`set_login(domain, user, pass)`（vault ラッパ）/ `login_status(domain?)`（profile ごとの最終ログイン状態）
 
 **Wave 分割**
-- **Login-1（最小・安全）**：ログイン画面**検出 → ask checkpoint で人を呼ぶ** + audit + `login_status`。自動入力しない（ToS 安全）。**「切れたのに気づかず延々失敗」を消す**。
+- **✅ Login-1 出荷済 `65f8ac7`**：ログイン画面**検出 → ask checkpoint で人を呼ぶ** + audit + `login_status`。自動入力しない（ToS 安全）。「切れたのに気づかず延々失敗」を消す。実装＝`match.mjs looksLikeLogin`(pure・日英語彙)／`browser-worker awaitCheckpoint`(per-step ask と共有抽出)＋runGoal snapshot ループで検出→checkpoint→hub 記録（一度承認で続行）／`hub.mjs login-state.json`(STATE_DIR・`{lastDetected/lastOk/needsLogin}`・値は持たない)＋`GET /api/login-status`・`POST /api/login-detected`／`login_status` MCP **両surface**(PROXY GET・閲覧のみ)。検証＝match self-check＋実機 hub e2e(detect→needsLogin:true→resolve→false+lastOk)。
 - **Login-2（肉付け・opt-in）**：vault の credential で**自動ログイン入力**。2FA は必ず checkpoint で人に渡す。opt-in フラグ必須。
 - **Login-3（肉付け）**：cookie / token 期限を追跡し、切れる**前**に先回り通知。
 
@@ -310,6 +310,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
 
 - **✅ origin/main = `b5c7817`**。直近出荷 = **Wave U-1: MCP 両surface統一**（`cad8618`・main 反映＋push 済）。共有レジストリ `tools.mjs` で stdio/remote の定義 drift を撲滅・**remote 23→44 tool**・`REMOTE_DENY`（秘密値/権限/認証だけ claude.ai 遮断・mcpDispatch でも dispatch 拒否）。全テスト緑＋remote `/mcp` E2E 実機。詳細＝出荷済み表 Wave U-1。
-- **✅ 直近** = Wave R-1 判定中核 `evalExpect` 実装（`99aa25b`・未 push）。assert 決定論 + judge cheap-LLM（送信前 redact で egress firewall・fail-closed）。R-1 完全動作。全テスト緑。
+- **✅ 直近** = Wave Login-1（`65f8ac7`・未 push）。ログイン検出→人を呼ぶ・自動入力なし(ToS 安全)・`login_status` 両surface。match self-check＋実機 hub e2e 緑。実装順 R-1→Login-1 の Login-1 完了。
+- **✅ その前** = Wave R-1 判定中核 `evalExpect`（`99aa25b`・push 済）。assert 決定論 + judge cheap-LLM（送信前 redact で egress firewall・fail-closed）。R-1 完全動作。
 - **✅ その前** = Wave R-1 骨格（成果検証→通知・merge `5d1af31`）。
 - **意図的見送り** = U-2 MCP 完全統一（→「設計のみ」表）。
