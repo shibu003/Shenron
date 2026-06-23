@@ -268,3 +268,11 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 - **MCP-FIRST 監査**：上記 16 個の新 tool すべて `server.mjs` の `case` + hub route で露出。cockpit(shenron.html/ui2.html)は薄い view として後追い。
 - **テスト**：各最小スライスに `test_shenron.mjs` の assert を1本（606 hook の二重発火なし / goal checkin / login 値非漏洩 / suggestion 検出）。
 - **rollback 単位**：1 Wave=1 commit。R-1/Login-1/Goals-1/Ambient-1 が緑になってから肉付けへ。
+
+---
+
+## 🔖 次セッション hand-off（2026-06-22・ここから始める）
+- **✅ Wave R-1 main 統合済み**（merge `5d1af31`）。hub.mjs 完了ブロックで O1 SSE(`emitRunEvent`/`closeRunListeners`) と R-1(`completedAt` ガード) を統合＝completedAt が O1 の二重発火も防ぐ。全 syntax/test 緑・実機 e2e + review 4 lens 済。
+- **▶ 次の大タスク = MCP 両surface統一（共有 tool module リファクタ・user 選択 2026-06-22）**: 現状 stdio(`server.mjs` 54 tool) と remote(`hub.mjs MCP_TOOLS` 21 tool) が非対称で **38 tool が claude.ai から使えない**（O1/O2/R-1 は両surface対応したが Wave M 等は stdio のみ＝並列開発で「両surfaceに足す」方針が割れた）。**方針=共有 module 化**: tool 定義(`TOOLS` 配列)+dispatch を1モジュールに集約し、server.mjs(HTTP proxy) と hub mcpDispatch(in-process) が共有 → 「route が唯一の真実」で再発防止（差分検出 test も同梱）。**search/run 系(~10)は server ローカル実装で hub に再実装が要る**点が工数の山。詳細リスト = memory [[compat-audit-2026-06]]。
+- **▶ Wave R-1 の Learn by Doing（保留）**: `evalExpect`(shenron.mjs・判定中核) が TODO(human)・stub は常に pass。**assert**(rule 文法を決める・決定論・LLM 不使用) と **judge**(cheap LLM yes/no・flowResult を vendor に送る前に `redact` 必須＝未 firewall egress) を実装すると R-1 が完全動作。
+- **▶ 大規模 Wave 計画の残り**: Login-1 → Goals-1 → Ambient-1（上記設計通り）。
