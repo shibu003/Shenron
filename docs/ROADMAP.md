@@ -141,10 +141,34 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 5. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
 6. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
 
+7. 🚧 **Wave Remix-1**（`clone_workflow`・フロー fork→改造→部品化）— scaffold 配線済（hub `cloneWorkflow` + `mcpDispatch` + POST `/api/workflows/:id/clone`・tools.mjs `clone_workflow` remote）。**中核ロジックは Learn by Doing 待ち**（deep-copy / 新 id 一意化 / 引継ぎ判断）。詳細↓「## Wave Remix」。
+
 ### B. user 判断（方針）
-7. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
-8. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
-9. **§16 未確定**: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか / Ollama tiering。
+8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
+9. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
+10. **§16 未確定**: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか / Ollama tiering。
+
+---
+
+## Wave Remix — フロー/部品の再利用（fork・改造・部品化）
+
+> 発端（user 2026-06-23）: 「すでに持っている flow や生成した部品を、他の flow の際に流用したり、コピーしたものを再利用して改造して新たな flow の部品にできるように」。
+
+**現状認識**: 「再利用（部品化）」の半分は **既に動く** — 保存済み flow は sub-flow ノード（`kind:'workflow'` + `node.ref` → `fireWorkflowNode` hub.mjs）として別 flow に nested run で組み込める。`install_template` も「clone して編集可能 workflow にする」パターンを実証済（`saveWorkflow`・同梱テンプレ限定）。**欠けていた primitive = 自分の既存 flow を fork（コピー）して改造する手段**（`saveWorkflow` は同 id 上書きでコピーを作れない）。
+
+**Remix-1（最小縦串・🚧 scaffold 済・中核 Learn by Doing 待ち）= `clone_workflow`**
+- hub `cloneWorkflow(id, name)` = 保存済み flow を deep-copy → 新 id 採番 → `saveWorkflow`。元は不変、コピーを改造して sub-flow ノードで別 flow の部品に再利用。
+- MCP 両surface: tools.mjs `clone_workflow`（`surfaces:['remote']`・`save_workflow` と同型）+ hub `mcpDispatch` 直呼び。
+- HTTP: `POST /api/workflows/:id/clone {name?}`（UI 用・既存 bearerOk gate 配下）。
+- **中核ロジックは TODO(human)**（hub.mjs `cloneWorkflow` 本体）: ① deep-copy（structuredClone・参照共有禁止＝コピー編集が元を壊さない）② 新 id 一意化（slug 衝突で上書きを防ぐ）③ 引継ぎ/リセット（ui/summary/tags は引継ぎ・lastRun はコピー毎・automation 束縛は引き継がない）。
+- 検証（中核実装後）: flow を clone → 新 id で 🗂 に出る → コピーを改造 → 別 flow に sub-flow ノードで挿す → run（元 flow 無傷）。
+- **UI 反映（同 commit・[[feedback_ui_sync]]）**: shenron.html 🗂 Flows に「複製」ボタン（`POST .../clone` 叩き）。
+
+**意図的 skip（lazy・後続スライス）** ※各項目「理由 + いつやるか」を明記（[[feedback_skip_record]]）:
+- **Remix-2**: `clone_component`（生成部品の fork）。**理由**: 現状 `export_skill`→`import_skill` で擬似 clone 可（pending として新規登録）＝専用 tool は重複。**いつ**: Remix-1 出荷後、beachhead デモ（次にやる B-8）で「部品をコピーして改造する」操作が実際に発生し、export/import 2 手が手間だと観測された時点。観測ゼロなら作らない。
+- **Remix-3**: collapse — flow の一部（複数ノード選択）を 1 つの再利用 sub-flow に切り出す UX。**理由**: trust ブランチ ③b-2 に既存だが React Flow 寄りで重く、Remix-1 の `clone_workflow`＋既存 sub-flow ノードで「丸ごと fork して挿す」は既に賄える。**いつ**: 「## Wave UI — 成果物UI（canvas 操作面）」を本格着手する Wave に同梱（単独では作らない＝canvas 編集体験とセットで初めて元が取れる）。
+
+**MCP-FIRST 整合**: `clone_workflow` は server.mjs/hub.mjs 共有の tools.mjs に登録＝両surface drift 不可能。
 
 ---
 
