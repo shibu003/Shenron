@@ -134,7 +134,7 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 ### A. 実装（コード）
 1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— U-1 の remote 44 tool / ui2 / settings / 神龍パネル がまだ本番未デプロイ（コードは origin/main）。
 2. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
-3. ~~**Wave UI S1**（成果物UI ビューア）~~ — **✅完了 `598b8c0`**: ui2.html に 🎨 ボタン + sandbox iframe + fetch-shim（postMessage）+ `/api/artifact-llm` proxy。次＝**Wave UI S2**（操作→flow advance ブリッジ）。
+3. ~~**Wave UI S1〜S4**（成果物UI ビューア → 生成）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c`。次＝**Wave UI S5**（plan 段階の UI 要否判断）。
 4. **UI への認証フォーム**（登録/ログイン画面・Wave L backend は出荷済）。
 5. 小バックログ: **N-2** セッション永続化 / **N-3** `shenron doctor` / **O-3** ハブ死活監視 / **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。
 6. 大規模 Wave: **Login-1 → Goals-1 → Ambient-1**（↓大規模 Wave 計画・R-1 は出荷済）。
@@ -345,9 +345,11 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
 
-- **✅ origin/main = `f20e64f`**（2026-06-23）。
-- **✅ 直近** = `f20e64f` settings.html に Suggestions UI（Ambient-1 backend の UI 反映）。
-- **✅ その前** = `598b8c0` Wave UI S1 成果物 UI ビューア（ui2.html に 🎨 ボタン + sandbox iframe + fetch-shim + `/api/artifact-llm` proxy）。
+- **✅ origin/main = `829457c`**（2026-06-23）。
+- **✅ 直近** = `829457c` Wave UI S4 gen_artifact_ui（JSX 生成・bridge 規約付き）。
+- **✅ その前** = `fbb5274` Wave UI S3 flow↔UI 紐付け（set_flow_ui/get_flow_ui）。
+- **✅ その前** = `9de279d` Wave UI S2 approve/advance bridge（postMessage ホワイトリスト）。
+- **✅ その前** = `598b8c0` Wave UI S1 成果物 UI ビューア（sandbox iframe + fetch-shim + `/api/artifact-llm` proxy）。
 - **✅ その前** = `5187618` Ambient-1 観察→提案（`detectSuggestions`・tickScheduler 相乗り・MCP 両surface 65/53 tool）。
 - **✅ 大規模 Wave 4 本完走**: R-1 → Login-1 → Goals-1 → Ambient-1 すべて main 反映済み。
 - **意図的見送り** = U-2 MCP 完全統一（→「設計のみ」表）。
