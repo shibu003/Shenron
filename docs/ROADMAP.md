@@ -91,6 +91,40 @@ artifact は `run.outputs` / 承認待ち(handoff awaiting_approval)を読んで
 - **S5**: plan 段階の UI 要否判断（A）。
 - MCP-FIRST: 全 step に対応 MCP tool。関連: 既存 checkpoint/handoff approval・gen_component。
 
+## Wave UI-Compat — backend 機能の UI 反映（整合性監査 driven・2026-06-22）
+
+> 発端（user）: 「並列 agent で機能ごとに互換性がなくなっている」「UI にも反映できていない機能がたくさんある」。Explore 3本（MCP両surface / UI / 機能間意味）で監査 → **誤判定を裏取りで除外**した正味の結論。⚠️ Explore は最近の commit を反映せず誤検知が多かった（鵜呑み禁止・[[check-before-build]]）。
+
+### 監査の正味結論（誤判定を除いた後）
+- ❌ **「MCP remote 16件欠落」は誤判定**: surface guard 緑（stdio 62/remote 50 all dispatchable）。`search_*`/`get_*`/`build_state`/`run_*`/`fire_event` は `surfaces:['stdio']`＝**意図的に remote 除外**（U-1 設計通り）。`save_workflow`/`get_checkpoint` 等 `['remote']` は mcpDispatch 実装あり。**MCP 両surface は整合**。
+- ❌ **「login-state 未統合」「judge redact test 欠如」も誤判定**: どちらも実装済（Login-1 `65f8ac7`・R-1 `99aa25b`）。
+- ✅ **真の問題は2つだけ**: ① UI が backend に追いついてない ② BuildHUD→神龍 リネーム漏れ（ユーザー可視）。
+
+### 問題1: UI 未反映（出荷済 backend が cockpit で操作不可）
+shenron.html / settings.html に操作 UI が無い出荷済機能:
+- 🔴 Credential Vault（`set/get/list/delete_credential`）— 登録フォーム無し（flow の cred 注入が UI から設定不能）
+- 🔴 Webhook 通知（`set_notify`/`test_notify`）— 無し（Slack/Discord 登録不能）
+- 🔴 Goals（`set_goal`/`goal_checkin` ほか・`802d0c8`）— タブ無し（進捗 checkin 不能）
+- 🔴 成果検証（`set_check`/`list_check_results`）— automation に expect 付与 UI 無し
+- 🟡 Templates install（`list/install_template`）/ Auth login・register form（Wave L backend 済）/ SSE live 進捗（ui2 済・shenron 未）
+- 注: ui.html（旧フル）には credential/agent-factory 等が在る可能性 → 欠落は主に shenron.html/settings.html。
+
+### 問題2: BuildHUD→神龍 リネーム漏れ（ユーザー可視）
+- 🔴 `mcp-client.mjs:11` `CLIENT_INFO.name='buildhud'`（claude.ai 接続時に MCP client 名として見える）
+- 🔴 `hub.mjs:1070` UI fallback `<h1>BuildHUD hub</h1>` / 起動ログ
+- 🟡 `server.mjs` ログ `[buildhud-mcp]` / `serverInfo.name` / `build_state` description（内部寄り）
+- ⚠️ `buildhud://` Resource URI は**外部接続済 claude.ai との互換性破壊リスク**＝**据置**（表示名と description のみ直す）。
+
+### Wave 分割（WIP=1・1 Wave=1 commit・各 MCP backend 変更ゼロ＝既存 route を UI から叩くだけ）
+- **UI-Compat-1**：settings.html に Credential Vault + Webhook 通知セクション（登録/削除フォーム + Test ボタン）。別claude 非接触ファイル＝低リスク。
+- **UI-Compat-2**：Goals 操作 UI（CRUD + checkin 入力）+ 成果検証 set_check の expect 設定 modal。配置先（shenron.html タブ or settings）は着手時判断。
+- **UI-Compat-3**：Templates install modal / Auth login・register form。
+- **Rename**：ユーザー可視の BuildHUD→神龍（`CLIENT_INFO.name`・hub UI fallback/起動ログ・server ログ・description）。**URI は据置**。⚠️ 別claude の OpenClaw 作業と重複しうる → 着手前に分担確認。
+
+### 制約（並列開発・memo 教訓）
+- 別claude が shenron.html / OpenClaw / リネームを並列編集中 → **UI 編集は worktree 隔離 or settings.html に寄せる**（shenron.html 直接編集は衝突地獄）。
+- commit は常に明示パス add（mine-only）。Rename は分担確認まで着手しない。
+
 ## 次にやる（TODO 集約・正本）
 
 > 全ての「次にやる」をここに一本化（旧: 各 doc/CLAUDE.md/memory に散在）。完了は出荷済み表へ。状態の正本＝この doc。
