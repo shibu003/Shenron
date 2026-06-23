@@ -136,8 +136,8 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 
 ### A. 実装（コード）
 1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— U-1 の remote 44 tool / ui2 / settings / 神龍パネル がまだ本番未デプロイ（コードは origin/main）。
-2. 大規模 Wave: **Goals-1**（Login-1・Ambient-1 は出荷済・R-1 は出荷済・↓大規模 Wave 計画）。
-3. 小バックログ: **N-3** `shenron doctor` / **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。N-2/O-3 は出荷済。
+2. ~~大規模 Wave: **Goals-1**~~ — **✅完了（出荷済 `802d0c8` backend / `454d941` UI）**: 確認 Wave で backend(両surface)+UI が実機動作することを実証し、欠けていた e2e test（MCP 経由 set→checkin→reached→list 4 assert）を補完。**⚠️同 Wave で P0 リグレッション発見・修正**: `6f12c04` N-3 doctor が `await runDoctor()` を非 async handler に入れ **hub.mjs が起動不能だった**（main が壊れていた・一度も動いていない）→ Promise を `.then()` で返す 1 行修正。R-1/Login-1/Goals-1/Ambient-1 全 4 本これで実 green。
+3. 小バックログ: ~~**N-3** `shenron doctor`~~（✅出荷 `6f12c04`・上記の起動 bug は修正済）/ **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。N-2/O-3 は出荷済。
 4. **UI への認証フォーム**（登録/ログイン画面・Wave L backend は出荷済）。
 5. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
 6. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
@@ -282,7 +282,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 **MCP tools**：`set_goal` / `get_goal` / `list_goals` / `goal_checkin(id, value, note)` / `goal_suggest(id)`(Goals-3)
 
 **Wave 分割**
-- **Goals-1（最小）**：CRUD + **手動 checkin** で進捗表示。metric 自動計測はしない（最小は人が値を入れる）。`set_goal/get_goal/list_goals/goal_checkin`。**これを Mom Test の台にする**（本当にゴールを神龍に預けたい人がいるか）。
+- **✅ Goals-1 出荷済 `802d0c8`（UI `454d941`・UI-Compat-2）**：CRUD + **手動 checkin** で進捗表示。metric 自動計測はしない（最小は人が値を入れる）。`set_goal/get_goal/list_goals/goal_checkin`（+`delete_goal`）MCP **両surface**（surfaces タグ無し＝stdio/remote 両方・surface guard 緑）。データ層＝`goals.json`/`saveGoal`/`goalCheckin`/`goalView`(pure `goalPct`)・hub `GET|POST /api/goals`(+`/checkin`・`/delete`)。検証＝test_e2e に MCP 経由 4 assert（set→checkin 250(active)→checkin 1000(reached)→list）green。**これを Mom Test の台にする**（本当にゴールを神龍に預けたい人がいるか）。
 - **Goals-2（肉付け）**：tick 相乗りで deadline 接近 / 停滞を `emitRunNotify` 通知。bound automation の run 成功を checkin に自動反映。
 - **Goals-3（肉付け）**：停滞時に `planFlow` を内部呼び → 「次の手」提案（能動 concierge）。
 
@@ -368,8 +368,9 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
 
-- **✅ origin/main 同期済（push 完了・未push なし）**。直近スタック: `76979ba` Remix-1 / `552431c` R-2 repair / `824e3a2` N-2・O-3（+ docs）。
-- **✅ 直近（local）** = `76979ba` Wave Remix-1 clone_workflow（フロー fork→改造→部品化・🗂「⧉複製」・HTTP e2e 7 assert green）。
+- **🔧 直近（local・未 commit）** = Wave Goals-1 確認 + **P0 修正**: `6f12c04` N-3 doctor が `await runDoctor()` を非 async handler に入れ **hub.mjs が起動不能**だった（main が壊れていた・全 e2e 2/12）→ `.then()` 1 行で修正（→ 14/14 green）。併せて Goals-1 の欠落 e2e（MCP 経由 set→checkin→reached→list 4 assert）を補完。
+- **✅ origin/main 同期済（push 完了）= `6f12c04` まで**（↑の起動 fix が未 commit）。push 済スタック: `6f12c04` N-3 doctor / `76979ba` Remix-1 / `552431c` R-2 repair / `824e3a2` N-2・O-3。
+- **✅ その前（local→push 済）** = `76979ba` Wave Remix-1 clone_workflow（フロー fork→改造→部品化・🗂「⧉複製」・HTTP e2e 7 assert green）。
 - **✅ その前** = `552431c` Wave R-2 repair loop（onFail:repair で生成コンポーネント自動再生成）。
 - **✅ その前** = `824e3a2` Wave N-2・O-3（セッション永続化 + ハブ死活監視）。
 - **✅ その前** = `a6d53b2` Wave UI S5 ui_hint（plan 段階の UI 要否判断・Wave UI S 完走）。
