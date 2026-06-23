@@ -45,19 +45,19 @@
 | **Wave Q** | **モバイル PWA（shenron.html をホーム画面インストール可能に）**: UI のみ。新規 `prototype/hub/manifest.json`（🐉絵文字を slate-900 背景に描いた SVG data URI アイコン＝バイナリ依存ゼロ・`start_url:/shenron`・standalone・theme `#0f172a`）+ 新規 `prototype/hub/sw.js`（最小 service worker・`CACHE='giogio-v1'`・app shell `[/shenron,/manifest.json]` を cache-first・`/api/*` `/mcp/*` `/oauth/*` `/.well-known/*` は network-only ＝承認/inbox/egress がキャッシュされない・POST は不介入＝trust 境界不変）。hub.mjs に既存静的配信と同パターンの `GET /manifest.json`（`application/manifest+json`）+ `GET /sw.js`（root 配信で scope='/'・`cache-control:no-cache`）を `/shenron` route 直後・OPTIONS より前に追加（`MANIFEST_FILE`/`SW_FILE` 定数）。shenron.html `<head>` に manifest link + apple-touch-icon(SVG data URI) + theme-color/apple-mobile-web-app メタ群、末尾に `load` 後の `navigator.serviceWorker.register('/sw.js')`（失敗は warn のみ＝非対応ブラウザでも UI 無傷）。MCP tool は不要（UI のみ）。 | 本 doc |
 | **Wave G** | **multi-AI / per-step model routing（完全クローズ）**: provider adapter（Ollama/OpenAI/Gemini）＋ planner が step ごとに `tier:cheap/strong` 付与 → `tierModel` で vendor/model 解決（env で per-budget 上書き・cheap→無料ローカル/haiku）＋ auto-escalation（cheap 失敗 sentinel `→ stub]` 検出時だけ strong 再試行）＋ planner が high-stakes step に `consensus` node emit（N vendor 投票・cost 連動既定）＋ agent/prompt node の per-node vendor/model 明示 ＋ discover の auto-routing 提案（tier×cost を plan に surface・実行と一致）。`adab1b0`/`f643b75` ほか。詳細メモ↓ | 本 doc |
 | **Wave Ambient-1** | **観察→提案（自分データのみ）**: `detectSuggestions()`（tickScheduler 相乗り）→ `suggestions.json`（kind:automate/fix・冪等・cap100）。`list_suggestions`/`dismiss_suggestion`/`apply_suggestion` MCP 両surface。settings.html に 💡 神龍の提案 UI。`5187618`/`f20e64f` | 本 doc |
-| **Wave UI S1** | **成果物 UI ビューア**: ui2.html に 🎨 ボタン + `<iframe sandbox="allow-scripts">` + fetch-shim（postMessage ブリッジ）→ `/api/artifact-llm` hub proxy（ANTHROPIC_API_KEY server-side・鍵はブラウザ不可視）。JSX+Babel standalone + React 18 CDN。`598b8c0` | 本 doc |
+| **Wave UI S1〜S5** | **成果物 UI ビューア→plan UI 要否判断（全スライス完走）**: S1=ui2.html に 🎨 ボタン + `<iframe sandbox="allow-scripts">` + fetch-shim→`/api/artifact-llm` proxy（鍵はブラウザ不可視）`598b8c0`。S2=approve/advance bridge（postMessage ホワイトリスト）`9de279d`。S3=flow↔UI 紐付け（`set_flow_ui`/`get_flow_ui` MCP tool + hub route）`fbb5274`。S4=`gen_artifact_ui`（bridge 規約付き JSX 生成）`829457c`。S5=plan 段階 `ui_hint:"none"|"generate"` 要否判断（PROMPT+buildPlanIR+renderPlan+tools.mjs）`a6d53b2`。 | 本 doc |
 | **Wave R-1** | **成果検証→通知（Resilience 最小スライス・✅判定中核も完成）**: automation の `expect`→run 完了ブロックの `completedAt` exactly-once ガード→`checkOutcome`→`evalExpect`（shenron.mjs 純粋）→ fail で `emitRunNotify('check_failed')`＋`state.checkResults`(cap50)。MCP 両surface `set_check`/`list_check_results`。`f4be4df`（merge `5d1af31`・O1 SSE と completedAt で統合）。**判定中核 `evalExpect` 実装済 `99aa25b`**: assert=決定論($0・contains/!contains/equals/regex/json:path=val・bad regex/non-JSON は fail)、judge=cheap-LLM yes/no（**送信前 redact() で secret/PII firewall＝新 egress を塞ぐ**・stub sentinel/例外は fail-closed・reason に生 output 無し）。R-2/R-3 は↓大規模計画 | 本 doc |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
 |---|---|---|
 | **F サービス化/デプロイ** | compute 売らず control plane を売る／お財布適応 3 tier／常駐箱(Pi5・Mac mini・claude -p≫Ollama)／配布先 OpenClaw(MCP client ~380k★)／「hub も使える」=managed hub(BYO-key・browser-control 不可) | §16 |
-| **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
-| **U-2 MCP 完全統一（見送り）** | 完全統一（stdio attended dry-run 撤去・server pure proxy 化）＋ run_handoff の a2a を hub 移植。「限界価値小×リスク大」で**意図的見送り**（U-1 で主目的達成・hub は agent URL を持たない in-process モデル）。再開時の安価スライス=`fire_event`(=/api/fire 既存)・`run_automation`(find→runFlow) を remote 露出のみ。 | 本 doc |
 | **Wave N-2** | **セッション永続化**: ハブ再起動のたびにログインし直しが必要。`~/.giogio/sessions.json` に in-memory sessions をシリアライズ・デシリアライズ（expiry 付き）。起動時にロードし期限切れを自動パージ。 | 本 doc |
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正方法を表示。`bin/shenron.mjs doctor` サブコマンド。 | 本 doc |
 | **Wave O-3** | **ハブ死活監視（self-ping）**: scheduler が動いているか外から確認する方法がない。`/api/health` エンドポイント（認証不要・uptime/scheduler/version を返す）。外部 cron から叩いて応答なし時は notify 通知を送る self-watchdog。 | 本 doc |
+| **U-2 MCP 完全統一（見送り）** | 完全統一（stdio attended dry-run 撤去・server pure proxy 化）＋ run_handoff の a2a を hub 移植。「限界価値小×リスク大」で**意図的見送り**（U-1 で主目的達成・hub は agent URL を持たない in-process モデル）。再開時の安価スライス=`fire_event`(=/api/fire 既存)・`run_automation`(find→runFlow) を remote 露出のみ。 | 本 doc |
 | **Wave UI — 成果物UI（操作面）** | 神龍が足りない道具を自作する性質上、**操作必須の UI 付き生成物が頻発**する。ui2.html 内で特定 flow の成果物 UI を見て操作 → その操作で自動化フローが進む（人在ループのリッチ checkpoint）。スマホ+PC 両対応。神龍は **plan 段階で UI 要否を判断**（承認だけ→通知で十分=UI無し／操作+可視化が要る時だけ生成）。sandbox iframe(JSX+Babel)で描画・**鍵は箱に残す fetch-shim**・操作→bridge→hub が advance。Lovable(bespoke アプリ生成/別ホスト deploy)ではなく control-plane 内で「成果物に顔を付ける」。 | 下記メモ |
+| **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
 
 ## Wave UI — 成果物UI（操作面）設計メモ
 
@@ -133,20 +133,20 @@ shenron.html / settings.html に操作 UI が無い出荷済機能:
 
 ### A. 実装（コード）
 1. **Fly.io `hub.shibubu.ai` 反映**（`fly deploy`）— U-1 の remote 44 tool / ui2 / settings / 神龍パネル がまだ本番未デプロイ（コードは origin/main）。
-2. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
-3. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
+2. 大規模 Wave: **Login-1 → Goals-1 → Ambient-1**（↓大規模 Wave 計画・R-1 は出荷済）。
+3. 小バックログ: **N-2** セッション永続化 / **N-3** `shenron doctor` / **O-3** ハブ死活監視 / **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。
 4. **UI への認証フォーム**（登録/ログイン画面・Wave L backend は出荷済）。
-5. 小バックログ: **N-2** セッション永続化 / **N-3** `shenron doctor` / **O-3** ハブ死活監視 / **U-2 安価スライス**（fire_event・run_automation を remote 露出のみ・任意）。
-6. 大規模 Wave: **Login-1 → Goals-1 → Ambient-1**（↓大規模 Wave 計画・R-1 は出荷済）。
+5. ~~**Wave R-1 の Learn by Doing**（`evalExpect`）~~ — **✅完了 `99aa25b`**: assert（決定論・contains/!contains/equals/regex/json:path=val）+ judge（cheap LLM yes/no・送信前 redact() で egress firewall・fail-closed）を実装。R-1 完全動作。残＝R-2(repair)/R-3(drift) は大規模計画。
+6. ~~**Wave UI S1〜S5**（成果物UI ビューア → plan UI 要否判断）~~ — **✅完了**: S1=ビューア `598b8c0` / S2=approve/advance bridge `9de279d` / S3=flow↔UI紐付け `fbb5274` / S4=gen_artifact_ui `829457c` / S5=ui_hint `a6d53b2`。**Wave UI S 完走**。
 
 ### B. user 判断（方針）
-7. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
-8. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
+7. **beachhead ジャンル選定**（家計・EC監視・コンテンツ制作・開発者自動化・リサーチ自動化から1つ）→ 縦串デモ実装。
+8. **マネタイズ軸の決定**（BYOK flat / control-plane / governance-marketplace）→ §16 §5。
 9. **§16 未確定**: OpenClaw 統合深度 / 常駐箱 one-click(MCPB) / managed hub を立てるか / Ollama tiering。
 
 ### C. 運用
-10. **Railway「Dragon Balls」teardown**（hub+MySQL 常時課金中・ダッシュボード Delete Project + key ローテート + Hobby 解約）。
-11. 任意観測: discover-first の ngrok+claude.ai e2e transport 確認 / claude -p の非決定 X-API 事実を実運用で観測。
+10. discover-first の ngrok+claude.ai e2e transport 確認 / claude -p の非決定 X-API 事実を実運用で観測（任意）。
+11. **Railway「Dragon Balls」teardown**（hub+MySQL 常時課金中・ダッシュボード Delete Project + key ローテート + Hobby 解約）。
 
 ---
 
