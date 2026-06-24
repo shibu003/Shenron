@@ -76,42 +76,42 @@
   .c3 .note{ color:#1c4226; font-family:ui-monospace,monospace; }
   .c3 .card, .c3 .grid{ position:relative; }
 
-  /* ---------- 本命: 2×3 ブレンド / Netdive Blue（電脳・高発色）---------- */
-  .feat{ margin-top:28px; border:1px solid #0e4a66; border-radius:8px; overflow:hidden;
-         background:radial-gradient(130% 150% at 0% 0%, #08161f 0%, #04080d 62%); box-shadow:0 0 70px -24px #22d3ee99, inset 0 0 0 1px #06222e; }
-  .feat .fhead{ display:flex; align-items:baseline; gap:12px; padding:16px 20px; border-bottom:1px solid #0e4a66;
-                font-family:ui-monospace,monospace; color:#67e8f9; letter-spacing:.06em; font-size:13px; text-shadow:0 0 10px #22d3ee66; }
-  .feat .fhead .sub{ font-size:11px; opacity:.75; letter-spacing:0; color:#4d9fc0; text-shadow:none; }
+  /* ---------- 本命: 2×3 ブレンド / Netdive Blue（フラット・発色なし）---------- */
+  .feat{ margin-top:28px; border:1px solid #1c3a52; border-radius:8px; overflow:hidden;
+         background:#0a121b; }
+  .feat .fhead{ display:flex; align-items:baseline; gap:12px; padding:16px 20px; border-bottom:1px solid #1c3a52;
+                font-family:ui-monospace,monospace; color:#7eb6d9; letter-spacing:.06em; font-size:13px; }
+  .feat .fhead .sub{ font-size:11px; opacity:.75; letter-spacing:0; color:#5a82a0; }
   .feat .body{ padding:18px 20px 22px; display:grid; gap:16px; }
 
   /* topbar mock */
   .tbar{ display:flex; align-items:center; gap:10px; }
-  .tbar .brand{ font-family:ui-monospace,monospace; color:#a5f3fc; font-size:14px; letter-spacing:.1em; margin-right:6px; text-shadow:0 0 12px #22d3ee88; }
-  .tbar .reticle{ width:16px; height:16px; color:#22d3ee; opacity:.95; filter:drop-shadow(0 0 4px #22d3ee); }
+  .tbar .brand{ font-family:ui-monospace,monospace; color:#aacbe4; font-size:14px; letter-spacing:.1em; margin-right:6px; }
+  .tbar .reticle{ width:16px; height:16px; color:#5b9bd1; opacity:.9; }
   .gbtn{ display:inline-flex; align-items:center; gap:7px; font-family:ui-monospace,monospace; font-size:12px;
-         padding:7px 12px; border-radius:6px; background:#06202b; border:1px solid #115e75; color:#7dd3fc; cursor:default; }
+         padding:7px 12px; border-radius:6px; background:#101e2b; border:1px solid #244660; color:#9cc4e0; cursor:default; }
   .gbtn svg{ width:15px; height:15px; }
-  .gbtn.primary{ background:#073445; border-color:#22d3ee; color:#cffafe; box-shadow:0 0 20px -4px #22d3ee, inset 0 0 12px -6px #67e8f9; text-shadow:0 0 8px #22d3ee; }
-  .gbtn.ghost{ background:transparent; border-color:#0c3a4d; color:#3f8fae; }
+  .gbtn.primary{ background:#1a3a55; border-color:#3b6f97; color:#dceaf5; }
+  .gbtn.ghost{ background:transparent; border-color:#1c3548; color:#5e84a0; }
   .spacer{ margin-left:auto; }
 
   /* node cards mock */
   .nodes{ display:flex; gap:14px; flex-wrap:wrap; }
-  .ncard{ width:208px; border:1px solid #0e4a66; border-radius:8px; background:#061018; overflow:hidden; box-shadow:0 0 24px -16px #22d3ee; }
-  .ncard .nh{ display:flex; align-items:center; gap:8px; padding:9px 11px; border-bottom:1px solid #0a3344;
-              background:linear-gradient(90deg,#082635,#061018); }
-  .ncard .nh svg{ width:17px; height:17px; color:#22d3ee; filter:drop-shadow(0 0 5px #22d3eeaa); }
-  .ncard .nh .nt{ font-family:ui-monospace,monospace; font-size:12px; color:#c4f3fc; }
-  .ncard .nb{ padding:9px 11px; font-size:11px; color:#5f93a8; line-height:1.6; }
+  .ncard{ width:208px; border:1px solid #213e56; border-radius:8px; background:#0c1822; overflow:hidden; }
+  .ncard .nh{ display:flex; align-items:center; gap:8px; padding:9px 11px; border-bottom:1px solid #182d3e;
+              background:#0f1f2c; }
+  .ncard .nh svg{ width:17px; height:17px; color:#5b9bd1; }
+  .ncard .nh .nt{ font-family:ui-monospace,monospace; font-size:12px; color:#c2d6e6; }
+  .ncard .nb{ padding:9px 11px; font-size:11px; color:#6d8aa0; line-height:1.6; }
   .ncard .ports{ display:flex; justify-content:space-between; padding:8px 11px 10px; }
-  .ncard .port{ display:flex; align-items:center; gap:5px; font-family:ui-monospace,monospace; font-size:10px; color:#3f8fae; }
-  .pdot{ width:7px; height:7px; border-radius:50%; background:#061018; border:1.5px solid #22d3ee; box-shadow:0 0 8px #22d3ee; }
+  .ncard .port{ display:flex; align-items:center; gap:5px; font-family:ui-monospace,monospace; font-size:10px; color:#5e84a0; }
+  .pdot{ width:7px; height:7px; border-radius:50%; background:#0c1822; border:1.5px solid #5b9bd1; }
 
   /* status bar mock */
   .sbar{ display:flex; gap:10px; flex-wrap:wrap; font-family:ui-monospace,monospace; font-size:11px; }
-  .stat{ display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:4px; background:#06202b; border:1px solid #0c3a4d; color:#9bd3e6; }
+  .stat{ display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:4px; background:#101e2b; border:1px solid #213e56; color:#9cbdd6; }
   .stat .sd{ width:8px; height:8px; border-radius:50%; }
-  .prompt{ font-family:ui-monospace,monospace; font-size:11px; color:#2f7894; text-shadow:0 0 8px #22d3ee44; }
+  .prompt{ font-family:ui-monospace,monospace; font-size:11px; color:#4a6b86; }
 </style>
 </head>
 <body>
@@ -139,7 +139,7 @@
 
   <!-- 本命: 2×3 ブレンド -->
   <div class="feat">
-    <div class="fhead">本命 / Netdive Blue<span class="sub">案2 の節度 × 案3 の電脳ダイブ — 青で高発色・電脳グロー強め（記号は線画のまま）</span></div>
+    <div class="fhead">本命 / Netdive Blue（フラット）<span class="sub">案2 の節度 × 案3 の電脳ダイブ — 青・発色なし（グロー/ネオン除去・記号は線画のまま）</span></div>
     <div class="body" id="featBody"></div>
   </div>
 
@@ -226,9 +226,9 @@ document.getElementById('featBody').innerHTML = `
     </div>
   </div>
   <div class="sbar">
-    <span class="stat"><span class="sd" style="background:#34d399;box-shadow:0 0 6px #34d399"></span>online</span>
-    <span class="stat"><span class="sd" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b"></span>scheduler: 注意</span>
-    <span class="stat"><span class="sd" style="background:#ef4444;box-shadow:0 0 6px #ef4444"></span>egress: blocked</span>
+    <span class="stat"><span class="sd" style="background:#3fae7a"></span>online</span>
+    <span class="stat"><span class="sd" style="background:#c79338"></span>scheduler: 注意</span>
+    <span class="stat"><span class="sd" style="background:#c2554f"></span>egress: blocked</span>
     <span class="prompt" style="margin-left:auto">› ready — 願いを入力</span>
   </div>`;
 
