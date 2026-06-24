@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>神龍 - 電脳ダイブ UI モック</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #050707;
+    --panel: rgba(7, 14, 16, .82);
+    --panel-strong: rgba(9, 22, 24, .94);
+    --line: #1b4c4f;
+    --line-hot: #48f2e3;
+    --green: #63f08f;
+    --amber: #ffc857;
+    --red: #ff4f5f;
+    --violet: #a78bfa;
+    --text: #d8fff8;
+    --muted: #6b9ca0;
+    --dim: #315b5d;
+    font-family: "IBM Plex Sans", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  #netCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    background:
+      linear-gradient(90deg, rgba(72, 242, 227, .05) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(99, 240, 143, .045) 1px, transparent 1px),
+      #050707;
+    background-size: 72px 72px;
+  }
+
+  .scanline {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, .025) 0,
+      rgba(255, 255, 255, .025) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+    mix-blend-mode: screen;
+    opacity: .55;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 260px minmax(360px, 1fr) 320px;
+    grid-template-rows: auto 1fr auto;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .topbar,
+  .side,
+  .status,
+  .command {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 0 0 1px rgba(72, 242, 227, .04), 0 24px 80px rgba(0, 0, 0, .45);
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    border-radius: 8px;
+  }
+
+  .brandMark {
+    width: 34px;
+    height: 34px;
+    position: relative;
+    flex: 0 0 auto;
+    border: 1px solid var(--line-hot);
+    border-radius: 50%;
+    box-shadow: 0 0 18px rgba(72, 242, 227, .38);
+  }
+
+  .brandMark::before,
+  .brandMark::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 1px solid var(--green);
+    transform: rotate(45deg);
+  }
+
+  .brandMark::after {
+    inset: 14px;
+    background: var(--line-hot);
+    box-shadow: 0 0 12px var(--line-hot);
+  }
+
+  .brand {
+    display: grid;
+    gap: 2px;
+    min-width: 168px;
+  }
+
+  .brand strong {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .brand span {
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chip,
+  .action,
+  .miniButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 32px;
+    border-radius: 6px;
+    border: 1px solid rgba(72, 242, 227, .28);
+    background: rgba(7, 24, 27, .82);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+
+  .chip {
+    padding: 5px 10px;
+  }
+
+  .chip[data-tone="green"] {
+    color: var(--green);
+    border-color: rgba(99, 240, 143, .36);
+  }
+
+  .chip[data-tone="amber"] {
+    color: var(--amber);
+    border-color: rgba(255, 200, 87, .38);
+  }
+
+  .chip[data-tone="violet"] {
+    color: var(--violet);
+    border-color: rgba(167, 139, 250, .42);
+  }
+
+  .topPush {
+    margin-left: auto;
+  }
+
+  .side {
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 0;
+  }
+
+  .side h2,
+  .status h2 {
+    margin: 0 0 12px;
+    color: var(--line-hot);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .layerList,
+  .eventList,
+  .meterList {
+    display: grid;
+    gap: 9px;
+  }
+
+  .layer {
+    position: relative;
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    align-items: center;
+    gap: 9px;
+    min-height: 52px;
+    padding: 8px;
+    border: 1px solid rgba(72, 242, 227, .22);
+    border-radius: 6px;
+    background: rgba(5, 11, 12, .72);
+  }
+
+  .glyph {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    color: var(--line-hot);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    box-shadow: inset 0 0 12px rgba(72, 242, 227, .12);
+  }
+
+  .layer strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .layer span {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+  }
+
+  .level {
+    color: var(--green);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+
+  .workspace {
+    min-height: 620px;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .coreStage {
+    position: relative;
+    overflow: hidden;
+    min-height: 520px;
+    border: 1px solid rgba(72, 242, 227, .25);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, transparent 0 24px, rgba(72, 242, 227, .08) 24px 25px, transparent 25px 100%),
+      linear-gradient(0deg, transparent 0 24px, rgba(99, 240, 143, .06) 24px 25px, transparent 25px 100%),
+      rgba(3, 8, 9, .58);
+    background-size: 50px 50px;
+  }
+
+  .coreStage::before {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border: 1px solid rgba(72, 242, 227, .2);
+    border-radius: 6px;
+    pointer-events: none;
+  }
+
+  .coreStage::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 38%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(72, 242, 227, .88), transparent);
+    box-shadow: 0 0 20px rgba(72, 242, 227, .8);
+    animation: sweep 4.8s linear infinite;
+    pointer-events: none;
+  }
+
+  .core {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 320px;
+    height: 320px;
+    transform: translate(-50%, -50%);
+  }
+
+  .ring {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(72, 242, 227, .46);
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(72, 242, 227, .24);
+  }
+
+  .ring::before,
+  .ring::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -8px;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--amber);
+    background: #050707;
+    transform: translateX(-50%) rotate(45deg);
+    box-shadow: 0 0 16px rgba(255, 200, 87, .5);
+  }
+
+  .ring::after {
+    top: auto;
+    bottom: -8px;
+    border-color: var(--violet);
+    box-shadow: 0 0 16px rgba(167, 139, 250, .5);
+  }
+
+  .ring.r2 {
+    inset: 34px;
+    border-color: rgba(99, 240, 143, .42);
+    transform: rotate(23deg);
+  }
+
+  .ring.r3 {
+    inset: 76px;
+    border-style: dashed;
+    border-color: rgba(255, 79, 95, .55);
+    transform: rotate(-16deg);
+  }
+
+  .ring.r4 {
+    inset: 114px;
+    border-color: rgba(216, 255, 248, .52);
+  }
+
+  .coreText {
+    position: absolute;
+    inset: 118px 78px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    border: 1px solid rgba(72, 242, 227, .44);
+    background: rgba(5, 12, 14, .88);
+    box-shadow: inset 0 0 24px rgba(72, 242, 227, .16), 0 0 44px rgba(72, 242, 227, .2);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .coreText strong {
+    display: block;
+    font-size: 18px;
+    letter-spacing: 0;
+  }
+
+  .coreText span {
+    display: block;
+    margin-top: 8px;
+    color: var(--green);
+    font-size: 11px;
+  }
+
+  .trace {
+    position: absolute;
+    min-width: 124px;
+    padding: 8px 10px;
+    border: 1px solid rgba(72, 242, 227, .32);
+    border-radius: 6px;
+    background: rgba(4, 11, 12, .82);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .trace b {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .trace::before {
+    content: "";
+    position: absolute;
+    width: 52px;
+    height: 1px;
+    background: var(--line-hot);
+    box-shadow: 0 0 10px var(--line-hot);
+  }
+
+  .trace.t1 {
+    left: 8%;
+    top: 18%;
+  }
+
+  .trace.t1::before {
+    right: -52px;
+    top: 50%;
+  }
+
+  .trace.t2 {
+    right: 8%;
+    top: 24%;
+  }
+
+  .trace.t2::before {
+    left: -52px;
+    top: 50%;
+  }
+
+  .trace.t3 {
+    left: 12%;
+    bottom: 18%;
+  }
+
+  .trace.t3::before {
+    right: -52px;
+    top: 50%;
+    background: var(--green);
+  }
+
+  .trace.t4 {
+    right: 12%;
+    bottom: 16%;
+  }
+
+  .trace.t4::before {
+    left: -52px;
+    top: 50%;
+    background: var(--amber);
+  }
+
+  .status {
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 0;
+  }
+
+  .event {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(72, 242, 227, .14);
+  }
+
+  .event:last-child {
+    border-bottom: 0;
+  }
+
+  .statusDot {
+    width: 9px;
+    height: 9px;
+    margin-top: 4px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    box-shadow: 0 0 12px currentColor;
+  }
+
+  .event strong {
+    display: block;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .event span {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+  }
+
+  .event time {
+    color: var(--dim);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+  }
+
+  .meter {
+    display: grid;
+    gap: 6px;
+    padding: 10px 0;
+  }
+
+  .meterHead {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+
+  .bar {
+    height: 8px;
+    border: 1px solid rgba(72, 242, 227, .2);
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(3, 8, 9, .88);
+  }
+
+  .bar i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--line-hot), var(--green));
+    box-shadow: 0 0 16px rgba(72, 242, 227, .55);
+  }
+
+  .analysisRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .module {
+    min-height: 96px;
+    padding: 11px;
+    border: 1px solid rgba(72, 242, 227, .23);
+    border-radius: 8px;
+    background: rgba(5, 13, 14, .78);
+  }
+
+  .module b {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .module span {
+    display: block;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .command {
+    grid-column: 1 / -1;
+    border-radius: 8px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .promptMark {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    color: var(--line-hot);
+    border: 1px solid rgba(72, 242, 227, .36);
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    box-shadow: inset 0 0 14px rgba(72, 242, 227, .12);
+  }
+
+  .inputLike {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border: 1px solid rgba(72, 242, 227, .24);
+    border-radius: 6px;
+    color: var(--text);
+    background: rgba(3, 8, 9, .82);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    overflow: hidden;
+  }
+
+  .inputLike span {
+    color: var(--green);
+  }
+
+  .action {
+    min-width: 88px;
+    padding: 0 14px;
+    cursor: default;
+  }
+
+  .action.primary {
+    color: #03100e;
+    background: var(--line-hot);
+    border-color: var(--line-hot);
+    box-shadow: 0 0 22px rgba(72, 242, 227, .46);
+  }
+
+  .miniButton {
+    min-width: 36px;
+    padding: 0 10px;
+    color: var(--amber);
+    border-color: rgba(255, 200, 87, .34);
+  }
+
+  @keyframes sweep {
+    0% {
+      transform: translateY(-210px);
+      opacity: 0;
+    }
+    12% {
+      opacity: .9;
+    }
+    80% {
+      opacity: .5;
+    }
+    100% {
+      transform: translateY(260px);
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 980px) {
+    .shell {
+      grid-template-columns: 1fr;
+    }
+
+    .topbar,
+    .command {
+      grid-column: 1;
+    }
+
+    .workspace {
+      min-height: auto;
+    }
+
+    .analysisRail {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .trace {
+      position: relative;
+      left: auto;
+      right: auto;
+      top: auto;
+      bottom: auto;
+    }
+
+    .trace::before {
+      display: none;
+    }
+
+    .coreStage {
+      min-height: 680px;
+      display: grid;
+      align-content: center;
+      gap: 10px;
+      padding: 18px;
+    }
+
+    .core {
+      position: relative;
+      left: auto;
+      top: auto;
+      margin: 0 auto;
+      transform: none;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .shell {
+      padding: 10px;
+    }
+
+    .topbar,
+    .command {
+      grid-template-columns: 1fr;
+    }
+
+    .topbar {
+      align-items: stretch;
+    }
+
+    .brandMark {
+      display: none;
+    }
+
+    .nav,
+    .command {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .brand,
+    .inputLike {
+      grid-column: 1 / -1;
+    }
+
+    .analysisRail {
+      grid-template-columns: 1fr;
+    }
+
+    .core {
+      width: 270px;
+      height: 270px;
+    }
+
+    .coreText {
+      inset: 98px 54px;
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="netCanvas" aria-hidden="true"></canvas>
+<div class="scanline" aria-hidden="true"></div>
+
+<main class="shell">
+  <header class="topbar">
+    <div class="brandMark" aria-hidden="true"></div>
+    <div class="brand">
+      <strong>神龍 電脳界面</strong>
+      <span>cyberbrain link / local sovereign agent</span>
+    </div>
+    <nav class="nav" aria-label="電脳モード">
+      <span class="chip" data-tone="green">synapse: online</span>
+      <span class="chip" data-tone="violet">memory: indexed</span>
+      <span class="chip" data-tone="amber">egress: approval</span>
+    </nav>
+    <span class="chip topPush">sector 09 - private mesh</span>
+  </header>
+
+  <aside class="side">
+    <h2>NEURAL LAYERS</h2>
+    <div class="layerList">
+      <section class="layer">
+        <div class="glyph">01</div>
+        <div>
+          <strong>願望入力</strong>
+          <span>wish parser / intent map</span>
+        </div>
+        <div class="level">97%</div>
+      </section>
+      <section class="layer">
+        <div class="glyph">02</div>
+        <div>
+          <strong>記憶格子</strong>
+          <span>local memory / project traces</span>
+        </div>
+        <div class="level">84%</div>
+      </section>
+      <section class="layer">
+        <div class="glyph">03</div>
+        <div>
+          <strong>攻性防壁</strong>
+          <span>secrets boundary / human gate</span>
+        </div>
+        <div class="level">LOCK</div>
+      </section>
+      <section class="layer">
+        <div class="glyph">04</div>
+        <div>
+          <strong>道具生成</strong>
+          <span>skill forge / mcp adapter</span>
+        </div>
+        <div class="level">62%</div>
+      </section>
+      <section class="layer">
+        <div class="glyph">05</div>
+        <div>
+          <strong>実行管制</strong>
+          <span>run loop / audit rail</span>
+        </div>
+        <div class="level">ARM</div>
+      </section>
+    </div>
+  </aside>
+
+  <section class="workspace" aria-label="電脳ダイブ表示">
+    <div class="coreStage">
+      <div class="trace t1">
+        <b>memory shard</b>
+        docs / prototype / inbox
+      </div>
+      <div class="trace t2">
+        <b>intent vector</b>
+        goal - plan - tool
+      </div>
+      <div class="trace t3">
+        <b>trusted path</b>
+        approval before egress
+      </div>
+      <div class="trace t4">
+        <b>live run</b>
+        schedule / receipt / rollback
+      </div>
+
+      <div class="core" aria-hidden="true">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <div class="ring r4"></div>
+        <div class="coreText">
+          <div>
+            <strong>NETDIVE</strong>
+            <span>願いを座標化</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="analysisRail">
+      <section class="module">
+        <b>意図解析</b>
+        <span>自然文を目的、制約、成果物に分解。曖昧さは人間へ戻す。</span>
+      </section>
+      <section class="module">
+        <b>道具探索</b>
+        <span>既存の操作面、MCP、CLI、ローカル資産を束ねる。</span>
+      </section>
+      <section class="module">
+        <b>防壁判定</b>
+        <span>秘密、送信、課金、破壊的操作を実行前に分離。</span>
+      </section>
+      <section class="module">
+        <b>監査記録</b>
+        <span>誰が何を許可し、どの実行が何を変えたかを残す。</span>
+      </section>
+    </div>
+  </section>
+
+  <aside class="status">
+    <h2>LIVE TELEMETRY</h2>
+    <div class="eventList">
+      <section class="event">
+        <i class="statusDot" style="color: var(--green)"></i>
+        <div>
+          <strong>agent mesh connected</strong>
+          <span>local workers responding</span>
+        </div>
+        <time>00:04</time>
+      </section>
+      <section class="event">
+        <i class="statusDot" style="color: var(--amber)"></i>
+        <div>
+          <strong>egress requires approval</strong>
+          <span>mail, post, payment blocked</span>
+        </div>
+        <time>00:11</time>
+      </section>
+      <section class="event">
+        <i class="statusDot" style="color: var(--violet)"></i>
+        <div>
+          <strong>memory index refreshed</strong>
+          <span>docs and run receipts aligned</span>
+        </div>
+        <time>00:18</time>
+      </section>
+      <section class="event">
+        <i class="statusDot" style="color: var(--red)"></i>
+        <div>
+          <strong>secret scan armed</strong>
+          <span>commit boundary active</span>
+        </div>
+        <time>00:21</time>
+      </section>
+    </div>
+
+    <div class="meterList" style="margin-top: 16px">
+      <div class="meter">
+        <div class="meterHead"><span>context lock</span><span>91</span></div>
+        <div class="bar"><i style="width: 91%"></i></div>
+      </div>
+      <div class="meter">
+        <div class="meterHead"><span>tool fit</span><span>78</span></div>
+        <div class="bar"><i style="width: 78%; background: linear-gradient(90deg, var(--violet), var(--line-hot))"></i></div>
+      </div>
+      <div class="meter">
+        <div class="meterHead"><span>risk heat</span><span>24</span></div>
+        <div class="bar"><i style="width: 24%; background: linear-gradient(90deg, var(--amber), var(--red))"></i></div>
+      </div>
+    </div>
+  </aside>
+
+  <footer class="command">
+    <div class="promptMark">&gt;</div>
+    <div class="inputLike"><span>願い:</span>&nbsp;毎朝、必要な情報だけ集めて実行前に確認して</div>
+    <button class="action primary" type="button">同期</button>
+    <button class="miniButton" type="button">防壁</button>
+  </footer>
+</main>
+
+<script>
+(() => {
+  const canvas = document.getElementById("netCanvas");
+  const ctx = canvas.getContext("2d");
+  const glyphs = "神龍電脳義体記憶願承認境界署名座標同期実行";
+  const nodes = [];
+  const lanes = [];
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+
+  function reset() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    nodes.length = 0;
+    lanes.length = 0;
+
+    const count = Math.max(34, Math.floor((width * height) / 28000));
+    for (let i = 0; i < count; i += 1) {
+      nodes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - .5) * .28,
+        vy: (Math.random() - .5) * .28,
+        tone: i % 7 === 0 ? "#ffc857" : i % 5 === 0 ? "#a78bfa" : i % 3 === 0 ? "#63f08f" : "#48f2e3"
+      });
+    }
+
+    const laneCount = Math.max(8, Math.floor(width / 120));
+    for (let i = 0; i < laneCount; i += 1) {
+      lanes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        speed: .35 + Math.random() * .6,
+        text: Array.from({ length: 10 }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join("")
+      });
+    }
+  }
+
+  function draw(time) {
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "rgba(5, 7, 7, .42)";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+    ctx.textBaseline = "top";
+    lanes.forEach((lane, laneIndex) => {
+      lane.y += lane.speed;
+      if (lane.y > height + 160) {
+        lane.y = -180;
+        lane.x = Math.random() * width;
+      }
+      for (let i = 0; i < lane.text.length; i += 1) {
+        const alpha = Math.max(.08, 1 - i * .08);
+        ctx.fillStyle = laneIndex % 3 === 0
+          ? `rgba(99, 240, 143, ${alpha * .28})`
+          : `rgba(72, 242, 227, ${alpha * .24})`;
+        ctx.fillText(lane.text[i], lane.x, lane.y - i * 18);
+      }
+    });
+    ctx.restore();
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i];
+      a.x += a.vx;
+      a.y += a.vy;
+      if (a.x < -30) a.x = width + 30;
+      if (a.x > width + 30) a.x = -30;
+      if (a.y < -30) a.y = height + 30;
+      if (a.y > height + 30) a.y = -30;
+
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const b = nodes[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 170) {
+          const alpha = (1 - dist / 170) * .22;
+          ctx.strokeStyle = `rgba(72, 242, 227, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+
+      const pulse = 1 + Math.sin(time * .002 + i) * .5;
+      ctx.fillStyle = a.tone;
+      ctx.globalAlpha = .68;
+      ctx.fillRect(a.x - 2, a.y - 2, 4 + pulse, 4 + pulse);
+      ctx.globalAlpha = 1;
+    }
+
+    const cx = width * .5;
+    const cy = height * .52;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(time * .00008);
+    ctx.strokeStyle = "rgba(72, 242, 227, .18)";
+    ctx.lineWidth = 1;
+    for (let r = 120; r < Math.min(width, height); r += 82) {
+      ctx.strokeRect(-r, -r, r * 2, r * 2);
+    }
+    ctx.restore();
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener("resize", reset, { passive: true });
+  reset();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
