@@ -394,6 +394,34 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 ---
 
+## レビュー駆動 改善 Wave 計画（設計のみ📋・2026-06-23・**テナンシーT群 A1/B1 の後に実装**）
+
+> 発端: `legendary-review`（コードレビュー方法論を skill 化・`~/.claude/skills/legendary-review`）で神龍全体を精読し検出した弱点4つ + 競合領地取り。**スタンス=agile**（0顧客に投機しない・最小保険のみ先行・本格移行は実需＝2人目seat後）。**ホスティング=二階建て**（技術者/個人=自己ホストOSS / 非技術チーム=managed）。**動くシステム強化=DX乗り換え導線 + 信頼性R系**。
+
+### legendary-review 検出の弱点（光と影の「影」）
+1. **hub.mjs 肥大**（1688行・flow実行器(advanceFrom)とHTTPサーバが同臓器）— 2500行で記憶頼みの崖
+2. **state.json 丸ごと書込**（`save()` hub.mjs:107・マルチテナントと喧嘩）— **真のリスクは「人の同時保存」でなく「run並行の `save()` 競合(last-write-wins)」**
+3. **redact 全メール消去**（trust.mjs:18・秘密と業務データ未区別）
+4. **非Mac vault base64**（vault.mjs:24・managed/Flyデプロイで弱い）
+
+### Wave 群（WIP=1・各1commit・実装は次session）
+| Wave | 内容 | 弱点/領地 | 依存 |
+|---|---|---|---|
+| **Cliff-1**（守り土台・最優先） | `save()`競合の最小保険（書込直列化 or 楽観ロック）+ 崖の地図（DB化トリガを文書化）。state を hub から別モジュールへ剥がす（弱点1の hub 痩せ同梱可） | 弱点1+2 | なし |
+| **Host-1**（自己ホスト・n8n領地） | OSS/npx 配布整備（既存 Fly 計画に近い）。各社デプロイ→データ手元（moat整合・従量0） | n8n自己ホスト | Cliff-1 |
+| **Vault-1**（managed 開業条件） | 非Mac vault を base64→AES（managed/Fly前提・鍵を堅く） | 弱点4 | Host-1 |
+| **Canvas-1**（managedの顔・Langflow領地） | 成果物UI/canvas 足場（trust branch parked 参照・既存 Wave UI S と接続）・非技術チーム向け | Langflow canvas | Vault-1 |
+| **DX-1**（LangGraph領地・乗換導線） | SKILL.md export / MCPネイティブを武器化（「ライブラリ組むより神龍が早い」導線） | LangGraph(DX) | — |
+| **Reliable-1**（動くシステムの質） | R系（resilience/成果検証/drift）強化（「勝手に壊れない」を勝ち点に） | LangGraph(信頼性) | — |
+| **Redact-1**（堀精度・実需後） | 秘密と業務データの区別（per-flow allowlist） | 弱点3 | 実需 |
+
+### 実装順序（3-pass Pass-3）
+**前提（user 訂正 2026-06-23）: テナンシー T 群（T-0 done → A1 庫 → B1 role → 肉付け）を先に完走 → その後に本改善Wave群**。理由=save競合等は A1/B1 で複数seatが実データを触ってから現実化＝agile（機能で問題を炙り出してから埋める・0顧客に土台投機しない）。
+`Cliff-1`（守り土台）→ `Host-1`（自己ホスト・既存近い）→ `Vault-1`（managed前提）→ `Canvas-1`/`DX-1`/`Reliable-1`（攻め・managed立後）→ `Redact-1`（実需後）。
+**agile 原則**: 0チームに multi-tenant DB を先行実装しない（[[feedback_skip_record]]）。Cliff-1 の「最小保険+地図」で崖の手前に手すりだけ置き、本格 DB 化は2人目 seat が「データ壊れた」と言った時に渡る。**state臓器分離は弱点1(hub肥大)と弱点2(save競合)を同時に解く**＝大きな部品で2つの影を1手で消す。
+
+---
+
 ## 別系統: trust / BuildHUD cockpit waves（branch `trust`・未merge・⚠️letter scheme が神龍と別）
 
 > ⚠️ **重要**: `trust` branch は神龍以前の「BuildHUD（cross-owner trust cockpit）」product line で、**wave の letter が神龍 waves と衝突する別体系**（trust の `H`=Trust Boundary ≠ 神龍の `H`=Push通知）。意図的に未merge の parked line（user 判断「価値未確証ゆえ main に載せない」・memory [[trust-worktree-separation]]/[[trust-moat-whitespace-findings]]）。**詳細は `trust:docs/11_COCKPIT_ROADMAP.md` ＋ `trust:PROJECT.md`**（本 doc は index のみ）。神龍 waves と混同しないこと。
