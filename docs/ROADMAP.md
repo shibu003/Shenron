@@ -438,9 +438,14 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 ### Cockpit-2 — 見た目・トーン一貫性 ＋ 攻殻テーマ ＋ ⌘Kナビ ＋ 役割分離（✅ `dfcfb2f`〜`5e2b028`・PR #1 merged）
 当初の「共通 token で同一製品に見せる」を超えて実施: 全4面 **Netdive Blue（フラット青）** 統一・絵文字→SVG（絵文字ゼロ）・mono ブランド+レティクル・**⌘K コマンドパレット**（全ページ・Zed流）・**役割重複の解消**（神龍=作る / canvas=編集 / 設定=/settings 一本化・ui2 内蔵神龍 dead 除去 -5.7KB）。正本 `docs/THEME.md`。回帰修正=⌘K注入が ui2 を壊していた問題（実機 console error で発覚 [[feedback_verify_boot]]）。
 
-### Cockpit-3 — UX 磨き（監査 driven・📋・残り）
-**✅済（Cockpit-2 で実施）**: NL wish の2箇所重複→役割整理（神龍=作る/canvas=編集・ui2 内蔵神龍除去）。
-**残**: ui2 に tenancy 共有導線無し→ui2 flow に「神龍で共有」/ 庫(A1)カード磨き・空状態導線 / モバイル(玄関 PWA 化・start_url 見直し) / ノードカード内 SVG アイコンの実ブラウザ目視確認。着手時に両 cockpit 精読で候補確定。
+### Cockpit-3 — UX 磨き（監査 driven・✅ ui2 共有廊下）
+着手時の両 cockpit 精読で、監査 seed 4 つのうち 3 つは先行 Wave で解消済みと判明：
+- **✅ wish 役割整理**（Cockpit-2 `d329c33`/`5e2b028`）: 神龍=作る/canvas=編集・ui2 内蔵神龍除去。
+- **✅ 庫(A1)カード磨き・空状態導線**（T-0/A1）: shenron garage に reliability/drift カード＋空状態ガイド既存。
+- **✅ モバイル PWA**（Cockpit-1）: `manifest.json` 完備・`start_url:/shenron`（会話 view＝concierge）妥当。
+
+**✅ 実装（本 Wave）**: ui2 topbar に「共有」トグル新設＝shenron Flows の 🔗/🌐 と対の**逆方向廊下**（canvas 側からも現フローを庫へ publish）。`/api/workflows/:id/{share,unshare}`（既存・MCP `share_workflow` と同 `setVisibility`）を叩くだけ＝**backend 不変・北極星整合**。状態源は専用 `SAVED_ID`/`FLOW_VIS`（save/load/deep-link の 3 経路でセット・#flowName は name と id が混在のため別持ち）。verify=isolated STATE_DIR で share→/api/shared 掲載→unshare 除去を確認＋inline JS `node --check` OK。
+**⏭ 見送り**: ui2→神龍「▶実行」の flow-specific deep-link（topbar の generic「神龍で作る」で nav は足る・shenron Flows カードに ▶実行 既存）。再開トリガ＝ユーザーが「canvas から直接そのフローを神龍で走らせたい」と要望した時。[[feedback_skip_record]]
 
 ### 横断制約
 **backend 不変**（玄関/navigation/一貫性は UI のみ・新 MCP tool 不要＝北極星整合）。[[feedback_verify_boot]] 各 commit 前 `node prototype/hub/hub.mjs` 起動確認。[[feedback_ui_sync]] 該当。safe-commit=明示パス add（別 claude が html 触る前提）。実装順 `Cockpit-0→1→2→3`・B1 前後可。
