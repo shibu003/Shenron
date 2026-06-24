@@ -62,6 +62,7 @@
 | **U-2 MCP 完全統一（見送り）** | 完全統一（stdio attended dry-run 撤去・server pure proxy 化）＋ run_handoff の a2a を hub 移植。「限界価値小×リスク大」で**意図的見送り**（U-1 で主目的達成・hub は agent URL を持たない in-process モデル）。再開時の安価スライス=`fire_event`(=/api/fire 既存)・`run_automation`(find→runFlow) を remote 露出のみ。 | 本 doc |
 | **Wave UI — 成果物UI（操作面）** | 神龍が足りない道具を自作する性質上、**操作必須の UI 付き生成物が頻発**する。ui2.html 内で特定 flow の成果物 UI を見て操作 → その操作で自動化フローが進む（人在ループのリッチ checkpoint）。スマホ+PC 両対応。神龍は **plan 段階で UI 要否を判断**（承認だけ→通知で十分=UI無し／操作+可視化が要る時だけ生成）。sandbox iframe(JSX+Babel)で描画・**鍵は箱に残す fetch-shim**・操作→bridge→hub が advance。Lovable(bespoke アプリ生成/別ホスト deploy)ではなく control-plane 内で「成果物に顔を付ける」。 | 下記メモ |
 | **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
+| **テナンシー Wave（社内＝課金土台）** | 個人=永久無料 wedge / 社内=seat 課金の**課金"対象物"**を作る。欠けてた唯一のプリミティブ=テナンシー(owner/visibility)。`T-0` 土台 → `A` 共有エージェント庫（生成×再利用）→ `B` 共有ハブ/管理。**会社間+trust 商品化は切った**（価値薄・user 判断）。billing 機構は seam のみ（後付け）。実装順 `T-0→A1→B1→肉付け`。 | ↓「テナンシー Wave 計画」 |
 
 ## Wave UI — 成果物UI（操作面）設計メモ
 
@@ -339,6 +340,57 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 - **MCP-FIRST 監査**：上記 16 個の新 tool すべて `server.mjs` の `case` + hub route で露出。cockpit(shenron.html/ui2.html)は薄い view として後追い。
 - **テスト**：各最小スライスに `test_shenron.mjs` の assert を1本（606 hook の二重発火なし / goal checkin / login 値非漏洩 / suggestion 検出）。
 - **rollback 単位**：1 Wave=1 commit。R-1/Login-1/Goals-1/Ambient-1 が緑になってから肉付けへ。
+
+---
+
+# テナンシー Wave 計画（社内＝課金土台・設計・2026-06-23）
+
+> **発端（user 2026-06-23）**: 「課金要素を見つけ出すか作り出したい・基本は無料でないと誰も使わないのでは」。会話で収束 → 個人=永久無料 wedge、社内(チーム)=利益源、**会社間+trust 商品化は切る**。欠けてた唯一のプリミティブ=**テナンシー(owner/visibility)**。詳細計画＝`~/.claude/plans/users-shibuyaryouyuu-shenron-docs-roadm-composed-whisper.md`（承認済 `2026-06-23`）。状態=全 📋（実装は次セッションから）。
+
+## 核（なぜ）
+- **個人 = 永久無料 wedge**（BYO-key・ローカル・OSS）。WTP ほぼ0・機能 gate は fork の餌＝**ここから金は取らない**。
+- **社内 = 利益源**。1人が作ったエージェントをチームで使う／共有状態を誰かがホスト／管理者が統制＝org の予算と実需。bottom-up SaaS（個人→職場持込→会社が払う）。
+- **課金 = seat 境界**。個人=single-seat（全 private・今と1bit も変わらず無料）／社内=multi-seat hosted hub で sharing/roles/admin 点灯。**paywall = 2人目の seat**。
+- trust.mjs は商品でなく**社内 admin の監査チェックボックス**に格下げ（[[whitespace-grounded-2026-06]] の cross-company は demand 薄＝GATE-1 未検証と整合）。
+
+## 欠けてる唯一のプリミティブ＝テナンシー
+神龍は「認証」(`auth.mjs`)は持つが、データ(`workflows.json`/`components.json`/`automations.json`/`goals.json`/vault)は**全部グローバル単一ファイルで owner 欄が無い**（`saveWorkflow` hub.mjs:302・`hub.mjs:1145` "single-owner personal use"）。上物（Agent Factory / `clone_workflow` / vault / managed hub / goals / 監査）は**ほぼ全部出荷済**。よって `T-0`(owner+visibility 2欄)だけが本当の「追加」、残りは既存を乗せる「肉付け」。
+
+### 識別の二経路（load-bearing・接地済）
+- **Web UI** → cookie セッション(`cookieSession` hub.mjs:1151 → `checkSession` auth.mjs:91) → 具体的 userId（= seat）。
+- **MCP（stdio/remote）** → `A2A_SHARED_TOKEN`(`bearerOk` hub.mjs:1155) → 運用者単一 identity（= admin・全可視）。
+- → owner スコープは「Web UI の複数 seat」に効く。MCP 運用者は admin として全部見える＝ハブ所有者が MCP で管理、で正しい。
+- **後方互換（移行不要）**: owner 欠落=null=全員可視 / visibility 欠落=owner null なら shared 相当。**openDev(`A2A_SHARED_TOKEN` 未設定)=開放ハブ=全可視＝今の挙動を保存**。multi-seat は「ハブを閉じる(token 設定 or login 必須)」が前提。
+
+## Wave T-0 — テナンシー土台（📋・両トラックの前提・個人に無害・投機 OK）
+レコードに `owner:string|null` + `visibility:'private'|'shared'` の2欄を足すだけ。
+- 純粋 save 関数（`saveWorkflow`:302 / `saveComponent`:278 / `saveAutomation`:798 / `saveGoal`:832）に optional `owner`/`visibility`。HTTP route 層が req→userId 抽出して渡す・MCP 経路は owner=null。
+- ヘルパー（hub.mjs 上部）: `sessionUid(req)` = `checkSession(cookieSession(req))?.userId ?? null` / `visibleTo(rec,uid)` = `uid==null || rec.owner==null || rec.owner===uid || rec.visibility==='shared'`。既定 visibility='private'。
+- read route（`GET /api/workflows`・`list_workflows` mcpDispatch:1224・`availableSummary`:1177 等）に `.filter(r => visibleTo(r, sessionUid(req)))`。⚠️`availableSummary`→`planFlow` のスコープは lazy v1 では全可視のまま（member planner 絞り込みは A1）。
+- MCP 両surface: `share_workflow(id)`/`unshare_workflow(id)`（`surfaces:['remote']`・tools.mjs 単一ソース＋mcpDispatch＋server.mjs）。UI: shenron.html 🗂 に共有トグル。
+- **検証**: Web UI 2ユーザー → U1 の flow が U2 cookie で**不可視** → share → 可視。MCP(shared token)は全件。owner 無し既存は全員可視。`test_shenron.mjs` に `visibleTo` 純粋 assert(4分岐) + e2e(2 cookie list 差分)。
+
+## トラックA — 共有エージェント庫（生成×再利用＝神龍らしさ）
+- **A1 庫ビュー（📋・差別化 wedge・T-0 直後）**: `list_shared` = visibility==='shared' の workflows+components を集約し enrichment（`maker`=owner→email via `listUsers`:102 / `adoptedBy`=sub-flow ref or automation 束縛数 / `lastDrift`=`state.driftAlerts` / `reliability`=`state.checkResults` pass 率）。MCP 両surface `list_shared(kind?)` + `GET /api/shared`。UI: shenron.html「📚 庫」タブ（読取専用カード・▶複製→既存 `clone_workflow`）。**信頼は「12人が使用・drift 0」の実績数字で出す（trust theater の代わり）**。
+- **A2 系譜（📋・A1 後）**: `cloneWorkflow`:316 の保存に `forkedFrom:src.id` 1行追加 → 庫に親子リネージ表示。多段ツリーは YAGNI。
+- **A3 publish（📋・A1 後）**: `share_workflow` に「何をするか」1行（既存 `summary` or `renderPlan` plain_summary）要求 → 庫掲載のノイズ防止。
+
+## トラックB — 共有ハブ + 管理（予算が付きやすい）
+- **B1 role（📋・A1 後）**: `auth.mjs` user に `role:'admin'|'member'`・`register`:53 で `userCount()===0?'admin':'member'`。`isAdmin(req)`（openDev=運用者=admin で後方互換）。破壊操作・team cred set・remove/set_role を admin gate。MCP `set_role` **stdio 専用**（`REMOTE_DENY` 方針 tools.mjs:215・list_users/reset_password と同じ）。
+- **B2 invite+名簿（📋）**: `invite_user(email)`(admin)=member pending 作成+set-pw トークン（既存 `resetToken`/`verifyToken`:58/:113 再利用・リンクはターミナル出力）。`list_members`=既存 `listUsers`。`remove_member`=auth.mjs 新 `removeUser`（自分は消せないガード）。UI: settings.html admin 専用「👥 メンバー」。
+- **B3 team credential（📋）**: vault は「値を返さない」契約既存。lazy v1=**multi-seat では `set_credential` を admin gate**（個人=openDev=従来通り）。member の flow は `credentialEnv`(N-1)で名前参照・値不可視。
+- **B4 admin 監査（📋・trust の唯一の生存場所）**: 既存 trust.mjs hash-chain(`/api/audit`+verify)を settings.html admin 専用「🔒 チーム活動」に読取表示。新 backend ゼロ。
+
+## 課金機構（billing）— スコープ外・seam のみ（user 判断 2026-06-23）
+本 Wave 群は**課金の"対象物"（sharing/roles/admin）**を作る。**billing 機構（Stripe・entitlement・seat 課金）は含めない**＝user 0人・最初のチーム未検証で意図的 skip（[[feedback_skip_record]]）。
+- **seam**: paywall は「2人目の seat join」（B1/B2 境界）。`bearerOk`/`isAdmin` 隣に `seatLimit` 1関数を差すだけ＝後付け可能。
+- **いつ**: 最初の実チームが「seat を増やしたい」と言った時点。それまで seat 無制限・無料で需要を測る。
+
+## 実装順序 / 横断制約
+- 順序: **`T-0`(両前提) → `A1`(庫=wedge) → `B1`(role) → 実需順で肉付け(A2/A3・B2/B3/B4)**。T-0 のみ投機 OK・A*/B* は実在の2人目 seat 後（0チームに multi-tenant UI 先行禁止）。A1 を B1 より先＝庫が職場持込の wedge、admin 単体は commodity。
+- **MCP-FIRST**: 新 tool（`share_workflow`/`unshare_workflow`/`list_shared`/`set_role`/`invite_user`/`remove_member`）を `prototype/mcp/tools.mjs` 単一ソースに登録＝両surface drift 不可能。認証/権限系は `REMOTE_DENY` で stdio 専用。
+- **UI 同期**（[[feedback_ui_sync]]）: 同 commit で shenron.html（庫タブ・共有トグル）/ settings.html（メンバー・監査）。⚠️別 claude が shenron.html を触る → settings.html 優先 or worktree 隔離・明示パス add（safe-commit）。
+- **起動確認**（[[feedback_verify_boot]]）: 各 commit 前に `node prototype/hub/hub.mjs` 実起動確認。
 
 ---
 
