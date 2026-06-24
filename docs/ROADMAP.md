@@ -63,6 +63,7 @@
 | **Wave UI — 成果物UI（操作面）** | 神龍が足りない道具を自作する性質上、**操作必須の UI 付き生成物が頻発**する。ui2.html 内で特定 flow の成果物 UI を見て操作 → その操作で自動化フローが進む（人在ループのリッチ checkpoint）。スマホ+PC 両対応。神龍は **plan 段階で UI 要否を判断**（承認だけ→通知で十分=UI無し／操作+可視化が要る時だけ生成）。sandbox iframe(JSX+Babel)で描画・**鍵は箱に残す fetch-shim**・操作→bridge→hub が advance。Lovable(bespoke アプリ生成/別ホスト deploy)ではなく control-plane 内で「成果物に顔を付ける」。 | 下記メモ |
 | **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
 | **テナンシー Wave（社内＝課金土台）** | 個人=永久無料 wedge / 社内=seat 課金の**課金"対象物"**を作る。欠けてた唯一のプリミティブ=テナンシー(owner/visibility)。`T-0` 土台 → `A` 共有エージェント庫（生成×再利用）→ `B` 共有ハブ/管理。**会社間+trust 商品化は切った**（価値薄・user 判断）。billing 機構は seam のみ（後付け）。実装順 `T-0→A1→B1→肉付け`。 | ↓「テナンシー Wave 計画」 |
+| **Wave Cockpit（玄関統合 + ノード検証 + UI/UX）** | 3 cockpit(ui.html旧/ui2作業場/shenron事務所)の drift を「玄関 router」で統合。`/` に launcher 新設→作業場(ui2)/神龍(shenron)を選ばせる（IDE welcome パターン・**統合でなく廊下**）。+全ノード/component 種別の parity 検証 +UI/UX 一貫性。**backend 不変**。`Cockpit-0`(検証)→`1`(玄関+ui.html退役)→`2`(一貫性)→`3`(磨き)。B1 の前後可。 | ↓「Wave Cockpit 計画」 |
 
 ## Wave UI — 成果物UI（操作面）設計メモ
 
@@ -419,6 +420,27 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 **前提（user 訂正 2026-06-23）: テナンシー T 群（T-0 done → A1 庫 → B1 role → 肉付け）を先に完走 → その後に本改善Wave群**。理由=save競合等は A1/B1 で複数seatが実データを触ってから現実化＝agile（機能で問題を炙り出してから埋める・0顧客に土台投機しない）。
 `Cliff-1`（守り土台）→ `Host-1`（自己ホスト・既存近い）→ `Vault-1`（managed前提）→ `Canvas-1`/`DX-1`/`Reliable-1`（攻め・managed立後）→ `Redact-1`（実需後）。
 **agile 原則**: 0チームに multi-tenant DB を先行実装しない（[[feedback_skip_record]]）。Cliff-1 の「最小保険+地図」で崖の手前に手すりだけ置き、本格 DB 化は2人目 seat が「データ壊れた」と言った時に渡る。**state臓器分離は弱点1(hub肥大)と弱点2(save競合)を同時に解く**＝大きな部品で2つの影を1手で消す。
+
+---
+
+## Wave Cockpit 計画（玄関 router 統合 + ノード検証 + UI/UX・設計・2026-06-23）
+
+> **発端（user 2026-06-23）**: cockpit HTML が3つ並存し drift（`/`=ui.html旧・`/ui2`=canvas作業場・`/shenron`=事務所）。`legendary-review` 結論=ui2/shenron は冗長でなく**相補的半身（作る vs 回す）**・患部は両者の動脈断絶＝**統合でなく廊下**。user 決定=`/` に「玄関(launcher)」新設し作業場/神龍を選ばせる（IDE welcome パターン・家を cockpit でなく router に）。+全ノード/component 種別の検証 +UI/UX 改善。詳細 plan＝`~/.claude/plans/wave-users-shibuyaryouyuu-shenron-docs-r-radiant-aho.md`（承認済）。状態=全📋（実装は次セッション・branch `wave-cockpit`）。**backend `/api/*` 不変＝UI のみ（北極星 MCP-FIRST 整合）。B1 の前後どちらでも可。**
+
+### Cockpit-0 — ノード/component 種別の parity 検証（📋）
+作業場(ui2)を玄関に正式接続する前に全種別が runner で動くと証明し palette↔runner drift を test で固定。runner dispatch=`hub.mjs:486-495`（input/output/prompt/consensus/router/mcp/workflow/parser/languagemodel/structured）+langflow(特殊:373・全 flow を Langflow /v1/run へ)+agent＝**全 palette kind に dispatch 有り**（消えたノード無し）。被覆不均一（languagemodel/workflow 各1で薄い・langflow は `test_langflow.mjs` 別建て）。やる＝各 kind 最小 flow→run→assert 1本（新規 `prototype/hub/test_nodes.mjs`・STATE_DIR 隔離は `test_tenancy.mjs` 流用）+component(`genComponent`→`approve_component`→mcp node 再利用)1本+**parity guard**(palette 全 kind が advanceFrom に dispatch を持つ assert＝将来追加時に drift 即落ち)。langflow は host 要→skip 記録（[[feedback_skip_record]]）。
+
+### Cockpit-1 — 玄関(launcher)新設 + navigation + ui.html 退役（📋・動く統合の骨）
+新規 `prototype/hub/index.html`=薄い launcher（Alpine+Tailwind・shenron と同言語）: 最近のフロー(`GET /api/workflows`)・2部屋ボタン(🔧作業場→`/ui2`・🐉神龍→`/shenron`)・ショートカット(📚庫→`/shenron#garage`・⚡実行)・フロークリック「✏️編集(作業場) / ▶開く(神龍)」。`hub.mjs`:`GET /`→新 `INDEX_FILE`(index.html) 配信（現 ui.html 差替・`UI_FILE` パターン）・ui.html は `/ui-old` 退避（即削除せず様子見）。`shenron.html`:sidebar`:78` の旧UI🐲リンク→「🚪玄関」・Flows カードに「✏️canvas で編集」→`/ui2?flow=<id>`。`ui2.html`:topbar「🚪玄関」+load 時 `location.search` の `?flow=<id>`→既存 `loadFlow(:956)`（flow card fetch`:950` と同型）で canvas materialize。reuse=ui2 `loadFlow`・shenron tabs`:565`・`/api/workflows`。
+
+### Cockpit-2 — 見た目・トーン一貫性（📋）
+監査 gap=視覚言語別(shenron Alpine+sidebar / ui2 innerHTML+topbar+i18n)・title 不統一(shenron"cockpit"/ui2"神龍 — canvas")。玄関+2 cockpit を共通 token（配色/ロゴ🐉/タイポ/ヘッダ・戻る導線）で同一製品に見せる。
+
+### Cockpit-3 — UX 磨き（監査 driven・📋）
+監査 seed（既読で判明）: ui2 に tenancy 共有導線無し→ui2 flow に「🐉神龍で共有」/ NL wish が2箇所重複(shenron Wish タブ・ui2 `openShenron` 埋込)→役割整理 / 庫(A1)カード磨き・空状態導線 / モバイル(玄関 PWA 化・start_url 見直し)。着手時に両 cockpit 精読で候補確定。
+
+### 横断制約
+**backend 不変**（玄関/navigation/一貫性は UI のみ・新 MCP tool 不要＝北極星整合）。[[feedback_verify_boot]] 各 commit 前 `node prototype/hub/hub.mjs` 起動確認。[[feedback_ui_sync]] 該当。safe-commit=明示パス add（別 claude が html 触る前提）。実装順 `Cockpit-0→1→2→3`・B1 前後可。
 
 ---
 
