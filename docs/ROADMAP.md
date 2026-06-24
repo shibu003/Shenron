@@ -377,7 +377,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 - **A3 publish（📋・A1 後）**: `share_workflow` に「何をするか」1行（既存 `summary` or `renderPlan` plain_summary）要求 → 庫掲載のノイズ防止。
 
 ## トラックB — 共有ハブ + 管理（予算が付きやすい）
-- **B1 role（📋・A1 後）**: `auth.mjs` user に `role:'admin'|'member'`・`register`:53 で `userCount()===0?'admin':'member'`。`isAdmin(req)`（openDev=運用者=admin で後方互換）。破壊操作・team cred set・remove/set_role を admin gate。MCP `set_role` **stdio 専用**（`REMOTE_DENY` 方針 tools.mjs:215・list_users/reset_password と同じ）。
+- **B1 role（✅・A1 後）**: `auth.mjs` user に `role:'admin'|'member'`（`register`:59 で 1人目=admin）・`getRole`/`setRole`（最後の admin 降格不可ガード）・`listUsers` に role 露出。`isAdmin(req)`（openDev/MCP 運用者=admin で後方互換・hub.mjs）+ `POST /api/auth/role`（admin gate）。MCP `set_role` **stdio 専用**（`REMOTE_DENY`・PROXY entry は dead なので不追加）。settings.html に role バッジ（読取のみ）。新 `test_role.mjs`（HOME=tmpdir 隔離で本番 users.json 非汚染・assignment/gate/last-admin の3検証）。team cred set(B3)/remove(B2) の admin gate は各 Wave で。
 - **B2 invite+名簿（📋）**: `invite_user(email)`(admin)=member pending 作成+set-pw トークン（既存 `resetToken`/`verifyToken`:58/:113 再利用・リンクはターミナル出力）。`list_members`=既存 `listUsers`。`remove_member`=auth.mjs 新 `removeUser`（自分は消せないガード）。UI: settings.html admin 専用「👥 メンバー」。
 - **B3 team credential（📋）**: vault は「値を返さない」契約既存。lazy v1=**multi-seat では `set_credential` を admin gate**（個人=openDev=従来通り）。member の flow は `credentialEnv`(N-1)で名前参照・値不可視。
 - **B4 admin 監査（📋・trust の唯一の生存場所）**: 既存 trust.mjs hash-chain(`/api/audit`+verify)を settings.html admin 専用「🔒 チーム活動」に読取表示。新 backend ゼロ。
