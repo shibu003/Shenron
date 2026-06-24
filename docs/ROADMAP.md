@@ -409,7 +409,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 | Wave | 内容 | 弱点/領地 | 依存 |
 |---|---|---|---|
 | **Cliff-1**（守り土台・最優先）✅ | **実コード検証で脅威を訂正**: 単一プロセスでは「run 並行 last-write-wins」は起きない（`state` は load 1か所の共有 object・save 系は全同期 read-write）。**真の崖=クラッシュ torn-write**（`writeFileSync` truncate→write 中の死で JSON 破損→次 load で全 state 消失）。修正=**atomic write(temp+`renameSync`)** を `state.mjs` に新設し hub の whole-file JSON 書込 **13箇所全て**に適用（durable store: inbox/workflows/components/automations/goals/integrations/config/suggestions）。`state`/`save`/`load` を `createStore` で state.mjs へ抽出（永続化を1臓器に集約・将来 lock/DB の seam）。SCHED/LOGIN は transient cache で除外。`test_state.mjs`。崖の地図↓。 | 弱点1+2 | なし |
-| **Host-1**（自己ホスト・n8n領地） | OSS/npx 配布整備（既存 Fly 計画に近い）。各社デプロイ→データ手元（moat整合・従量0） | n8n自己ホスト | Cliff-1 |
+| **Host-1**（自己ホスト・n8n領地）✅ | OSS/npx 配布整備。**hub はゼロ npm 依存を確認**（全 import が node:/相対・Playwright は browser-worker が `npx` 遅延起動＝install 重さゼロ）。`package.json` publish-ready 化（version 0.1.0/files allowlist/MIT/repository/keywords）+ root `README.md` + `LICENSE`(MIT)。**`files` allowlist で secret/dev データを構造排除**（`*.mjs`/`*.html`/明示 json のみ＝inbox/pem/env は不マッチ・`.npmignore` は作らない＝.gitignore footgun 回避）。**pack-extract-boot で公開物だけの起動を実証**（53 file/316kB・health OK）。実 `npm publish` は user 操作（README に手順）。`npx shenron-hub`（publish 後）/ `git clone && node bin/shenron.mjs`（今）の2経路。 | n8n自己ホスト | Cliff-1 |
 | **Vault-1**（managed 開業条件） | 非Mac vault を base64→AES（managed/Fly前提・鍵を堅く） | 弱点4 | Host-1 |
 | **Canvas-1**（managedの顔・Langflow領地） | 成果物UI/canvas 足場（trust branch parked 参照・既存 Wave UI S と接続）・非技術チーム向け | Langflow canvas | Vault-1 |
 | **DX-1**（LangGraph領地・乗換導線） | SKILL.md export / MCPネイティブを武器化（「ライブラリ組むより神龍が早い」導線） | LangGraph(DX) | — |
