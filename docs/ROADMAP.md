@@ -377,7 +377,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 - **A3 publish（📋・A1 後）**: `share_workflow` に「何をするか」1行（既存 `summary` or `renderPlan` plain_summary）要求 → 庫掲載のノイズ防止。
 
 ## トラックB — 共有ハブ + 管理（予算が付きやすい）
-- **B1 role（📋・A1 後）**: `auth.mjs` user に `role:'admin'|'member'`・`register`:53 で `userCount()===0?'admin':'member'`。`isAdmin(req)`（openDev=運用者=admin で後方互換）。破壊操作・team cred set・remove/set_role を admin gate。MCP `set_role` **stdio 専用**（`REMOTE_DENY` 方針 tools.mjs:215・list_users/reset_password と同じ）。
+- **B1 role（✅・A1 後）**: `auth.mjs` user に `role:'admin'|'member'`（`register`:59 で 1人目=admin）・`getRole`/`setRole`（最後の admin 降格不可ガード）・`listUsers` に role 露出。`isAdmin(req)`（openDev/MCP 運用者=admin で後方互換・hub.mjs）+ `POST /api/auth/role`（admin gate）。MCP `set_role` **stdio 専用**（`REMOTE_DENY`・PROXY entry は dead なので不追加）。settings.html に role バッジ（読取のみ）。新 `test_role.mjs`（HOME=tmpdir 隔離で本番 users.json 非汚染・assignment/gate/last-admin の3検証）。team cred set(B3)/remove(B2) の admin gate は各 Wave で。
 - **B2 invite+名簿（📋）**: `invite_user(email)`(admin)=member pending 作成+set-pw トークン（既存 `resetToken`/`verifyToken`:58/:113 再利用・リンクはターミナル出力）。`list_members`=既存 `listUsers`。`remove_member`=auth.mjs 新 `removeUser`（自分は消せないガード）。UI: settings.html admin 専用「👥 メンバー」。
 - **B3 team credential（📋）**: vault は「値を返さない」契約既存。lazy v1=**multi-seat では `set_credential` を admin gate**（個人=openDev=従来通り）。member の flow は `credentialEnv`(N-1)で名前参照・値不可視。
 - **B4 admin 監査（📋・trust の唯一の生存場所）**: 既存 trust.mjs hash-chain(`/api/audit`+verify)を settings.html admin 専用「🔒 チーム活動」に読取表示。新 backend ゼロ。
@@ -408,7 +408,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 ### Wave 群（WIP=1・各1commit・実装は次session）
 | Wave | 内容 | 弱点/領地 | 依存 |
 |---|---|---|---|
-| **Cliff-1**（守り土台・最優先） | `save()`競合の最小保険（書込直列化 or 楽観ロック）+ 崖の地図（DB化トリガを文書化）。state を hub から別モジュールへ剥がす（弱点1の hub 痩せ同梱可） | 弱点1+2 | なし |
+| **Cliff-1**（守り土台・最優先）✅ | **実コード検証で脅威を訂正**: 単一プロセスでは「run 並行 last-write-wins」は起きない（`state` は load 1か所の共有 object・save 系は全同期 read-write）。**真の崖=クラッシュ torn-write**（`writeFileSync` truncate→write 中の死で JSON 破損→次 load で全 state 消失）。修正=**atomic write(temp+`renameSync`)** を `state.mjs` に新設し hub の whole-file JSON 書込 **13箇所全て**に適用（durable store: inbox/workflows/components/automations/goals/integrations/config/suggestions）。`state`/`save`/`load` を `createStore` で state.mjs へ抽出（永続化を1臓器に集約・将来 lock/DB の seam）。SCHED/LOGIN は transient cache で除外。`test_state.mjs`。崖の地図↓。 | 弱点1+2 | なし |
 | **Host-1**（自己ホスト・n8n領地） | OSS/npx 配布整備（既存 Fly 計画に近い）。各社デプロイ→データ手元（moat整合・従量0） | n8n自己ホスト | Cliff-1 |
 | **Vault-1**（managed 開業条件） | 非Mac vault を base64→AES（managed/Fly前提・鍵を堅く） | 弱点4 | Host-1 |
 | **Canvas-1**（managedの顔・Langflow領地） | 成果物UI/canvas 足場（trust branch parked 参照・既存 Wave UI S と接続）・非技術チーム向け | Langflow canvas | Vault-1 |
@@ -420,6 +420,13 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 **前提（user 訂正 2026-06-23）: テナンシー T 群（T-0 done → A1 庫 → B1 role → 肉付け）を先に完走 → その後に本改善Wave群**。理由=save競合等は A1/B1 で複数seatが実データを触ってから現実化＝agile（機能で問題を炙り出してから埋める・0顧客に土台投機しない）。
 `Cliff-1`（守り土台）→ `Host-1`（自己ホスト・既存近い）→ `Vault-1`（managed前提）→ `Canvas-1`/`DX-1`/`Reliable-1`（攻め・managed立後）→ `Redact-1`（実需後）。
 **agile 原則**: 0チームに multi-tenant DB を先行実装しない（[[feedback_skip_record]]）。Cliff-1 の「最小保険+地図」で崖の手前に手すりだけ置き、本格 DB 化は2人目 seat が「データ壊れた」と言った時に渡る。**state臓器分離は弱点1(hub肥大)と弱点2(save競合)を同時に解く**＝大きな部品で2つの影を1手で消す。
+
+### Cliff-1 の崖の地図（次に渡る時／実装済の手すりの先）
+atomic write で torn-write の崖には手すりを付けた。残る崖と渡るトリガ（実害が出るまで投機しない）:
+- **multi-process clobber**: 2つ目の hub プロセスが同 state-dir を触ると last-writer-wins（atomic でも防げない＝別プロセスが別タイミングで full-write）。トリガ=hosted multi-instance or 2人目 seat が並行ホスト。手当て=file-lock（`flock`/lockfile）or per-key 書込 or DB。**その時に渡る**。
+- **perf（全書込）**: `save()` は audit append 毎に state 全体を O(size) で書く。inbox.json が数 MB に育つと I/O 律速。トリガ=state ファイルが肥大/書込が体感で重い。手当て=append-only audit log or per-key 分割 or DB。
+- **弱点1 本丸（hub 肥大）**: 今回 state 臓器は剥がしたが、`advanceFrom`(flow 実行器)と HTTP サーバが同居の本丸は未着手（hub.mjs ~1740行）。トリガ=2500行で記憶頼みの崖。別 Wave で flow-engine 分離。
+- **secret store の torn-write**: `auth.mjs`/`vault.mjs`/`memory.mjs` も whole-file 書込で同じ torn リスク（mode 0o600 維持で `writeJsonAtomic` に mode 引数を足して適用）＝低リスク follow-up。
 
 ---
 
