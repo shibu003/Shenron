@@ -561,6 +561,8 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **不変条件**：純抽出＝バイト等価の挙動。id 桁数不変。
 **検証**：全 test スイート green（純リファクタ）。
 **リスク・ロールバック**：低。各サイト独立に戻せる。
+**✅ 実装結果（2026-06-25）**：3 helper のうち**非自明な2つを集約**＝`filterTriggers(nodes,edges,notes)→{nodes,edges}`（runFlow/trustPreview/saveAutomation の trigger(+note) 除去・notes 引数で2種吸収・runFlow 直前に定義）＋`isCrossCompany(sc,tc)=!!sc&&!!tc&&sc!==tc`（trustPreview/fenceEdge の trust 境界判定・B7 `evaluateEdgeFence` 共有の土台）。⚠ runFlow:413 の `if(trg.size)` micro最適化は捨て常に新配列（trigger/note 無しフローで参照変化・内容等価＝読込 workflow.edges を mutate しなくなり安全側）。検証＝test 11本 green（純リファクタ出力不変）＋hub 実起動で trigger 除去実証（runflow with trigger→`entries:["i"]`・trigger は outputs 不在・3/3 completed）。
+- **⏭ skip：genId（自明ゆえ見送り・ponytail）**：`randomUUID().slice(0,N)` 16箇所の集約は、対象が自明な1行で N がサイト依存（8/6/4）＝ID_LEN マップという新参照を生み16箇所で kind 指定が要る（桁ミスリスク）のに可読性利得が薄い（YAGNI）。**いつ＝id 衝突対策で桁を増やす・prefix 規約を変える等「id 生成方針を一括変更する必要」が出た時**に ID_LEN マップ化（その時こそ単一の正本が効く）。観測ゼロなら作らない。
 
 ### B3 — vendor/model/tier resolver 集約
 **目的**：`node>handoff>tier>global>default` の vendor 解決が各所で再実装（L243,541,572-573,581,623…）→1 関数 `resolveVendor()` に集約（優先順位は現状維持）。
