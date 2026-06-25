@@ -347,7 +347,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 # テナンシー Wave 計画（社内＝課金土台・設計・2026-06-23）
 
-> **発端（user 2026-06-23）**: 「課金要素を見つけ出すか作り出したい・基本は無料でないと誰も使わないのでは」。会話で収束 → 個人=永久無料 wedge、社内(チーム)=利益源、**会社間+trust 商品化は切る**。欠けてた唯一のプリミティブ=**テナンシー(owner/visibility)**。詳細計画＝`~/.claude/plans/users-shibuyaryouyuu-shenron-docs-roadm-composed-whisper.md`（承認済 `2026-06-23`）。状態=全 📋（実装は次セッションから）。
+> **発端（user 2026-06-23）**: 「課金要素を見つけ出すか作り出したい・基本は無料でないと誰も使わないのでは」。会話で収束 → 個人=永久無料 wedge、社内(チーム)=利益源、**会社間+trust 商品化は切る**（⚠ PROJECT.md North Star V3＝cross-person/company handoff と矛盾する更新ゆえ、古い「会社間/trust を売る」枠組みに戻らないこと）。欠けてた唯一のプリミティブ=**テナンシー(owner/visibility)**。詳細計画＝`~/.claude/plans/users-shibuyaryouyuu-shenron-docs-roadm-composed-whisper.md`（承認済 `2026-06-23`）。状態=全 📋（実装は次セッションから）。
 
 ## 核（なぜ）
 - **個人 = 永久無料 wedge**（BYO-key・ローカル・OSS）。WTP ほぼ0・機能 gate は fork の餌＝**ここから金は取らない**。
