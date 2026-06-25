@@ -502,7 +502,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 - コメント L579 を「固定 I/O ポート＋矢印・rim は後方互換」に更新（stale doc 撲滅）。
 - 検証：input→prompt→output が右→左＋矢印で繋がる／trigger に左ポート無し・output に右ポート無し／router で then/else が右辺上下に分岐／rim-drag がまだ動く。
 
-### R0 — frontend ノードモデル統一（behavior-preserving・最優先の土台）
+### R0 — frontend ノードモデル統一（behavior-preserving・最優先の土台）✅ 実装済み（2026-06-25：ハーネス `ab6ffd3` ＋ 本体 `d5731e7`）
 **目的**：`TRIGGERS`/`MCP_NODES`/`COMPONENTS`/`NOTES` の**4配列→単一 `NODES[]`**、レンダー・inspector・snapshot・add/remove/duplicate・save/load を**1経路**に。agent は server identity ゆえ `state.agents` に残し **projection** で合流。**描画出力・保存 JSON・kind 値・挙動は完全不変**（純内部リファクタ）＝R1/W1-4 を data 駆動の小変更に変える土台。
 **触る関数・行（実コード確認済み）**：配列宣言 `TRIGGERS` L479・`MCP_NODES` L483・`COMPONENTS` L494・`NOTES` L496／ID counter `tidc/cidc/mnidc/noidc` L479,589,606,639／resolver `ag/trig/mcpn/comp/noteOf/nodeOf` L572-577／`renderNodes()` L668-742（5ループ）／`canvasSnap` L528・`undoApply` L530／add `addComp` L589・`addMcpNode` L606・`addTrigger` L639・`addNote` L640／remove `removeTrigger/removeMcpNode/removeComp/removeNote` L605,638,641,944／`duplicateNode` L1105-1110／`inspNode` L880-920／`nodeSpecOf` L1015-1020・`buildFlow` L1022-1024・`loadFlow` L981-996。
 **実装ステップ**：
@@ -517,6 +517,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **ノード関係性・接続時の挙動**：edge/接続意味は**完全不変**（`canConnect`/`matchType`/`tryConnect` は `nodeOf` 経由で既に統一済み＝触らない）。統一は内部表現のみ。
 **検証（headless ハーネス＝本セッションで設計・実証済み）**：① hub 起動／② inline JS `vm.Script` 構文 green／③ `node --test test_nodes.mjs` 無回帰／④ **headless スナップショット一致（最重要・behavior-preserving 証明）**。手順＝(a) ui2.html の inline script（L260 の `<script>`〜L1294 の `</script>`＝`sed -n '261,1293p'`）を抽出、(b) DOM スタブ前置き（`document.getElementById` は **tracked element registry** を返し `innerHTML` を記録／`createElement`/`localStorage`/`sessionStorage`/`window`/`fetch`=pending Promise/`WebSocket`/`requestAnimationFrame` をスタブ）、(c) 代表フロー（全13 kind＋branch/share edge）を `loadFlow`→ `render()`→ 各 `n_*` の innerHTML（カード markup）＋ 各ノードの `inspNode(id)`＋ `inspEdge(e)`＋ `buildFlow()` を収集し sort-key JSON 化、(d) 末尾で `fs.writeFileSync`＋`process.exit(0)`（背景 timer で hang するため）。**R0 前後でこの JSON が一致**すれば serialization＋カード markup＋inspector が不変＝合格。スタブ済みで `render` は throw しないこと（smoke）も確認。⑤ 既存 `workflows.json` を round-trip して形保持。
 **リスク・ロールバック**：render/save/load/undo に触れる中リスク。byte 一致テスト＋test_nodes で担保。1コミットゆえ revert 容易。
+**✅ 実装結果（2026-06-25・`d5731e7`）**：ハーネスを `prototype/hub/test_r0_snapshot.mjs`＋golden `r0_baseline.json` として新設（vm で inline script 実行・DOM スタブ・全13 kind 代表フロー）。card markup/inspNode/inspEdge/buildFlow/undo 往復が **byte 一致 green**。`renderNodes` 5ループ→`renderNode(node)` 1関数（markup verbatim）。resolver(`trig/mcpn/comp/noteOf`) を NODES ベース化したので **`inspNode`/`nodeSpecOf` は無変更で温存**。`removeNode` 統一で二重 snapshot bug も解消。note に `kind:'note'` 付与。**ステップ5/8 の INSPECT/SPEC/CARD テーブル化は skip**（resolver 統一で不要・diff/drift を増やすだけ）→ **R1 に送り**（kind 10→6 でテーブルが小さく自然になる時）。検証⑤ workflows.json round-trip は代表フロー（全 kind）の buildFlow 一致で代替。test_nodes parity 14 kind・hub 起動 smoke も green・hub.mjs 完全不変。
 
 ### R1 — 「大きな部品」統合（agent と Model の二極へ）
 **LLM系を1ノードに**：`COMP` に `model`（`label:'Model'`・`accepts:['*']`・`emits:['text','*']`）を新設。**mode フィールド**（`plain`=template／`system`=system+template＝旧 languagemodel／`structured`=JSON schema／`consensus`=多ベンダー投票）＋`vendor/model/tier` を inspector パラメータに。旧 `prompt/languagemodel/structured/consensus` は **load 時 alias** `KIND_ALIAS={languagemodel:['model',{mode:'system'}],structured:['model',{mode:'structured'}],consensus:['model',{mode:'consensus'}],prompt:['model',{mode:'plain'}]}` で `kind='model'`＋`config.mode` 補完。`parser`（唯一の非LLM文字整形）は独立維持。
@@ -678,7 +679,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 - ID/util helper 統一（frontend `nextId`・backend `genId(kind)`）。
 
 ### scope-drop / rollback / 依存順 / セッション状況
-- **🗓 セッション状況（2026-06-25）**：本セッションは **docs のみ確定**（ROADMAP 正本化＋CANVAS_REFERENCE §12）。**R0 以降のコード実装は次セッション**で行う。R0 用 headless 検証ハーネス（下記 R0 §検証）は本セッションで設計・実証済み（baseline 取得まで完了・ui2.html は未変更）。
+- **🗓 セッション状況（2026-06-25）**：**R0 実装完了**（ハーネス `ab6ffd3` ＋ 本体 `d5731e7`・ui2.html 4配列→`NODES[]` 統一・全検証 byte 一致 green・hub.mjs 不変）。**次は R1**（大きな部品＝`model` ノード統合・kind 10→6）。R0 で skip した **INSPECT/SPEC/CARD テーブル化は R1 と同時実施**（kind が減ってテーブルが小さく自然になる）。R0 ハーネス（`test_r0_snapshot.mjs`）は R1 でも回帰検出に再利用可（ただし R1 は kind 値が変わる＝意図的 drift ゆえ baseline 再生成が必要）。
 - 依存順：**R0 → R1 → R2**。**W1〜W4 は R0 と独立**＝現状コードでも R0 後でも実装可（旧 S2〜S5 手順を完全保存）。視覚 Wave を R0 より先に出荷するのも可。R2 は R1 の kind マージ／alias を整合させてから。
 - 各 Phase 独立 commit・WIP=1。重ければ：R2 を後送り／W3・W4 を落とす／R1 の input-output 廃止だけ先行、等で段階縮小可。
 - 各 commit 前に hub 起動＋inline JS `vm.Script` 構文＋（R0 は）**buildFlow JSON byte 一致**＋（可能なら）ブラウザ実描画で検証（chrome 拡張未接続なら data path のみ確認し ⏭ 記録）。
