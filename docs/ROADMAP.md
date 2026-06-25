@@ -704,35 +704,171 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **5段パイプライン（one-shot をやめる）**：**①Intent**（相談で真の意図/制約/成功条件）→**②Spec**（要件＋acceptance 確定）→**③Capability map**（各依存を実在検証＝needed/available/external/gap/**blocked**）→**④Design**（archetype＋patterns で typed-node 分解）→**⑤Verify**（symbolic dry-trace＋judge＋acceptance で goal 充足検査・候補選択）→不足なら②〜④へループ。各段で gap/blocker を正直に。
 **11レバー**：L1 Intent→Spec(PC2)／L2 acceptance(PC12)／L3 capability grounding=反hallucination(PC10)／L4 archetype＋patterns(PC4)／L5 symbolic dry-trace(PC11)／L6 候補＋judge(PC7)／L7 設計への対話修正(PC2/PC6)／L8 honest infeasibility(PC0/PC3)／**L9 primitive を能力で正しく理解(PC16)**／**L10 無駄ゼロ minimality(PC17)**／**L11 自立して正しく回る(PC18)**。揃って初めて**設計の天才**。
 
-> **共通アンカー（確認済）**：`shenron.mjs` `PROMPT` L32-64／`plan()` L278-296（clarify L288・fallback L294）／`buildPlanIR` L78-111／`REFINE_PROMPT` L263-271／`discover` L194-199／`neededCredentials` L349-353／`renderPlan` L148-173。`hub.mjs` `planFlow` L1286-1304／`validateFlow` L1208-1217／`layoutFlow` L1219／`trustPreview` L700-736／`fireMcpNode` gap L649-662／`templateGaps` L98-106／`genComponent`・`/components/approve` L1726／`/api/shenron/plan` L1702。UI `shenron.html` clarify L154-189／`ui2.html` `clearTrust` no-op L1141・「神龍で作る」L179。MCP `tools.mjs` `plan_flow`/`gen_component`。検証＝`prototype/hub/test_*.mjs`（`--vendor stub` headless・`test_shenron` 純ユニット／`test_nodes` E2E＋parity guard／`test_reliable` recovery）。**各 PC＝1 commit・WIP=1・MCP/web 両面。**
+> **共通アンカー（実コード確認済・行番号は2026-06-25 時点）**：`shenron.mjs`＝`PROMPT` L32-64／`plan()` L278-296（clarify 返却 L288-289・heuristic fallback L292-294）／`buildPlanIR` L78-111／`REFINE_PROMPT` L263-271／`discover` L194-199・`suggestionFromSearch` L178／`neededCredentials` L349-353（`SECRET_RE`＝`mcp-client.mjs:16`）／`renderPlan` L147-174／`inventoryText` L15-21・`choicesText` L274・`stepsText` L262／`genComponent` L372-409・`verifyMcpServer` L357・`extractCode` L305／`evalExpect` L430／`BUILTIN_KINDS` L69／**`isStubFail` L429**（`/(?:→ stub\]|^\[stub\])/`）。`runner.mjs` `runVendorAsync` L75-94（stub sentinel＝`[stub] (no vendor …)`／`[… → stub]`／`[… failed → stub]`）。`hub.mjs`＝`planFlow` L1286-1304／`validateFlow` L1208-1218・`layoutFlow` L1219-1225・`portsOf` L1202-1206・`portIntersect` L1207／`trustPreview` L700-736／`fireMcpNode` L649-663／`templateGaps` L99-106／`saveComponent` L316-324・`approveComponent` L325／`availableSummary` L1269-1283／`EXEC_VENDOR` L66／route `/api/shenron/plan` L1702・`/gen-component` L1714-1725・`/components/approve` L1726-1734・`/gen-artifact-ui` L1708・`/api/health` L1437・`/api/trust/preview` L1757／`readIntegrations`(L826)＝`{id,label,kind,command,url,enabled,tools:[{name,accepts,emits}],generated?,credentials?}`／`mcpDispatch` plan_flow L1308・gen_component L1329・run_workflow L1321／`listCredentials/getCredential`＝`vault.mjs`。UI＝`shenron.html` app state L560-602・`submitWish` L691-704・clarify UI L154-189・missing-tools L207-228・input L132-152／`ui2.html` `clearTrust` no-op L1092・`TRUSTPREVIEW` L481・`drawLinks`(tp) L850-854・「神龍で作る」link L179・topbar `#ckptBadge` L185・`runFlow` L1078-1087・`loadFlow` L981-996。MCP＝`tools.mjs` `plan_flow` L47-48・`gen_component` L49-50・`run_workflow` L69-70・`list_skills` L63-64・PROXY L190-227。検証基盤＝`prototype/hub/test_*.mjs`（`--vendor stub` headless・`test_shenron` 純ユニット／`test_nodes` E2E＋parity guard／`test_reliable` recovery）。**各 PC＝1 commit・WIP=1・MCP/web 両面。**
 
 #### トラックA — 修正・相談・honest・canvas（PC0〜PC6）
-**PC0 Honest failure（最優先・独立）**：モデル不在で heuristic fallback を返さず `mode:'unavailable'`＋理由＋直し方。差分＝`isStubOut(out)` 判定→「初回∧JSON失敗∧stub」で `unavailable` 返却・fallback は `!isStubOut` の稀ケースに限定・`planFlow` は保存しない。検証＝`--vendor stub` で `mode:'unavailable'`（偽フロー出ない）を `test_shenron` に。
-**PC1 Readiness 可視化**：`plannerReadiness()`（vendor を実呼び出しせず dry 判定＝APIキー/CLI 検出/--vendor）＋`GET /api/shenron/readiness`＋MCP `shenron_readiness`。/shenron・canvas topbar にバッジ。依存=PC0 相補。
-**PC2 相談の多ターン化（plan-mode 相当）**：`context.brief`={confirmed,open,assumptions,blockers} を持ち回り PROMPT/REFINE に注入→未解決で再 clarify・解決で plan。UI に要件パネル。触る=`plan()` L288・`REFINE_PROMPT` L263-271・`shenron.html` L154-189。依存=PC0。
-**PC3 Needs/Blockers/Cost ブリーフ＋canvas 再掲**：plan に `brief={needs,credentials,integrations,blockers,cost}`。canvas(ui2) に「神龍ブリーフ」パネル＋`trustPreview` 再 surface（`clearTrust` no-op を実描画へ）。依存=PC1。
-**PC5 実行前ゲート**：`preflight(nodes,edges)`＝`templateGaps`＋integration enabled＋credential＋readiness を集約し run 前に不足を提示＋直す導線。触る=`fireMcpNode` L649-662・`templateGaps` L98-106。依存=PC3。
-**PC6 canvas↔planner 統合**：「神龍で作る」L179 を埋め込み相談パネルに→plan を `loadFlow` 即材料化＋PC3/PC5 同居。MCP は既存 `plan_flow` で同一。依存=PC2/PC3/PC5・canvas 統一(R0/R1)後。
+
+##### PC0 — Honest failure（黙って偽フローを返さない・最優先・独立）
+**目的**：計画モデル不在/失敗時に heuristic fallback（input→prompt→output）を返さず `mode:'unavailable'`＋理由＋直し方を返す。kalsh-80 体験の直接修正。
+**触る関数・行**：`shenron.mjs` `plan()` L278-296（fallback L292-294）。**既存 `isStubFail`（shenron.mjs:429・`/(?:→ stub\]|^\[stub\])/`）を再利用**＝`runner.mjs` runVendorAsync の全 stub sentinel（`[stub] (no vendor …)`／`[… → stub]`／`[… failed → stub]`）を網羅。`hub.mjs` `planFlow` L1297／`renderPlan` L147。
+**差分**：`plan()` の `if (!ir) ir = refine ? context.prev_plan : buildPlanIR(…'heuristic'…)`（L292-294）を：
+```js
+if (!ir) {
+  if (!refine && isStubFail(out))                       // 計画モデルが応答しなかった＝偽フロー化しない
+    return { goal, mode:'unavailable', reason:'planner-model', detail:String(out).slice(0,160),
+      fix:['hub env に ANTHROPIC_API_KEY を設定','または hub から claude/codex CLI を使える状態に','または起動時 --vendor を指定'],
+      plain_summary:goal, source:'unavailable', nodes:[],edges:[],steps:[],missing:[],blockers:[] };
+  ir = refine ? context.prev_plan : buildPlanIR(goal,{plain_summary:goal,steps:[{action:goal,kind:'prompt',tool:null}]},'heuristic',gap); // LLM は動いたが JSON 壊れ＝稀
+}
+```
+`planFlow`（L1297 直後）に `if (ir.mode==='unavailable') return { ...ir, available: availableSummary(), ...renderPlan(ir) };`（clarify と同様・**保存しない**）。`renderPlan` 冒頭の clarify 分岐条件に `|| ir.mode==='unavailable'` を足し、unavailable 時は `summary_text` に「🐉 まだ計画できません：計画モデル未接続。直し方：…(fix を列挙)」。
+**検証**：`test_shenron.mjs` に `plan({goal:'x', run:async()=>'[stub] (no vendor "stub")'})` → `mode==='unavailable' && nodes.length===0`。`--vendor stub` の `POST /api/shenron/plan` が偽フローを返さない HTTP e2e。
+**リスク・ロールバック**：低（fallback 条件を狭めるのみ・`isStubFail` 既存）。L292-294 の局所差分のみ。**独立・最優先**。
+
+##### PC1 — Readiness 可視化（計画できる状態か）
+**目的**：計画モデル可否＋接続 integration/credential を一目＋MCP からも。
+**触る関数・行**：`hub.mjs` `EXEC_VENDOR` L66・`availableSummary` L1269-1283・`/api/health` L1437（隣に新 route）／`tools.mjs` TOOLS＋PROXY L190-227／`shenron.html` topbar・`ui2.html` topbar（`#ckptBadge` L185 隣）。
+**差分**：(a) `hub.mjs`：`function plannerReadiness(){ const v=EXEC_VENDOR; const hasKey=!!process.env.ANTHROPIC_API_KEY; const cli=(c)=>{try{return require('child_process').spawnSync(c,['--version'],{timeout:3000}).status===0;}catch{return false;}}; const model = v==='stub'?false:(hasKey||(!v||v==='claude')&&cli('claude')||v==='codex'&&cli('codex')); return { model, vendor:v||'claude', hasKey, fix: model?[]:['ANTHROPIC_API_KEY 設定','または claude/codex CLI','または --vendor'], integrations: readIntegrations().filter(it=>it.enabled!==false).length, credentials: listCredentials().length }; }`。(b) route `if (req.method==='GET' && p==='/api/shenron/readiness') return json(res,200,plannerReadiness());`。(c) `tools.mjs`：`{name:'shenron_readiness',description:'神龍が計画できる状態か（モデル/接続/資格情報）',inputSchema:{type:'object',properties:{}}}`＋PROXY `shenron_readiness:()=>({method:'GET',path:'/api/shenron/readiness'})`。(d) 両 topbar に `/api/shenron/readiness` を叩くバッジ（🟢計画可／🔴モデル未接続＋fix tooltip）。
+**検証**：キー無し→`model:false`・有り→true。`shenron_readiness` が stdio/remote 両 surface で返る。
+**依存**：PC0 相補。
+
+##### PC2 — 相談の多ターン化（plan-mode 相当）＋要件 brief パネル
+**目的**：1往復 clarify を要件確定まで多ターン化。確定/未解決/前提/blocker を可視化。
+**触る関数・行**：`shenron.mjs` `PROMPT` L32-64・`plan()` clarify 返却 L288-289・`REFINE_PROMPT` L263-271・`choicesText` L274／`shenron.html` app state L560-602・`submitWish` L691-704・clarify UI L154-189・`submitClarify`。
+**差分**：(a) `context.brief`={confirmed:[],open:[],assumptions:[],blockers:[]} を `plan()` が受け、`PROMPT`/`REFINE_PROMPT` 冒頭に `これまでに確定した要件:\n${briefText(context.brief)}`（`choicesText` 風 helper を追加）を注入。(b) clarify 返却（L288-289）に `brief`（前回 brief＋今回 question を統合）を載せ、`submitClarify` は `context:{choices, brief:this.plan.brief}` を送る。(c) clarify UI（L154-189）に要件パネル（confirmed/open/assumptions/blockers 列挙）＋「もっと詰める」（空 choices でも brief を送り再 clarify）。
+**検証**：`test_shenron`＝2 往復（clarify→choices→clarify→choices→plan）が brief を蓄積して回る。
+**依存**：PC0。
+
+##### PC3 — Needs/Blockers/Cost ブリーフ＋canvas 再掲
+**目的**：外部API・credential・integration・blocker・cost を構造化提示し canvas にも。
+**触る関数・行**：`shenron.mjs` `renderPlan` L147-174・`buildPlanIR`(missing/tools_needed) L78-111／`hub.mjs` `planFlow` L1286-1304・`trustPreview` L700-736・`/api/trust/preview` L1757／`ui2.html` `clearTrust` L1092・`TRUSTPREVIEW` L481・`drawLinks`(tp) L850-854。
+**差分**：(a) `planFlow` の `out` に `brief={ needs:ir.missing, credentials:[...new Set((ir.missing||[]).flatMap(m=>m.creds||[]))], integrations:(ir.tools_needed||[]).map(t=>({id:t.name,connected:t.have})), blockers:ir.blockers||[], cost:routingCost(ir) }`（`routingCost`＝steps の tier×概算）。(b) canvas(ui2)：撤去された trust を戻す＝`clearTrust`（L1092 no-op）を `TRUSTPREVIEW=tp; drawLinks();` の実描画に戻し、`saveFlow`/`loadFlow`/edge 編集後に `POST /api/trust/preview {nodes,edges}` を叩いて annotate（`drawLinks` L850-854 が既に `TRUSTPREVIEW.wires` を読む足場あり）。`#panel` に「神龍ブリーフ」（needs/credentials/integrations/blockers/cost）。
+**検証**：integration 未接続フローを開くと canvas に「これが足りない」＋trust 破線。
+**依存**：PC1。
+
+##### PC5 — 実行前ゲート（run 前に「足りない」を提示＋直す導線）
+**目的**：run 押下前に「X が無いと動かない」＋connect/credential/generate 導線。
+**触る関数・行**：`hub.mjs` `fireMcpNode` gap L649-662・`templateGaps` L98-106・`listCredentials`／`ui2.html` `runFlow` L1078-1087。
+**差分**：(a) `hub.mjs`：`function preflight(nodes){ const w=templateGaps({nodes, requires: requiredCreds(nodes)}); if(!plannerReadiness().model && nodes.some(n=>['prompt','consensus','languagemodel','structured','agent'].includes(n.kind))) w.push('計画/実行モデル未接続'); return w; }`（`templateGaps` を nodes 直接に再利用）。route `POST /api/preflight {nodes}` → warnings。(b) `ui2.html` `runFlow`（L1078）冒頭で `const w=await api('/api/preflight',{nodes:f.nodes}); if(w.length) → 確認ダイアログ`（各 warning に「⚙設定で接続」「生成」導線・`openModal`）。
+**検証**：mcp ノードの integration 未接続→run 前に止まり導線（HTTP e2e／`test_nodes`）。
+**依存**：PC3。
+
+##### PC6 — canvas↔planner 統合（canvas に「神龍に相談」）
+**目的**：/shenron と canvas の分断解消。canvas 上で 願い→相談→生成→編集→実行。
+**触る関数・行**：`ui2.html`「神龍で作る」link L179・`loadFlow` L981-996・`runFlow` L1078／`/api/shenron/plan` L1702。
+**差分**：(a) L179 のリンクを `#panel` に開く埋め込み相談パネル（PC2 の goal/brief/clarify UI を移植）に。(b) ui2 に `submitWish` 相当を追加→`POST /api/shenron/plan`→`mode:'plan'` で `loadFlow(r)`（既存・nodes/edges 即材料化）＋PC3 ブリーフ＋PC5 preflight 同居、`mode:'clarify'/'unavailable'` はパネル内表示。MCP は既存 `plan_flow` で同一（変更不要）。
+**検証**：canvas だけで「相談→フロー→実行前ゲート→実行」。
+**依存**：PC2/PC3/PC5・canvas 統一(R0/R1)後が望ましい。
 
 #### トラックB — plan 精度（5段パイプライン機構化）
-**PC4 パターン条件付け（seed＋RAG・参考であって強制でない）＋退化検出/修復**：(a) 同梱 `patterns.seed.json`＝良構造 worked 例（data-fetch→compute→threshold-router(if)→action→schedule／email urgent→Slack else log／fan-out→merge 等・**構造のみ**）＝cold-start 無し。(b) `retrievePatterns(goal,k)`＝**依存ゼロのレキシカル RAG**（BYO 埋め込み任意）。(c) PROMPT に「**参考（真似不要・自由に逸脱・新規歓迎・型に嵌めない）**」として注入＋CANVAS_REFERENCE 要約。(d) `validateFlow` 拡張：単一prompt なのに goal が複数動詞/条件→`warning:'degenerate'`＋自動 refine 1回・router 両枝欠落 lint。検証=seed なしでも multi-node／退化で warning＋再 plan。依存=PC0。
-**PC10 Capability grounding map（③・反 hallucination・F2 殺し）**：各 `step.tool` を registry で実在＋能力照合・`tool:null` 外部依存は search で実在 API 検証→`capability_map`={what,status:needed/available/external/gap/**blocked**,evidence}。blocked は F5 honest に。検証=「Kalshi 実金発注」→blocked/gap で confident な mcp にしない。触る=`discover` L194-199。依存=PC1/PC3。
-**PC11 Symbolic dry-trace（⑤・F3/F4/F6 殺し）**：`dryTrace(nodes,edges,spec,capability_map)`＝各ノード入力が上流で生成されるか・外部呼に integration 接続・router 両枝/合流・acceptance 到達経路・archetype 欠落 stage を検査し `gaps:[{node,reason}]`。検証=kalsh 型で「発注の入力(オッズ)が無い」「schedule 欠落」検出。触る=`validateFlow` L1208 深化。依存=PC4/PC10/PC12。
-**PC12 成功条件→acceptance（②・F6 殺し）**：相談で「どうなれば成功か」抽出→spec `acceptance:[{check,value}]`→automation `expect` 化（Wave R-1 統合）＝実行後に goal 充足を自動判定。依存=PC2。
-**PC7 複数候補＋judge 選択＋自己批評（⑤・精度の核）**：難 goal で 2-3 候補（API/browser/生成）→ rubric〔goal充足・条件は router・機械は parser・外部は grounded mcp・退化でない・dryTrace gaps 空・acceptance 到達〕で採点→最良＋runner-up graft・`!pass` は refine 1-2回・単純 goal は1候補。stub は PC0 に従い skip。依存=PC0/PC4/PC10/PC11。
-**PC8 パターン学習ループ（seed を採用フローで育てる・advisory）**：保存/成功フローを `patterns.json` に構造のみ冪等追記（config/secret 除外）→`retrievePatterns` が seed＋learned を統合 RAG。学習例も「参考・逸脱可」。依存=PC4・scope-drop 可。
-**PC9 Plan 品質 eval ハーネス**：`test_plan_quality.mjs`＝goal→期待構造 assert〔条件→router/機械→parser/外部→mcp or missing/曖昧→clarify/stub→unavailable〕。実モデルで構造 assert・stub で honest-failure assert。依存=PC0〜PC4/PC7。
+
+##### PC4 — パターン条件付け（seed＋RAG・**参考であって強制でない**）＋退化検出/修復
+**目的**：planner を CANVAS_REFERENCE＋同梱 seed パターン庫で条件付け（cold-start 無し）、退化（多段→単一prompt）を検出・修復。**型に嵌めない**。
+**触る関数・行**：`shenron.mjs` `PROMPT` L32-64・`plan()` L278（`inv` 組立直後に注入）・`inventoryText` L15-21／`hub.mjs` `validateFlow` L1208・`planFlow` L1287-1289／新 `prototype/hub/patterns.seed.json`。
+**差分**：(a) 同梱 `patterns.seed.json`＝`[{tags,goal_example,nodes:[{kind,branch?}],edges:[{from,to,branch?}]}]`（**構造のみ**・worked 例＝data-fetch→compute→threshold-router(if)→action→schedule／email urgent→Slack else log／fan-out→merge／browser-control＋承認）。(b) `shenron.mjs` に `retrievePatterns(goal,k=3)`＝seed（＋PC8 学習分）を goal/tags のトークン重なりで採点し上位 k（**依存ゼロのレキシカル**・BYO 埋め込み任意）。(c) `PROMPT` に `参考パターン（真似不要・goal に合わせ自由に逸脱・新規歓迎・型に嵌めない）:\n${patternsText}` を注入＋CANVAS_REFERENCE の kind 早見表1段落。(d) `validateFlow` 末尾に degenerate lint：`nodes.filter(n=>!['input','output'].includes(n.kind)).length===1 && /if|なら|otherwise|それ以外|全て|each|every/.test(goal)` → `warnings.push('degenerate')`。`planFlow` が degenerate 時 `plan(context={prev_plan,instruction:'decompose into typed nodes (mcp/router/structured/parser)'})` を1回。router の then/else 片枝欠落も lint。
+**検証**：`test_shenron`＝seed 0(cold-start) でも条件 goal が multi-node／seed 有りで router 化／degenerate→warning＋再 plan。
+**依存**：PC0。注：CANVAS_REFERENCE=教科書、seed=出荷時から効く few-shot。
+
+##### PC10 — Capability grounding map（③・反 hallucination・F2 殺し）
+**目的**：各依存を実在検証し needed/available/external/gap/blocked 分類＝「在る前提」を潰す（実フロー精度の最大レバー）。
+**触る関数・行**：`shenron.mjs` `discover` L194-199・`suggestionFromSearch` L178・`buildPlanIR`(missing/tools_needed) L78-111／`hub.mjs` `planFlow` L1287-1296(tools/search)・`readIntegrations`・`availableSummary` L1269-1283。
+**差分**：(a) `buildPlanIR` 後に `capability_map`：`step.tool` が inventory に在り action を満たす→available／在るが能力不一致→gap／`tool:null` の mcp/agent→`discover` で search 実在検証→ヒット URL→external・無→gap／実在せず ToS/資金/規制で不可→blocked。(b) `discover`（L194-199）拡張：`suggestionFromSearch` 結果に `verified:!!url` と `auth_required` 付与。(c) `capability_map` を brief(PC3) に載せ、blocked は `ir.blockers` に合流（F5 honest）。
+**検証**：`test_shenron`＝「Kalshi 実金発注」→capability_map に blocked/gap（confident な mcp ノードにしない）。
+**依存**：PC1/PC3。
+
+##### PC11 — Symbolic dry-trace（⑤・意味的完全性・F3/F4/F6 殺し）
+**目的**：DAG を記号実行し port を超えた完全性検査。
+**触る関数・行**：`hub.mjs` `validateFlow` L1208・`portsOf` L1202-1206・`toposort`／新 `dryTrace`／`planFlow`。
+**差分**：`hub.mjs` に
+```js
+function dryTrace(nodes, edges, { capability_map = {}, acceptance } = {}) {
+  const order = toposort(nodes, edges); const gaps = [];
+  for (const n of order) {
+    const inc = edges.filter(e => e.target === n.id);
+    if (!['input','trigger'].includes(n.kind) && !inc.length) gaps.push({ node:n.id, reason:'no input edge' });
+    if (n.kind === 'mcp') { const c = capability_map[n.id]; if (c && c.status !== 'available') gaps.push({ node:n.id, reason:'external dep '+c.status }); }
+    if (n.kind === 'router') { const br = edges.filter(e=>e.source===n.id).map(e=>e.branch); if (!br.includes('then')||!br.includes('else')) gaps.push({ node:n.id, reason:'router missing branch' }); }
+  }
+  if (!nodes.some(n => n.kind==='output' || !edges.some(e=>e.source===n.id))) gaps.push({ node:'(flow)', reason:'no terminal/output' });
+  return { gaps };
+}
+```
+（archetype 欠落＝schedule/データ源/出力 を goal と照合し gaps に追記）。`planFlow` が `dryTrace` を呼び gaps を brief に＋PC7 修復のトリガに。
+**検証**：`test_shenron`＝kalsh 型で「発注の入力(オッズ)が無い」「schedule 欠落」「no terminal」検出。
+**依存**：PC4/PC10/PC12。
+
+##### PC12 — 成功条件 → acceptance（②・F6 殺し・Resilience 接続）
+**目的**：「どうなれば成功か」を抽出し plan の一級成果物に＋実行後の自己検証へ。
+**触る関数・行**：`shenron.mjs` `PROMPT` L32-64(JSON 契約)・`buildPlanIR`・既存 `evalExpect` L430／`hub.mjs` `planFlow`・`saveWorkflow`・Resilience `checkOutcome`（ROADMAP Wave R-1）。
+**差分**：(a) `PROMPT` の出力 JSON 契約に `"acceptance":[{"check":"contains|equals|regex|json|judge","value":"…"}]`（「どうなれば成功か」を必ず1つ）を追加。(b) `buildPlanIR` が `ir.acceptance` を保持。(c) `planFlow` の `saveWorkflow` 時に automation `expect` へ変換（`evalExpect` が既に contains/equals/regex/json:path/judge を解釈）＝実行後 `checkOutcome` が goal 充足を自動判定。
+**検証**：`test_shenron`＝「週次レポートを Slack に」→`acceptance:[{check:'contains',value:'posted'}]` 抽出→`expect` 化。
+**依存**：PC2。
+
+##### PC7 — 複数候補＋judge 選択＋自己批評（⑤・精度の核）
+**目的**：難 goal で 2-3 候補→rubric 採点→最良選択＋不合格修復。
+**触る関数・行**：`shenron.mjs` `plan()` L278-296・`REFINE_PROMPT` L263-271・`stepsText` L262／新 `critiquePlan`/`rankCandidates`。
+**差分**：(a) 「難度高（capability_map に gap/blocked 多 or 機構候補複数）」時のみ N=2-3 候補を `run` 並列生成（`PROMPT` に mechanism preference を変えて＝API優先/browser優先/生成優先）。(b) `critiquePlan(goal,ir,{capability_map,dryGaps,acceptance})`＝cheap LLM 1パスで rubric〔goal/spec 充足・条件は router・機械は parser・外部は grounded mcp・退化でない・`dryTrace.gaps` 空・acceptance 到達〕→`{score,pass,issues,fix_instruction}`。(c) 最良採用＋runner-up の良案 graft、`!pass` は `plan(context={prev_plan,instruction:fix_instruction})` で 1-2回修復。単純 goal は1候補（省コスト）。`isStubFail` なら PC0 に従い skip。
+**検証**：`test_shenron`＝「email urgent→Slack else log」で router 欠落候補を低評価→router 化候補を選択。
+**依存**：PC0/PC4/PC10/PC11。
+
+##### PC8 — パターン学習ループ（seed を採用フローで育てる・advisory）
+**目的**：採用/成功フローで seed を成長（cold-start 後の精度上積み）。学習例も参考・強制でない。
+**触る関数・行**：`hub.mjs` `saveWorkflow`・`advanceFrom`(完了)／新 `patterns.json`／`shenron.mjs` `retrievePatterns`(PC4 と共有)。
+**差分**：(a) `saveWorkflow`（採用）と run 成功で `patterns.json` に `{goal:wf.name, nodes:nodes.map(n=>({kind:n.kind,branch:n.branch})), edges:edges.map(e=>({from:e.source,to:e.target,branch:e.branch})), tags}` を冪等追記（**config 値・secret 除外＝構造のみ**）。(b) `retrievePatterns` が seed＋learned を統合検索（同関数）。(c) 注入時は seed/learned とも「参考・逸脱可」。
+**検証**：`test_shenron`＝学習例0でも機能／router 実績投入で router 化しやすい（型強制でないことも）。
+**依存**：PC4・scope-drop 可。
+
+##### PC9 — Plan 品質 eval ハーネス（精度を測る/回帰防止）
+**目的**：代表 goal の構造特性を assert＝精度の回帰防止。
+**触る関数・行**：新 `prototype/hub/test_plan_quality.mjs`（`test_*.mjs` 規約）。
+**差分**：goal→期待構造表〔条件分岐→router+then/else／機械整形→parser／外部API→mcp or `missing` 非空／曖昧→`mode:clarify`／stub→`mode:unavailable`〕。実モデル時は構造 assert、`--vendor stub` 時は honest-failure(PC0)/clarify-skip を assert（CI 最小）。`plan()` 直呼びの純ユニット＋`/api/shenron/plan` HTTP の2層。
+**検証**：ハーネス green・退化混入で fail。
+**依存**：PC0〜PC4/PC7。
 
 #### トラックC — 部品(component)設計の精度（「これがあったらいいな」を正しく作る）
 > 既存 `genComponent`（Python MCP server 生成→spawn+handshake+run 検証→repair→approve）を「**走る**」から「**正しく・完全に・役に立つ**」へ。失敗モード CG1 役割 spec 不在／CG2 完成度不足／CG3 I/O 契約不適合＝動くが無用／CG4 capability hallucination／CG5 「走る」検証のみ／CG6 能動提案欠落。
-**PC13 Component spec（役割由来）＋grounded codegen（CG1/CG4）**：生成前に flow 役割から `{purpose,inputs(上流emits由来),outputs(下流accepts由来),success_example,errors,deps,creds}` を導出＋使う外部 API を実在検証してから書く。触る=`genComponent`(入力を `what`→spec)・`neededCredentials` L349-353・PC10。依存=PC10。
-**PC14 完成度ルーブリック＋適合(contract)テスト（CG2/CG3/CG5）**：(a) 完成度 rubric〔入力検証・error・auth/creds・rate/pagination・idempotency・出力契約〕を judge 採点→**repair 収束条件に追加**。(b) **contract test**＝`spec.success_example` で sandbox 実行し `spec.outputs` 一致＝「どう役に立つか」実証。(c) 完成度(partial/complete) surface。依存=PC13。
-**PC15 能動提案＋部品設計アーティファクト（CG6＋透明性）**：plan に `opportunities:[{what,why_it_helps,est_cost}]`（gap でなく価値提案・任意採用）＋各部品に設計書（purpose/contract/completeness/fit-test）を approve 前提示。触る=`planFlow`・`/components/approve` L1726・`goalSuggest` 連動。依存=PC13/PC14。
+##### PC13 — Component spec（役割由来）＋grounded codegen（CG1/CG4）
+**目的**：生成前に flow 役割から精密契約を導出＋使う外部 API を実在検証してから書く。
+**触る関数・行**：`shenron.mjs` `genComponent` L372-409・`extractCode` L305・`neededCredentials` L349-353（`SECRET_RE`＝`mcp-client.mjs:16`）／`hub.mjs` gen-component route L1714-1725・PC10 grounding。
+**差分**：(a) `genComponent` の入力を `what`（文字列）から `spec={purpose, inputs(上流ノードの emits 由来 schema), outputs(下流 accepts 由来 schema), success_example, errors, deps, creds}` に拡張（gen-component route で flow context から spec を組む or LLM で `what`→spec を1パス導出）。(b) codegen prompt に spec＋PC10 で実在検証済の API doc URL を注入（CG4＝無い API/誤用を潰す）。(c) `neededCredentials` の結果を spec.creds に。
+**検証**：`test_shenron`(gen ユニット・stub codegen)＝gap「オッズ取得」→上流/下流契約に合う in/out の spec で生成。
+**依存**：PC10。
+
+##### PC14 — 完成度ルーブリック＋適合(contract)テスト（CG2/CG3/CG5）
+**目的**：sandbox 検証を「走る」から「完全＋役割適合」へ。
+**触る関数・行**：`shenron.mjs` `genComponent` verify/repair ループ L372-409・`verifyMcpServer` L357／sandbox spawn。
+**差分**：(a) 完成度 rubric〔入力検証・error 処理・auth/creds・rate/pagination・idempotency・出力契約〕を cheap LLM judge で採点し **repair の収束条件に追加**（現状は spawn+handshake+run が通るのみ＝CG5）。(b) **contract test**＝`spec.success_example` を入力に sandbox の `run` tool を実行し、出力が `spec.outputs` スキーマ/期待に一致するか assert（不一致は repair 継続）。(c) `genComponent` 返却に `completeness:'partial'|'complete'` を足し `saveComponent`（L316-324）に保存・approve 前に明示。
+**検証**：`test_shenron`＝代表入力で期待形出力を返すまで repair／partial が surface。
+**依存**：PC13。
+
+##### PC15 — 能動提案＋部品設計アーティファクト（CG6＋透明性）
+**目的**：「これがあれば更に達成できる」部品を理由付で提案＋設計書を approve 前提示。
+**触る関数・行**：`hub.mjs` `planFlow` L1286-1304・`/components/approve` L1726-1734・`saveComponent` L316-324・既存 `goalSuggest`／`shenron.html` Deployments タブ。
+**差分**：(a) `planFlow` の out に `opportunities:[{what, why_it_helps, est_cost}]`（gap でなく価値提案＝LLM に「あると目的達成が捗る道具」を1-2個・任意採用）。(b) `/components/approve` 応答＋`saveComponent` に design artifact `{purpose, contract:{inputs,outputs}, deps, creds, completeness, fit_test}` を添付し Deployments UI で表示。(c) 採用→PC13→PC14。
+**検証**：`test_shenron`/HTTP e2e＝goal に opportunities が理由付で出る／approve 前に設計書が見える。
+**依存**：PC13/PC14。
 
 #### トラックD — 設計の天才（正しい理解・無駄ゼロ・自立して正しく回る）
-**PC16 Primitive 能力モデル（正しい理解・L9）**：node/component/integration(API)/DB の**実契約**を `capabilityModel()`={kind,consumes,produces,cost,precondition,failure,compose_rules} に機械可読化（node=runtime 実意味・API=tool schema/OpenAPI・DB=schema(tables/columns)）。planner/judge/dryTrace/codegen が**名前でなく能力で**推論＝実 op/column にのみ配線。触る=`CANVAS_REFERENCE`・`COMP` L510-525・`readIntegrations`・`fireNode` 実意味。依存=PC10 相補。
-**PC17 設計最適化パス（無駄ゼロ・L10）**：`optimizeFlow(nodes,edges,capabilityModel)`＝決定論 prompt を parser 化・同 tier 隣接 prompt 統合・到達不能ノード/edge 除去・fan-in を正しい merge に。judge に design-quality（node 最小・$0 比率・死に枝ゼロ）加点。前後で goal 充足不変。触る=`validateFlow` L1208。依存=PC4/PC16。
-**PC18 自立して正しく回る（autonomous correctness・L11）**：(a) **走行ゲート**=dryTrace gaps 空＋全外部依存 available＋acceptance 到達で「runnable」確定（PC5 統合）。(b) **自己修復**=実行後 acceptance 不成立 or tool 破損→`gen_component` 再生成/refine 自動起動（Wave R 統合）。(c) **自立性チェック**=外部ランタイム非依存（serverless-cron/ユーザー surface/ローカル）判定・要常時稼働なら surface。依存=PC11/PC12・Resilience。
+##### PC16 — Primitive 能力モデル（正しい理解・L9）
+**目的**：node/component/API/DB の実契約を機械可読化し、planner/judge/dryTrace/codegen が**名前でなく能力で**推論。
+**触る関数・行**：`hub.mjs` `portsOf` L1202-1206・`PORTS`・`readIntegrations`(tools[].accepts/emits)・`fireNode` 実意味（merge=`\n\n` join・router branch・`fenceEdge`）／`CANVAS_REFERENCE`／`ui2.html` `COMP` L510-525。
+**差分**：`hub.mjs`(or shenron.mjs) に `capabilityModel()`＝各 primitive を `{kind, consumes, produces, cost, precondition, failure, compose_rules}` に正規化：node は runtime 実意味（`PORTS`＋`fireNode` 挙動）から固定表、integration は `readIntegrations().tools[]`（accepts/emits・将来 OpenAPI 取込で op 一覧）、DB integration は schema(tables/columns)。`PROMPT`(inventory 部)・`critiquePlan`(PC7)・`dryTrace`(PC11)・`genComponent`(PC13) が `capabilityModel` を参照し、**API の実 op・DB の実 column にのみ**配線（id 一致だけで hallucinated op を作らない）。未知 integration は接続時に schema 取込で自動拡張。
+**検証**：`test_shenron`＝登録 API/DB に対し存在する op/column のみ配線・hallucinated op を判定。
+**依存**：PC10 相補。
+
+##### PC17 — 設計最適化パス（無駄ゼロ・L10）
+**目的**：生成 flow を最小・無駄なしに。
+**触る関数・行**：`hub.mjs` `validateFlow` L1208・`planFlow` L1299（validate→layout の間に挿入）・`critiquePlan`(PC7)／新 `optimizeFlow`。
+**差分**：`optimizeFlow(nodes,edges,capabilityModel)`＝(1) 決定論変換可能な prompt（template 置換のみ）を `parser`($0) に、(2) 同 tier の隣接 prompt を1つに統合、(3) 到達不能ノード/edge を除去、(4) fan-in を正しい merge（runner は `\n\n` join＝そのまま）に。`planFlow` を `validateFlow`→`optimizeFlow`→`layoutFlow` の順に。`critiquePlan` rubric に design-quality（node 数最小性・$0 比率・死に枝ゼロ）加点。**前後で goal 充足(acceptance)は不変**。
+**検証**：`test_shenron`/E2E＝冗長 2 prompt→1／決定論 prompt→parser／死に枝消去／acceptance 不変。
+**依存**：PC4/PC16。
+
+##### PC18 — 自立して正しく回る（autonomous correctness・L11）
+**目的**：自立して end-to-end 正しく回る保証。
+**触る関数・行**：`hub.mjs` `dryTrace`(PC11)・`preflight`(PC5)・Resilience `checkOutcome`/`evalExpect`（Wave R-1）・`fireMcpNode` postResult error L649-662・`gen_component` 再生成／`shenron.mjs` `PROMPT` scheduling 分類 L43-46。
+**差分**：(a) **走行ゲート**：`dryTrace.gaps` 空＋全外部依存 available＋acceptance 到達経路ありを満たすと plan を `runnable:true`（PC5 preflight と統合）。(b) **自己修復**：実行後 `checkOutcome` で acceptance 不成立、または mcp tool 破損（postResult error）時、`gen_component` 再生成 or `plan(refine)` を自動起動（ROADMAP Wave R-2/R-3 と統合）。(c) **自立性チェック**：`PROMPT` 既存の scheduling 分類（API-only→serverless-cron／browser→ユーザー機）を formal 化し、要常時稼働なら brief に surface（自立不可を正直に）。
+**検証**：`test_reliable`/`test_autopause`＝tool 破損→再生成復旧／acceptance 不成立→自己修復／要常時稼働を surface。
+**依存**：PC11/PC12・Resilience。
 
 ### 依存順・scope-drop（神龍-Copilot）
 - 修正＋相談：**PC0（最優先・独立）→ PC1 → PC2 → PC3 → PC5 →（PC6 は canvas 統一後）**。
