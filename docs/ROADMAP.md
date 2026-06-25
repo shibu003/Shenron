@@ -54,6 +54,7 @@
 | **Wave N-3** | **`shenron doctor`**: 初回で詰まる原因（Node バージョン・Playwright Chromium 未インストール・ポート競合・A2A_SHARED_TOKEN 未設定・users.json 状態）をチェックし修正コマンドを表示。`bin/shenron.mjs doctor` CLI ＋ `GET /api/doctor`（認証不要）＋ `hub_doctor` MCP 両surface（stdio 72 / remote 61 tools）。`prototype/hub/doctor.mjs` に共有チェックロジック。 | 本 doc |
 | **Wave Goals-2** | **ゴール concierge 能動化（自動 checkin + 期限/停滞通知）**: tick 相乗り `checkGoals()` が active ゴールの期限接近(3日前・overdue 含む)/停滞(14日無活動)を検出→`emitGoalNotify` push（`notified` 冪等）。bound automation の成功 run を `advanceFrom` 完了ブロックで自動 checkin（`current+=1` カウント式・stalled→active 復帰）。判定核＝`shenron.goalStatus`(純粋)。通知ループを `pushNotify` に単一化。`set_goal` に `automationIds`。新 MCP tool 無し（内部 hook）。settings.html status 色分け。 | 本 doc §Goals |
 | **Wave Goals-3** | **停滞ゴールの「次の手」提案（能動 concierge）**: `goalSuggest(id)`＝`planFlow(save:false・従量0)` で次の一手を提案し `suggestions.json` に kind:'goal' を冪等 push。`checkGoals` 停滞検出で `setImmediate(goalSuggest)` 自動 push ＋ `goal_suggest(id)` MCP **両surface**（stdio 74/remote 65）+ `POST /api/goals/:id/suggest`。UI＝「💡 次の手」ボタン + 🎯 提案ラベル。`applySuggestion('goal')` 再 plan は scope-drop。 | 本 doc §Goals |
+| **Wave Canvas-n8n S1** | **canvas を n8n 視覚言語へ（固定 I/O ポート＋矢印）**: ui2.html のみ・backend/MCP 不変。`endpointPos` を C1「floating」(borderPoint) から**固定ポート**へ逆転＝source は右辺中央(OUT 丸 dot)・target は左辺中央(IN 矩形タブ)、router source は then=上/else=下の2レーン。`drawLinks` の可視 path に `marker-end=url(#arrow)`（svg `<defs><marker fill=context-stroke>`・線色追従）＝**左→右＋矢印 ▶** で向きが一目。`renderNodes` 各ループに `portHTML(hasIn,hasOut)`（`accepts`/`emits` 駆動＝trigger は OUT のみ・output は IN のみが自動）。配線起点を OUT ポートに（`attachNode` pointerdown で `.port.out`→`startWire`・`.port.in` は drop 専用）、rim-drag(`nearRim`)は後方互換で残置。CSS `.port.in` を矩形タブ化（既存 L112-118 の未使用足場を再利用）。新規 `docs/CANVAS_REFERENCE.md`（canvas 完全リファレンス＝記号/ノード/コンポ/ポート/線/関係性/操作の正典）も同時新設。検証：hub 起動 OK・inline JS `vm.Script` 構文 green・`test_nodes.mjs` 無回帰 green。S2〜S5 は↓§Canvas-n8n に設計正本。 | 本 doc §Canvas-n8n / docs/CANVAS_REFERENCE.md |
 
 ## 設計のみ（📋・実装は方針決定後）
 | Wave | 内容 | 詳細 |
@@ -484,9 +485,57 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 
 > 注: `wave-r-resilience` branch の ROADMAP は古いスナップショットで、内容（N-1/O-1/O-2・R-1・大規模計画）は**全て main に統合済**＝固有な未収載なし。
 
+## Wave Canvas-n8n — n8n 視覚言語の取り込み（S1〜S5・正典＝docs/CANVAS_REFERENCE.md）
+
+> **狙い**：canvas（`prototype/hub/ui2.html`）を n8n 並みに「一目で構造が分かる」配線にする。n8n の分かりやすさの正体＝**接続種別を色でなく「形」で表す**（公式裏取り済み：出力=丸 dot/入力=矩形/接続=実線+矢印・ノード形3種・AI=破線+◆）。
+> **方針**：ほぼ ui2.html の**描画変更のみ**（backend/MCP・データモデル不変＝北極星 MCP-FIRST 整合・新 tool 不要）。既存データ（`accepts`/`emits`/`kind`/`branch`）から導出して描く。
+> **agile**：S1→S5 の小 Wave 列・各 revertable・WIP=1（出荷→共有→feedback→次）。⚠ C1「floating」設計（`endpointPos`→`borderPoint`）を意図的に逆転。
+> **触る関数（共通）**：幾何 `endpointPos`/`borderPoint`/`fpath`/`nodeRect`、描画 `renderNodes`/`drawLinks`/`render`、配線 `startWire`/`attachNode`(`nearRim`)/`tryConnect`、定義 `COMP`/`NIC`/`NI`/`typeColor`＋CSS `.node`/`.port` 系、メニュー `openAddMenu`/`addComp`/`addMcpNode`/`addTrigger`。
+> **不変条件**：`const COMP = {` 構造を壊さない（`test_nodes.mjs` が文字列抽出で palette↔dispatch drift を assert）・絵文字ゼロ・SVG のみ・Netdive Blue。
+
+### S1 — 固定 I/O ポート（丸 dot）＋矢印 ✅（本 Wave で出荷）
+- `endpointPos(e,end)`：`borderPoint` 浮動をやめ src=右辺中央 `{x:r.x+r.w,y:r.y+r.h/2}`・tgt=左辺中央 `{x:r.x,y:r.y+r.h/2}`。router src は `e.branch` で then→`r.h*0.28`/else→`r.h*0.72` の2レーン。`fpath`（横 bezier）不変。`borderPoint` は temp-wire プレビュー用に残置。
+- 矢印：`<svg class="links">` に `<defs><marker id="arrow" orient="auto-start-reverse"><path fill="context-stroke"></marker></defs>`、`drawLinks` の**可視 path に `marker-end="url(#arrow)"`**（`.hit` には付けない）。target 端の filled 円は矢印と重複→削除、source 端の小円は残す。
+- ポート：`renderNodes` 各ループ末尾に `portHTML(hasIn,hasOut)`（`hasPort(arr)=(arr||['*']).length>0`）。agent=`hasPort(a.accepts/emits)`・trigger=`(false,true)`・mcp=`hasPort(mn.accepts/emits)`・comp=`hasPort(c.accepts/emits)`（input→OUT のみ・output→IN のみ自動）・note=無し。
+- CSS：`.port.out` は既存丸 dot 流用（右）。`.port.in` を矩形タブ化（`width:7px;height:16px;border-radius:3px;left:-7px;background:var(--line)`）。既存 L112-118（未使用足場）を再利用。
+- 配線起点：`attachNode` pointerdown 先頭で `.port.out`→`startWire`／`.port.in`→drop 専用 return。`nearRim` 後方互換で残置。drop は「ノード全体が drop zone」維持。
+- コメント L579 を「固定 I/O ポート＋矢印・rim は後方互換」に更新（stale doc 撲滅）。
+- 検証：input→prompt→output が右→左＋矢印で繋がる／trigger に左ポート無し・output に右ポート無し／router で then/else が右辺上下に分岐／rim-drag がまだ動く。
+
+### S2 — 線種で接続種別を区別（実線=データ / 破線=AI 補助）
+- `drawLinks` で `stroke-dasharray` 出し分け：端点 kind が AI 補助系（`languagemodel`/`structured`/`parser`/`consensus`）に絡む edge → **破線 `5 5`**＋専用色。通常 data → 実線（現状）。
+- 既存 `fenced`（firewall）破線 `6 3` と**パターンを分離**して衝突回避（AI=`5 5`/fenced=`6 3`）。router then/else は既存色（then=青/else=灰）維持。必要なら else=破線で形補強。
+- 検証：languagemodel→prompt が破線・mcp→mcp が実線。
+
+### S3 — アイコン色タイル＋ノード形（種別を即認識）
+- アイコンを 14→18px に拡大し、`.name` 内アイコンを**角丸塗りタイル背景＋白/淡色グリフ**に（kind→accent color マップを1つ追加・`COMP`/`NIC` の svg 流用）。
+- **trigger/input を左丸 D 字＋左外の稲妻バッジ**（CSS `border-top-left-radius/bottom-left-radius` 大 ＋ 擬似要素 or 小 span で左外に稲妻 SVG）。n8n の trigger 形を踏襲。
+- per-kind accent は既存クラス（`.node.agent/.trigger/.mcp/.comp`＋comp は `data-kind`）に色を足すだけ。
+- router の**OUT 2-dot 本格版**（then/else 各 dot を右辺上下に描画）もここ（S1 はレーン分けのみ）。
+- 検証：palette 全種を置いて色タイル＋形＋アイコンで種別判別できる。
+
+### S4 — 線先の「+」追加ボタン（n8n の Add node）
+- `renderNodes`/`drawLinks` で、**emits を持つが OUT から出る edge が無いノード**の右ポート位置へ小 `+` SVG ボタンを描画。
+- クリック→既存 add メニュー（`openAddMenu`/`addMcpNode`/`addComp`）を**source 指定付き**で開く→ノード生成後 `tryConnect(source,new)` で自動配線。
+- 検証：OUT 未接続ノードに + が出る→クリックで mcp ノード追加＋自動配線。
+
+### S5 — AI sub-node 接続（円ノード＋◆＋破線＋底接続・最大）
+- AI 補助 kind（`languagemodel`/`structured`/`parser`/`consensus`）を `.node.ai` で**円形**描画（CSS `border-radius:50%`＋固定サイズ）。底に**ダイヤ◆ポート＋型ラベル**（Model/Parser…＝n8n `ai_languageModel` 等）。
+- `endpointPos` 拡張：source が AI 補助系の edge は **consumer の底辺中央**に接続（上向き）。`drawLinks` で破線（S2 統合）＋端点を◆（丸でなく `<rect transform="rotate(45)">`）。1 model→複数 consumer の fan-out は既存の複数 edge 描画でそのまま出る。
+- consumer 側（prompt/agent/output 等）に**底の受け◆ポート**を `renderNodes` で描画（型ラベル付き）。
+- **runner 不変**（EDGES の意味＝source→target データ供給は不変・新データモデル無し・kind から導出）。本格 interaction（底◆からドラッグ専用）は余力で。将来の9接続型（ai_memory/ai_tool/ai_retriever/ai_vectorStore/ai_embedding/ai_document/ai_textSplitter）は◆ラベル語彙の拡張で対応。
+- 検証：languagemodel（円）を prompt の底◆に破線接続／1 model を2 consumer に繋いで扇状描画を確認。
+
+### scope-drop / rollback
+S1〜S5 各独立 commit。重ければ S5（AI 底破線）→ S2 の破線だけで価値・S4（+ボタン）も独立で落とせる。各 commit 前に hub 起動＋inline JS `vm.Script` 構文＋（可能なら）ブラウザ実描画で検証（Canvas-1 と同様 chrome 拡張未接続なら data path のみ確認し ⏭ 記録）。
+
+---
+
 ## 🔖 最新ステータス（2026-06-23）
 
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
+
+- **🔧 直近（local・未 commit）** = Wave Canvas-n8n S1：ui2.html を固定 I/O ポート（OUT 丸 dot/IN 矩形タブ）＋矢印に（C1 floating を逆転）。`docs/CANVAS_REFERENCE.md`（canvas 完全リファレンス）新設＋ROADMAP に S1〜S5 設計正本化。検証 green（hub 起動 / inline JS vm.Script / test_nodes 無回帰）。
 
 - **🔧 直近（local・未 commit）** = Wave Goals-1 確認 + **P0 修正**: `6f12c04` N-3 doctor が `await runDoctor()` を非 async handler に入れ **hub.mjs が起動不能**だった（main が壊れていた・全 e2e 2/12）→ `.then()` 1 行で修正（→ 14/14 green）。併せて Goals-1 の欠落 e2e（MCP 経由 set→checkin→reached→list 4 assert）を補完。
 - **✅ origin/main 同期済（push 完了）= `6f12c04` まで**（↑の起動 fix が未 commit）。push 済スタック: `6f12c04` N-3 doctor / `76979ba` Remix-1 / `552431c` R-2 repair / `824e3a2` N-2・O-3。
