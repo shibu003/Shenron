@@ -63,6 +63,8 @@ canvas のノードは「基盤4種（agent/trigger/mcp/note）」＋「コン�
 
 ## §3 コンポーネント `comp` 10種＋unset（`COMP` 定義・`.node.comp`）
 
+> ⚠ 統合計画（§12 / ROADMAP R1）：`prompt`/`languagemodel`/`structured`/`consensus` は実行同一ゆえ **1つの `model` ノード（mode param）に集約**、`input`/`output` は **廃止**予定。下表は現状。
+
 `comp` ノードは1つの器で、`kind` を inspector のセレクタ（`setCompKind`）で切り替える。`kind` ごとに `accepts`/`emits`（ポート型）とフィールド（in-card 設定）が変わる。`emits:[]`=終端・`accepts:[]`=入口。
 
 | # | kind | label | accepts | emits | IN | OUT | フィールド（型・既定） | 説明 |
@@ -240,6 +242,8 @@ trigger は backend の build-state IR を購読。inspector で **event** と�
 
 ## §10 データモデル & 永続化
 
+> ⚠ 本節の**5配列断片化は frontend だけ**の事情で、保存 JSON・backend は既に単一 `nodes[]`。統一（`NODES[]`）計画は §12 / `docs/ROADMAP.md` R0。
+
 - **状態配列**：`state.agents`（backend 由来）/ `TRIGGERS` / `MCP_NODES` / `COMPONENTS` / `NOTES` / `EDGES`（＋`HIDDEN`・`POS`位置・`COLLAPSED`）。
 - **edge 形**：`{ id, source, target, type, branch?, share? }`（`tryConnect` で生成・`matchType` で type 決定）。
 - **スナップショット**：`canvasSnap()` が上記を JSON 化。`undoSnap`/`undo`/`redo`（`UNDO_STACK`/`REDO_STACK`・最大50）。
@@ -275,7 +279,47 @@ n8n の「分かりやすさ」の正体＝**接続種別を色でなく形で�
 | `ai_tool` | エージェントの道具 | 部分（mcp ノードが近い） |
 | `ai_embedding` / `ai_vectorStore` / `ai_document` / `ai_textSplitter` / `ai_retriever` | RAG 系 | 未（拡張余地） |
 
-> 取り込みは色でなく形（dot/矩形/◆・実線+矢印/破線・3ノード形）が核心。既存データ（`accepts`/`emits`/`kind`/`branch`）から導出して描けば足り、backend/データモデルは不変。詳細手順は `docs/ROADMAP.md` §Wave Canvas-n8n（S1〜S5）。
+> 取り込みは色でなく形（dot/矩形/◆・実線+矢印/破線・3ノード形）が核心。既存データ（`accepts`/`emits`/`kind`/`branch`）から導出して描けば足り、backend/データモデルは不変。詳細手順は `docs/ROADMAP.md` §Wave Canvas-n8n（S1 済／**W1〜W4**＝旧 S2〜S5）。**ただし視覚を「追加」する前に、まず大統合リファクタ（§12）で土台を整える**のが確定方針。
+
+---
+
+## §12 大統合リファクタの方向（現状 → 目標・**未実装**／正本＝`docs/ROADMAP.md` R0〜W4）
+
+> 本書 §1〜§11 は**現状**の正典。本節だけは**目標（これから作る姿）**を記す。n8n を精読すると神龍 canvas は**捨てる/統合すべき要素**を抱える＝視覚言語を「追加」して併存させるより、**少数の大きな部品へ refactor し、細粒度は inspector＋AI サブノードに逃がす**方が良い、というのが結論。
+
+**🔑 決定的発見**：**backend と保存形式は既に統一済み**＝runner `fireNode` はフラットな `node.kind` 1本でディスパッチ、保存 JSON も単一 `nodes[]`（§10・hub.mjs L526-544/L340-349）。**二重タクソノミーの混乱は frontend（ui2.html）だけ**＝5配列・5レンダー・5分岐 inspector に断片化（§10）。さらに `prompt`/`languagemodel`/`structured`/`consensus` は**実行が同一**（全部 `firePromptNode`）、`input`/`output` は実行時ほぼ no-op。→ **frontend 統一は挙動・保存形式不変でできる（低リスク）**。
+
+### 12.1 frontend モデル：5配列 → 単一 `NODES[]`（R0・behavior-preserving）
+| 現状（§10） | 目標（R0） |
+|---|---|
+| `TRIGGERS`/`MCP_NODES`/`COMPONENTS`/`NOTES` の4配列＋`state.agents` | 単一 `NODES[]`＋agent は `state.agents` の **projection**（`allNodes()`）で合流 |
+| `renderNodes` の5ループ（§2/§3） | 1ループ `renderNode(n)`＋`CARD[kind]` テーブル（出力 HTML は不変） |
+| `inspNode` の5分岐 if（§9） | `INSPECT[kind]` ディスパッチテーブル |
+| `canvasSnap`/`undoApply` が5配列を個別に（§10） | `{NODES,EDGES,HIDDEN,POS}` 一括 |
+| ID counter `tidc/cidc/mnidc/noidc` | 単一 `nextId(kind)` |
+| `nodeSpecOf`/`loadFlow` の kind 別分岐 | `SPEC[kind]` テーブル（**保存 JSON は byte 不変**） |
+
+### 12.2 kind 統合：10種 → 約6種（R1・大きな部品化）
+| 現状 kind（§3） | 目標 | 備考 |
+|---|---|---|
+| `prompt` / `languagemodel` / `structured` / `consensus` | **`model`（1ノード）** ＋ `mode`＝`plain`/`system`/`structured`/`consensus` | 実行は元々同一。mode＋`vendor/model/tier` は inspector パラメータ＝**細粒度は NDV に逃がす** |
+| `input` / `output` | **廃止** | 実行時 no-op。trigger=入口・末端ノード出力=結果（n8n 式）。runner は pass-through 後方互換 |
+| `parser` | 維持 | 唯一の非LLM文字整形 |
+| `router` / `mcp` / `workflow` / `langflow` | 維持 | 制御/外部副作用/サブフロー/外部由来 |
+| 基盤 `agent` / `trigger` / `note` | 維持 | **agent＝遠隔/durable/承認/passport の重い identity**、`model`＝in-process LLM＝二極に整理 |
+
+- **後方互換**：旧 workflows.json は **load 時 alias** で開く＝`KIND_ALIAS={languagemodel:['model',{mode:'system'}],structured:['model',{mode:'structured'}],consensus:['model',{mode:'consensus'}],prompt:['model',{mode:'plain'}]}`。runner も旧 kind を alias 実行（R2）。
+
+### 12.3 細粒度の置き場（n8n NDV モデル）
+canvas は**大きい部品で簡潔**に、n8n 並みの細かさは **inspector の深いパラメータ**（Model の mode/vendor/model/tier/schema 等）＋ **AI サブノード◆クラスタ**（W4）に担保。
+
+### 12.4 backend 整理（R2・frontend の後）
+handoff `h.kind` 統一・`fireXNode` template＋`fireNode` dispatch table・`steps[]` 撤去・trigger-filter/vendor-resolve/trust dedup・HTTP route table。**MCP-first 公開・trust 層の意味・保存 JSON は不変**。
+
+### 12.5 不変条件（refactor 全体）
+MCP-FIRST（`agentTools`/`mcpDispatch`/`/api/shenron/skill`）・trust 層（firewall/passport/承認/cross-company）・保存 JSON 後方互換・`test_nodes.mjs` green・絵文字ゼロ・SVG のみ・Netdive Blue。
+
+> 実装順序・各 Phase の触る関数/行/コード差分/検証は `docs/ROADMAP.md` の **R0 → R1 → R2 → W1〜W4 → QW** を正本とする。本節が実装されたら §2/§3/§5/§10 を統一モデル・`model` ノードで追従更新する。
 
 ---
 

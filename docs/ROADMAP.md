@@ -485,13 +485,13 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 
 > 注: `wave-r-resilience` branch の ROADMAP は古いスナップショットで、内容（N-1/O-1/O-2・R-1・大規模計画）は**全て main に統合済**＝固有な未収載なし。
 
-## Wave Canvas-n8n — n8n 視覚言語の取り込み（S1〜S5・正典＝docs/CANVAS_REFERENCE.md）
+## Wave Canvas-n8n — n8n 視覚言語＋大統合リファクタ（正典＝docs/CANVAS_REFERENCE.md）
 
-> **狙い**：canvas（`prototype/hub/ui2.html`）を n8n 並みに「一目で構造が分かる」配線にする。n8n の分かりやすさの正体＝**接続種別を色でなく「形」で表す**（公式裏取り済み：出力=丸 dot/入力=矩形/接続=実線+矢印・ノード形3種・AI=破線+◆）。
-> **方針**：ほぼ ui2.html の**描画変更のみ**（backend/MCP・データモデル不変＝北極星 MCP-FIRST 整合・新 tool 不要）。既存データ（`accepts`/`emits`/`kind`/`branch`）から導出して描く。
-> **agile**：S1→S5 の小 Wave 列・各 revertable・WIP=1（出荷→共有→feedback→次）。⚠ C1「floating」設計（`endpointPos`→`borderPoint`）を意図的に逆転。
-> **触る関数（共通）**：幾何 `endpointPos`/`borderPoint`/`fpath`/`nodeRect`、描画 `renderNodes`/`drawLinks`/`render`、配線 `startWire`/`attachNode`(`nearRim`)/`tryConnect`、定義 `COMP`/`NIC`/`NI`/`typeColor`＋CSS `.node`/`.port` 系、メニュー `openAddMenu`/`addComp`/`addMcpNode`/`addTrigger`。
-> **不変条件**：`const COMP = {` 構造を壊さない（`test_nodes.mjs` が文字列抽出で palette↔dispatch drift を assert）・絵文字ゼロ・SVG のみ・Netdive Blue。
+> **狙い**：canvas（`prototype/hub/ui2.html`）を n8n 並みに「一目で構造が分かる」配線にする。n8n の分かりやすさの正体＝**接続種別を色でなく「形」で表す**（出力=丸 dot/入力=矩形/接続=実線+矢印・ノード形3種・AI=破線+◆）。だが n8n を精読すると、神龍 canvas は**捨てる/統合すべき要素**を抱える＝視覚言語を「追加」して併存させるより、**少数の大きな部品へ refactor し、細粒度は inspector＋AI サブノードに逃がす**方が良い。
+> **🔑 決定的発見（調査済み）**：**backend と保存形式は既に統一済み**（runner `fireNode` はフラットな `node.kind` 1本・保存 JSON も単一 `nodes[]`）。**二重タクソノミーの混乱は frontend（ui2.html）だけ**＝`state.agents`/`TRIGGERS`/`MCP_NODES`/`COMPONENTS`/`NOTES` の5配列・5レンダー・5分岐 inspector・個別 snapshot に断片化。さらに `prompt`/`languagemodel`/`structured`/`consensus` は**実行が同一**（全部 `firePromptNode`）、`input`/`output` は実行時ほぼ no-op。→ **frontend 統一は挙動・保存形式不変でできる（低リスク）**。
+> **順序（確定）**：**R0 frontend 統一 → R1 大きな部品統合 → R2 backend 整理 → W1〜W4 n8n 粒度（旧 S2〜S5 を再ベース）→ QW 掃除**。各 revertable・WIP=1。
+> **方針**：R0/W は ui2.html 中心。R1 は kind マージ（旧 kind は load 時 alias）。R2 で runner を dispatch table 化。**細粒度＝inspector パラメータ＋AI サブノード◆**（n8n NDV モデル）。
+> **不変条件**：**MCP-FIRST 不変**（`agentTools`/`mcpDispatch`/`/api/shenron/skill`）・**trust 層の意味不変**（firewall/passport/承認/cross-company `fenceEdge`）・**保存 JSON 後方互換**（旧 kind は alias 吸収）・`test_nodes.mjs` green・絵文字ゼロ・SVG のみ・Netdive Blue。⚠ C1「floating」設計は S1 で意図的に逆転済み。
 
 ### S1 — 固定 I/O ポート（丸 dot）＋矢印 ✅（本 Wave で出荷）
 - `endpointPos(e,end)`：`borderPoint` 浮動をやめ src=右辺中央 `{x:r.x+r.w,y:r.y+r.h/2}`・tgt=左辺中央 `{x:r.x,y:r.y+r.h/2}`。router src は `e.branch` で then→`r.h*0.28`/else→`r.h*0.72` の2レーン。`fpath`（横 bezier）不変。`borderPoint` は temp-wire プレビュー用に残置。
@@ -502,9 +502,39 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 - コメント L579 を「固定 I/O ポート＋矢印・rim は後方互換」に更新（stale doc 撲滅）。
 - 検証：input→prompt→output が右→左＋矢印で繋がる／trigger に左ポート無し・output に右ポート無し／router で then/else が右辺上下に分岐／rim-drag がまだ動く。
 
-> **S2〜S5 共通の検証済みアンカー（ui2.html・実コード確認済み）**：幾何 `endpointPos(e,end)` L790-799／`borderPoint` L784-787（temp-wire 専用）／`fpath(a,b)` L800／`nodeRect` L781／`center` L849。描画 `drawLinks()` L850-869（可視 path L859・色 L857・router 判定 `br` L856・source 端小円 L860・型ラベル箱 L861）／`<marker id="arrow">` L212。ノード `renderNodes()` L668-742（agent L672-688/`.name` L685、trigger L689-697/`.name` L695、mcp L698-712/`.name` L709、comp L713-725/`className` L716・`.name` L722、note L726-740）／`portHTML(hasIn,hasOut)`・`hasPort(arr)=(arr||['*']).length>0` L666-667。定義 `COMP` L510-525／`NI(p,w=15)` L500／`NIC` L501-509／`typeColor`+`TYPE_PALETTE` L580-581。配線 `attachNode` L744-761（pointerdown L749）／`startWire(e,src)` L829／`tryConnect(src,tgt)` L827-828／`canConnect` L802／`matchType` L804-805／`nodeOf(id)`（既存・kind 参照）／`updateTemp` L806-811。メニュー `openAddMenu()` L472／`#addMenu` L189-200／`addComp(kind)` L589-593／`addMcpNode(tl)` L606／`addTrigger()` L639／`revalidateEdges` L595-597。状態 `EDGES` L479（edge 形 `{id,source,target,type,branch?,share?}`）。CSS `:root` L9-10／`.node` L62／per-kind L85-94／`.name` L73／`.co` L77／`.port` L112／`.port.in` L115／`.port.out` L113／`.portlabel` L117-118／`.tier-badge` L125-127。共通定数（S2 で1回定義・S4/S5 で再利用）：`const AI_AUX = new Set(['languagemodel','structured','parser','consensus']);`（`COMP` 直後 L526 付近）。各 Wave＝1 revertable commit・WIP=1。色のみに依存せず「形＋線種」で区別（n8n 思想・色覚配慮）。
+### R0 — frontend ノードモデル統一（behavior-preserving・最優先の土台）
+**目的**：`TRIGGERS`/`MCP_NODES`/`COMPONENTS`/`NOTES` の**4配列→単一 `NODES[]`**、レンダー・inspector・snapshot・add/remove/duplicate・save/load を**1経路**に。agent は server identity ゆえ `state.agents` に残し **projection** で合流。**描画出力・保存 JSON・kind 値・挙動は完全不変**（純内部リファクタ）＝R1/W1-4 を data 駆動の小変更に変える土台。
+**触る関数・行（実コード確認済み）**：配列宣言 `TRIGGERS` L479・`MCP_NODES` L483・`COMPONENTS` L494・`NOTES` L496／ID counter `tidc/cidc/mnidc/noidc` L479,589,606,639／resolver `ag/trig/mcpn/comp/noteOf/nodeOf` L572-577／`renderNodes()` L668-742（5ループ）／`canvasSnap` L528・`undoApply` L530／add `addComp` L589・`addMcpNode` L606・`addTrigger` L639・`addNote` L640／remove `removeTrigger/removeMcpNode/removeComp/removeNote` L605,638,641,944／`duplicateNode` L1105-1110／`inspNode` L880-920／`nodeSpecOf` L1015-1020・`buildFlow` L1022-1024・`loadFlow` L981-996。
+**実装ステップ**：
+1. 統一ストア：`let NODES=[];`（4配列を置換）。`const agentNodes=()=>state.agents.filter(a=>!HIDDEN.has(a.id)).map(a=>({id:a.id,kind:'agent',_agent:a}));`／`const allNodes=()=>[...agentNodes(),...NODES];`。
+2. ID helper：`let _idc=0; const nextId=(k)=>k+'-'+(++_idc);`（旧4 counter 撤去・load 時に既存最大 suffix へ seed して採番衝突回避）。
+3. resolver 簡素化：`nodeOf(id)` を agent projection ｜ `NODES.find` に。旧 `comp/trig/mcpn/noteOf` は呼び出し側を置換しつつ薄い wrapper で段階廃止。
+4. 1レンダー：`renderNodes()`＝`for(const n of allNodes()) renderNode(n);`。`renderNode(n)`＝共通ボイラープレート（DOM 取得/生成・`attachNode`・POS・classList・`dataset.kind`）＋`n.innerHTML=CARD[n.kind](n)+portHTML(...)`。`CARD` は kind→markup テーブル（既存5ループの innerHTML をそのまま関数化・**出力 HTML を現状と一致**）。
+5. 1 inspector：`inspNode(id)`＝`(INSPECT[nodeOf(id).kind]||inspGeneric)(node)`。既存 if 連鎖を関数テーブルへ機械移植。
+6. add/remove/duplicate 統一：`addNode(kind,fields)`／`removeNode(id)`（edges も filter）／`cloneNode(id)`。既存 `addComp/...` は薄いラッパに。
+7. snapshot/undo 統一：`canvasSnap=JSON.stringify({NODES:NODES.map(deepClone),EDGES,HIDDEN:[...HIDDEN],POS})`／`undoApply` は NODES/EDGES/HIDDEN/POS を復元。
+8. save/load 統一：`nodeSpecOf` を kind→serializer テーブル `SPEC[kind](n)`（**出力フィールドは現状と1:1＝buildFlow JSON 不変**）。`loadFlow` は4分岐 if を `agent→HIDDEN.delete / それ以外→NODES.push(deserialize)` に（`COMP[n.kind]` で accepts/emits 復元維持）。
+**ノード関係性・接続時の挙動**：edge/接続意味は**完全不変**（`canConnect`/`matchType`/`tryConnect` は `nodeOf` 経由で既に統一済み＝触らない）。統一は内部表現のみ。
+**検証**：① hub 起動／② inline JS `vm.Script` 構文 green／③ `node --test test_nodes.mjs` 無回帰／④ **代表 canvas を R0 前後で `buildFlow()`→`JSON.stringify` し byte 一致（diff 空）＝behavior-preserving の証明**（最重要）／⑤ 既存 `workflows.json` を loadFlow→buildFlow round-trip して形保持。
+**リスク・ロールバック**：render/save/load/undo に触れる中リスク。byte 一致テスト＋test_nodes で担保。1コミットゆえ revert 容易。
 
-### S2 — 線種で接続種別を区別（実線=データ / 破線=AI 補助）
+### R1 — 「大きな部品」統合（agent と Model の二極へ）
+**LLM系を1ノードに**：`COMP` に `model`（`label:'Model'`・`accepts:['*']`・`emits:['text','*']`）を新設。**mode フィールド**（`plain`=template／`system`=system+template＝旧 languagemodel／`structured`=JSON schema／`consensus`=多ベンダー投票）＋`vendor/model/tier` を inspector パラメータに。旧 `prompt/languagemodel/structured/consensus` は **load 時 alias** `KIND_ALIAS={languagemodel:['model',{mode:'system'}],structured:['model',{mode:'structured'}],consensus:['model',{mode:'consensus'}],prompt:['model',{mode:'plain'}]}` で `kind='model'`＋`config.mode` 補完。`parser`（唯一の非LLM文字整形）は独立維持。
+**input/output 廃止**：palette（`#addMenu`）から除去。実行時は runner が pass-through 継続（後方互換）。既存フローの input/output は load 時に注記 or 透過へ寄せ、n8n 式＝trigger=入口・末端ノード出力=結果。
+**agent と Model の境界**：agent＝遠隔/durable/承認/passport を持つ重い identity（base 維持）、Model＝in-process LLM。palette/inspector 文言で役割明確化（統合はしない）。Langflow import の `Agent→languagemodel` は `Agent→model(mode:system)` に更新。
+**結果**：canvas の kind が 10→約6（model/parser/router/mcp/workflow/langflow＋base: agent/trigger/note）。細粒度は Model の mode＋vendor/model/tier＋AI サブノードへ。
+**検証**：旧 workflows.json（languagemodel/structured/consensus/prompt/input/output 含む）が alias で開け実行一致／新規保存は `model`＋mode／test_nodes 無回帰。
+
+### R2 — backend 整理（frontend の後・runner を dispatch table 化）
+- **handoff `h.kind` 統一**（sweep L257-264 の `h.mcp/h.prompt/h.consensus` マーカー→単一 `h.kind`・recovery を table 化）。
+- **`fireXNode` template**（firePromptNode/Consensus/Mcp L556-663 の90%重複）→`createInternalHandoff(run,node,input,from,kind,config)` factory＋executor dispatch table。
+- **`fireNode` dispatch table**（11連 if L526-544）→`RUN[kind]`。旧 kind も table に残し alias 実行（R1 整合）。
+- **`steps[]` 撤去**（L343・読取は表示2箇所＝dead）／**trigger-filter helper**（4箇所重複 L415,707,885）／**vendor/model/tier resolver**（L243,541,560,573 散在）／**trust dedup**（`fenceEdge`↔`trustPreview` の company/redact 重複 L705-774）／**HTTP route table**（L1541-1802 巨大 if→`{path:handler}`）／**`genId(kind)` 定数化**。
+- 不変：MCP-first 公開・trust 意味・保存 JSON。
+
+> **W1〜W4 共通の検証済みアンカー（ui2.html・実コード確認済み・R0 後は関数名が `renderNode`/`CARD`/`INSPECT` に変わる点に注意）**：幾何 `endpointPos(e,end)` L790-799／`borderPoint` L784-787（temp-wire 専用）／`fpath(a,b)` L800／`nodeRect` L781／`center` L849。描画 `drawLinks()` L850-869（可視 path L859・色 L857・router 判定 `br` L856・source 端小円 L860・型ラベル箱 L861）／`<marker id="arrow">` L212。ノード `renderNodes()` L668-742（agent L672-688/`.name` L685、trigger L689-697/`.name` L695、mcp L698-712/`.name` L709、comp L713-725/`className` L716・`.name` L722、note L726-740）／`portHTML(hasIn,hasOut)`・`hasPort(arr)=(arr||['*']).length>0` L666-667。定義 `COMP` L510-525／`NI(p,w=15)` L500／`NIC` L501-509／`typeColor`+`TYPE_PALETTE` L580-581。配線 `attachNode` L744-761（pointerdown L749）／`startWire(e,src)` L829／`tryConnect(src,tgt)` L827-828／`canConnect` L802／`matchType` L804-805／`nodeOf(id)`（既存・kind 参照）／`updateTemp` L806-811。メニュー `openAddMenu()` L472／`#addMenu` L189-200／`addComp(kind)` L589-593／`addMcpNode(tl)` L606／`addTrigger()` L639／`revalidateEdges` L595-597。状態 `EDGES` L479（edge 形 `{id,source,target,type,branch?,share?}`）。CSS `:root` L9-10／`.node` L62／per-kind L85-94／`.name` L73／`.co` L77／`.port` L112／`.port.in` L115／`.port.out` L113／`.portlabel` L117-118／`.tier-badge` L125-127。共通定数（S2 で1回定義・S4/S5 で再利用）：`const AI_AUX = new Set(['languagemodel','structured','parser','consensus']);`（`COMP` 直後 L526 付近）。各 Wave＝1 revertable commit・WIP=1。色のみに依存せず「形＋線種」で区別（n8n 思想・色覚配慮）。
+
+### W1（旧S2）— 線種で接続種別を区別（実線=データ / 破線=AI 補助）
 **目的**：edge の「意味」を線の形で表す。通常のデータ供給＝実線（現状）、AI 補助系コンポに絡む edge＝破線。色覚に依存せず形で読める。
 **触る関数・行**：`drawLinks()` L850-869（可視 path L859・色 L857）／`:root` L9-10（色追加）／`COMP` 直後 L526 付近（`AI_AUX` 定義）／`typeColor` 近傍 L581（`isAiEdge` 追加）。
 **技術設計・データフロー**（データモデル不変・両端 kind を `nodeOf(id)?.kind` で描画時に導出）：
@@ -518,7 +548,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **検証**：`languagemodel→prompt` が破線紫／`mcp→mcp` が実線／fenced は amber `6 3` のまま／hub 起動／inline JS `vm.Script` 構文 green／`node --test prototype/hub/test_nodes.mjs` 無回帰。
 **リスク・ロールバック**：描画のみ・データ不変ゆえ revert は L857/L859/`:root` の差分戻しだけ。dasharray 衝突は上記固定値で回避。
 
-### S3 — アイコン色タイル＋ノード形（種別を即認識）
+### W2（旧S3）— アイコン色タイル＋ノード形（種別を即認識）
 **目的**：種別をアイコンの「色付きタイル」＋ノードの「形」で一目認識。trigger を左丸D字＋稲妻バッジ、router の OUT を 2-dot（then/else）本格版に。
 **触る関数・行**：`renderNodes` 各ループの `.name`（agent L685・trigger L695・mcp L709・comp L722）／comp ループに `data-kind` 付与（L716-719 付近）／CSS L62-127 追記／`startWire`・`attachNode`・`tryConnect` に branch スレッド（router 2-dot 用）。
 **技術設計・データフロー**：
@@ -533,7 +563,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **検証**：palette 全種を配置→色タイル＋形＋アイコンで判別／trigger に D字＋稲妻／router の2 dot から then/else を別々に配線でき endpointPos レーンと一致／hub 起動・vm.Script・test_nodes 無回帰。
 **リスク・ロールバック**：`data-kind` 追加は `COMP` 構造不変ゆえ test_nodes 影響なし。タイル bg はダーク背景でコントラスト確保（上記）。revert は CSS 追記＋ラップ＋branch スレッドの局所差分。
 
-### S4 — 線先の「+」追加ボタン（n8n の Add node）
+### W3（旧S4）— 線先の「+」追加ボタン（n8n の Add node）
 **目的**：出力はあるが下流が無いノードの OUT 位置に `+` を出し、クリック→追加メニュー→生成ノードを source から自動配線。pipeline を左→右に1クリックで伸ばす。
 **触る関数・行**：`renderNodes` 各ループ（port 描画直後）／`EDGES` 参照／`openAddMenu` L472／`addComp` L591／`addMcpNode` L606／module 変数追加（L479 付近）。
 **技術設計・データフロー**：
@@ -546,7 +576,8 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **検証**：input 単体→OUT に `+`／クリック→コンポーネント追加→input→new 自動配線／既に out 接続済みなら `+` 出ない／hub 起動・vm.Script・test_nodes 無回帰。
 **リスク・ロールバック**：`openAddMenu` は topbar 由来位置（v1 許容・将来 pointer 位置へポップ）。`addSource` の取りこぼしは生成時 null 化で回避。独立 commit＝単体で落とせる。
 
-### S5 — AI sub-node 接続（円ノード＋◆＋破線＋底接続・最大）
+### W4（旧S5）— AI sub-node 接続（円ノード＋◆＋破線＋底接続・最大）
+> R1 で AI 補助 kind は `model`（円ノード化対象）＋`parser` に集約済み。`AI_AUX={model,parser}` として下記を適用。
 **目的**：AI 補助 kind を円ノード化し、consumer の**底辺の◆ポート**へ破線で上向き接続。1 model→複数 consumer の fan-out を扇状描画。n8n の AI cluster 形を踏襲。runner 不変（描画のみ）。
 **触る関数・行**：CSS（`.node.comp.ai` 円形・`.port.ai` ◆）／comp ループ innerHTML（ai 用 compact 分岐・S3 の `data-kind` 前提）／`endpointPos` L790-799（AI 縦接続の分岐追加）／`drawLinks` L850-869（`vpath`＋◆）／新関数 `vpath`。
 **技術設計・データフロー**（EDGES 意味は不変・全て kind から描画時導出）：
@@ -562,8 +593,17 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **検証**：`languagemodel`（円）→prompt 底◆に破線上向き接続／1 model→2 consumer で扇状描画／**実行して runner が従来通り処理**（LLM 出力が prompt に入る＝意味保存の確認）／hub 起動・vm.Script・test_nodes 無回帰。
 **リスク・ロールバック**：円ノードは設定が inspector 側にある kind（languagemodel/structured/parser/consensus）向けゆえカード本体最小でOK。`endpointPos` の AI 分岐は router（非 AI_AUX）と排他＝衝突なし。最大の Wave につき、`drag-from-◆`＝scope-drop、`vpath`/◆/円のうち描画部分だけでも独立価値。独立 commit。
 
-### scope-drop / rollback
-S1〜S5 各独立 commit。重ければ S5（AI 底破線）→ S2 の破線だけで価値・S4（+ボタン）も独立で落とせる。各 commit 前に hub 起動＋inline JS `vm.Script` 構文＋（可能なら）ブラウザ実描画で検証（Canvas-1 と同様 chrome 拡張未接続なら data path のみ確認し ⏭ 記録）。
+### QW — quick-win 掃除（低リスク・随時挿入可）
+- dead CSS 撤去（`.portlabel` は W4 で使うので保持・他の未使用 class を grep 確認の上）。
+- **STC ステータス色の二重定義を単一ソース化**（JS `STC` L537 ↔ CSS `.st.*` L144＝色変更が2箇所必要）。
+- **`BUILD_EVENTS` を docs へ**（hub.mjs L868・enforcement 未使用＝装飾的）。
+- ID/util helper 統一（frontend `nextId`・backend `genId(kind)`）。
+
+### scope-drop / rollback / 依存順
+- 依存順：**R0 → R1 →（W1〜W4 は R0 後ならいつでも）→ R2**。W は R0 統一基盤前提（関数名 `renderNode`/`CARD`/`INSPECT`）。R2 は R1 の kind マージと alias を整合させてから。
+- 各 Phase 独立 commit・WIP=1。重ければ：R2 を後送り／W3・W4 を落とす／R1 の input-output 廃止だけ先行、等で段階縮小可。
+- 各 commit 前に hub 起動＋inline JS `vm.Script` 構文＋（R0 は）**buildFlow JSON byte 一致**＋（可能なら）ブラウザ実描画で検証（chrome 拡張未接続なら data path のみ確認し ⏭ 記録）。
+- push は egress ポリシーで 403 ゆえ commit 後は patch/bundle でローカル同期 → 手元の正規 push。
 
 ---
 
