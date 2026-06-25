@@ -45,6 +45,8 @@ cockpit に全ノード描画 → 実行 → Slack に投稿 → audit 記録
 
 **巨人（Operator/Claude computer-use）との差**: 汎用 computer-use は巨人が出す。神龍の差は **gap-tool 生成（W4/8）＋協調フェンス**＝「操作するだけ」でなく「足りない道具を作りながら、あなたと一緒に」。giant-war の「outcome 所有・縦」と整合。
 
+**北極星精緻化（2026-06-25・Wave 神龍-Copilot）— honest failure ＋ 設計の天才**: 上記「concierge」を実装精度で支える不変式を追加。① **神龍は決して静かに偽フローを返さない**（計画モデル不在/失敗時は input→prompt→output に化けず、理由＋直し方を声に出す＝honest failure）。② 相談・needs・blocker・コスト・実行可否は **MCP / web / canvas で同一に可視**。③ **plan・生成部品・設計の精度を一級目標**＝primitive(node/component/API/DB) を**名前でなく能力で正しく理解**し、**無駄なく正確**に組み、**自立して正しく回る** flow を設計＝**設計の天才として君臨**（既存「自立していること」北極星の実装面）。詳細＝§5「Wave 神龍-Copilot（PC0〜PC18）」／実装アンカーは `docs/ROADMAP.md` §Wave 神龍-Copilot。
+
 ### なぜ Langflow の上に乗っていたか（初期判断・**2026-06-19 に北極星を更新、下記参照**）
 1. **コンポーネントライブラリ（100+ ノード）を再発明しない** — プランナーは参照するだけ
 2. **実行エンジンを書かない** — `langflowImport`+`langflowRun` 完成済、生成は Langflow JSON を吐くだけ
@@ -389,6 +391,7 @@ build-event × 生成 を合成すると固有リスク3つ（①無人 blast ra
 ### Wave 4 — 不足ノード A 通知 ＋ B コード生成
 
 > ✅ **実装済（§J 参照）**: user 選択で「v1＋使い捨てサンドボックス実行＋修復ループ＋収束検証」まで到達（下記 v1 最小の「実行しない」は超過）。残＝OS サンドボックス・human-gate→自動登録（v2）。
+> **→ 精度の次段（§5 末 Wave 神龍-Copilot）**: 生成部品を「走る」から「正しく・完全に・役立つ」へ＝**PC13**（役割由来 spec＋grounded codegen）/**PC14**（完成度ルーブリック＋契約テスト）/**PC15**（能動提案＋設計アーティファクト）。
 
 **目的**: plan が未対応ツール/ノードを要求した時の埋め方。
 
@@ -501,6 +504,27 @@ class GitHubCommits(Component):
 
 ---
 
+### Wave 神龍-Copilot（PC0〜PC18・2026-06-25）— silent degradation 根絶・相談・plan/部品/設計の精度
+
+> **実装アンカー（行・関数・差分・検証）の網羅版は `docs/ROADMAP.md` §Wave 神龍-Copilot。本節は設計の正典（診断＋理論＋各 PC の狙い）。**
+
+**診断 — なぜ `kalsh-80` が偽フローになったか（コード実証）**：web で「Kalshi 期待値自動化」を頼むと `input→prompt→output`（出力 `[prompt:stub]`）の実行不能フローに。`planFlow` は計画モデルに `EXEC_VENDOR||'claude'`（hub.mjs:1297）。モデル無効だと `runVendorAsync` が **stub sentinel** を返し、`plan()`（shenron.mjs:286-294）は JSON を取れず `catch`→**heuristic fallback**（L294）を**無言で**返す→ input→prompt→output。本来の clarify/missing/blocker は LLM 実応答時のみ発火（L288-291）。**機構は優秀で実機検証済（2026-06-21）＝欠如でなく「モデル不在時に失敗を偽フロー化する設計」が問題**。加えて canvas に needs/blocker/trust 表示が無い（trustPreview API は在るが UI 撤去・ui2:1141）。
+
+**精度の中核理論**：「目的を達成するフロー設計の精度」＝実行すれば真の意図を満たす or 満たせない部分を正直に示すこと。one-shot では届かない。
+- **6失敗モード（kalsh-80 全該当）**：F1 曖昧未解決／F2 capability hallucination（在ると仮定した API/能力が無い＝最大の殺し手）／F3 分解ミス（多段→単一prompt・fetch/schedule/error/出力欠落）／F4 制御フロー誤り（if を router にしない）／F5 実行不能を黙る／F6 goal 充足の未検証。
+- **5段パイプライン（one-shot をやめる）**：①Intent→②Spec（＋acceptance）→③Capability map（実在検証＝needed/available/external/gap/**blocked**）→④Design（archetype＋patterns で typed-node 分解）→⑤Verify（symbolic dry-trace＋judge＋acceptance）→不足なら②〜④ループ。各段で gap/blocker を正直に。
+- **11レバー**：L1 Intent→Spec(PC2)／L2 acceptance(PC12)／L3 grounding=反hallucination(PC10)／L4 archetype＋patterns(PC4)／L5 dry-trace(PC11)／L6 候補＋judge(PC7)／L7 設計への対話修正(PC2/PC6)／L8 honest infeasibility(PC0/PC3)／L9 primitive を能力で正しく理解(PC16)／L10 無駄ゼロ(PC17)／L11 自立して正しく回る(PC18)。揃って初めて**設計の天才**。
+
+**Wave（4トラック・各1commit・WIP=1・MCP/web 両面）**：
+- **A 修正・相談・honest・canvas**：**PC0** honest failure（モデル不在で偽フロー返さず `mode:'unavailable'`＋理由＋直し方・最優先）／**PC1** readiness 可視化（plannerReadiness＋badge＋MCP）／**PC2** 多ターン相談（`context.brief` 持ち回り＝plan-mode 相当）／**PC3** needs/blockers/cost ブリーフ＋canvas に trustPreview 再掲／**PC5** 実行前ゲート preflight／**PC6** canvas↔planner 統合。
+- **B plan 精度（5段機構化）**：**PC4** seed パターン庫＋RAG（**参考であって強制でない・cold-start 無し**）＋退化検出/修復／**PC10** capability grounding map（反 hallucination）／**PC11** symbolic dry-trace（意味的完全性）／**PC12** 成功条件→acceptance（Resilience expect 接続）／**PC7** 複数候補＋judge 選択＋自己批評／**PC8** パターン学習ループ（採用フローで seed を育てる・advisory）／**PC9** plan 品質 eval ハーネス。
+- **C 部品設計の精度**：既存 `genComponent` を「走る」→「正しく・完全に・役立つ」へ。**PC13** 役割由来 spec＋grounded codegen／**PC14** 完成度ルーブリック＋契約(contract)テスト＝「どう役に立つか」実証／**PC15** 能動提案 opportunities＋部品設計アーティファクト。
+- **D 設計の天才**：**PC16** primitive 能力モデル（node/component/API/DB を能力で正しく理解＝名前一致でなく実 op/column に配線）／**PC17** 設計最適化パス（無駄ゼロ・$0 parser 化・死に枝除去）／**PC18** 自立して正しく回る（走行ゲート＋自己修復＝Wave R 統合＋自立性チェック）。
+
+**最短で価値**：PC0+PC1（偽フロー撲滅）→ PC16+PC10+PC11（正理解＋実在検証＋意味検証＝設計精度の核）→ PC7+PC17（候補＋無駄ゼロ）→ PC13+PC14（部品を役立つ品質に）→ PC18（自立して正しく回る）。
+
+---
+
 ## 6. 横断設計
 
 ### MCP 露出（skill 自動発動）
@@ -550,6 +574,9 @@ MCP control plane（`run_workflow`/`fire_event`）から神龍を発火 → buil
 
 ## 9. Risks / 落とし候補
 
+- **🔴 silent degradation（既知・最優先修正＝PC0）**：計画モデル不在時に `heuristic fallback`（shenron.mjs:294）が **input→prompt→output の偽フローを無言で返し**、失敗を成功に見せる（`kalsh-80`）。→ `mode:'unavailable'`＋理由提示に。
+- **生成部品が「走る」だけで役割不適合（PC14）**：sandbox は実行可否のみ検証＝出力が flow 役割を満たすか未検証→契約テストで補強。
+- **primitive の名前一致だけで能力誤認（PC16）**：tool/API/DB を id 一致で配線すると hallucinated op/column に繋ぐ→能力モデルで実契約照合。
 - **B コード生成の有効性**が最大未知 → v1 は stub＋通知に scope 落とし（検証・自動登録は v2）
 - search MCP の **API key 依存** → 無ければ graceful に内部 index のみ
 - 全パリティは **巨大** → 北極星に留め漸進。React Flow 必要領域は別判断

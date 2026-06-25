@@ -686,6 +686,63 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 
 ---
 
+## Wave 神龍-Copilot（PC0〜PC18・相談＋plan 精度＋部品設計＋設計の天才／静かな劣化の根絶）
+
+> **問題**：web で神龍に「Kalshi 等のスポーツべッティング期待値自動化」を頼むと `kalsh-80` が **Chat Input→Prompt→Chat Output**（Prompt に願い全文・出力 `[prompt:stub]`）＝**実行不能な偽フロー**に。相談も・必要 API も・障壁も分からない。
+> **北極星精緻化**：`OVERVIEW`「願いを叶える龍」/`13_SHENRON §0`「発見→設計→一緒に操作→道具生成」/`06_VISION`「龍は下書き人が押す」/`10_MCP`「MCP-first・web 任意」を土台に — **神龍は決して静かに偽フローを返さない（honest failure）**／相談・needs・blocker・コスト・実行可否は **MCP/web/canvas で同一可視**／**plan・部品・設計の精度を一級目標**とし、primitive を正しく理解し無駄なく正確に組み自立して正しく回す＝**設計の天才として君臨**。
+
+### 診断 — なぜ kalsh-80 が偽フローになったか（コード実証済）
+- `planFlow` は計画モデルに `EXEC_VENDOR || 'claude'` を使う（`hub.mjs:1297`）。モデル無効（APIキー無し／`--vendor stub`／`claude -p` CLI 不達）だと `runVendorAsync` が **stub sentinel** を返す。
+- `plan()`（`shenron.mjs:286-294`）は sentinel から JSON を取れず `catch`→**heuristic fallback** `[{action:goal,kind:'prompt'}]` を**無言で**返す（L294）→ input→prompt→output。実行も stub→`[prompt:stub]`。
+- ゆえに**本来ある相談(clarify)・不足ツール(missing)・blocker は全部スキップ**（LLM 実応答時のみ発火・L288-291）。**機構は優秀で実機検証済（2026-06-21「SNS始めたい」→clarify等）＝欠如でなく、モデル不在時に失敗を偽フローに化けさせる設計が問題**。
+- 追加分断：canvas(ui2) に needs/blocker/trust 表示が無い（`trustPreview` API は在るが UI 撤去・`ui2:1141`）。
+- **3層**：①モデル未接続の可能性 ②失敗を黙って偽フロー化 ③相談/needs/実行可否が canvas に出ない。
+
+### 精度の中核理論（6失敗モード・5段パイプライン・11レバー）
+**「目的を達成するフロー設計の精度」**＝実行すれば真の意図を満たす、または満たせない部分を正直に示すこと。one-shot では届かない。
+**6失敗モード（kalsh-80 全該当）**：F1 曖昧未解決／F2 capability hallucination（在ると仮定した API/能力が無い＝最大の殺し手）／F3 分解ミス（多段を単一promptに・fetch/schedule/error/出力欠落）／F4 制御フロー誤り（if を router にしない）／F5 実行不能を黙る（法/ToS/資金/API無）／F6 goal 充足の未検証。
+**5段パイプライン（one-shot をやめる）**：**①Intent**（相談で真の意図/制約/成功条件）→**②Spec**（要件＋acceptance 確定）→**③Capability map**（各依存を実在検証＝needed/available/external/gap/**blocked**）→**④Design**（archetype＋patterns で typed-node 分解）→**⑤Verify**（symbolic dry-trace＋judge＋acceptance で goal 充足検査・候補選択）→不足なら②〜④へループ。各段で gap/blocker を正直に。
+**11レバー**：L1 Intent→Spec(PC2)／L2 acceptance(PC12)／L3 capability grounding=反hallucination(PC10)／L4 archetype＋patterns(PC4)／L5 symbolic dry-trace(PC11)／L6 候補＋judge(PC7)／L7 設計への対話修正(PC2/PC6)／L8 honest infeasibility(PC0/PC3)／**L9 primitive を能力で正しく理解(PC16)**／**L10 無駄ゼロ minimality(PC17)**／**L11 自立して正しく回る(PC18)**。揃って初めて**設計の天才**。
+
+> **共通アンカー（確認済）**：`shenron.mjs` `PROMPT` L32-64／`plan()` L278-296（clarify L288・fallback L294）／`buildPlanIR` L78-111／`REFINE_PROMPT` L263-271／`discover` L194-199／`neededCredentials` L349-353／`renderPlan` L148-173。`hub.mjs` `planFlow` L1286-1304／`validateFlow` L1208-1217／`layoutFlow` L1219／`trustPreview` L700-736／`fireMcpNode` gap L649-662／`templateGaps` L98-106／`genComponent`・`/components/approve` L1726／`/api/shenron/plan` L1702。UI `shenron.html` clarify L154-189／`ui2.html` `clearTrust` no-op L1141・「神龍で作る」L179。MCP `tools.mjs` `plan_flow`/`gen_component`。検証＝`prototype/hub/test_*.mjs`（`--vendor stub` headless・`test_shenron` 純ユニット／`test_nodes` E2E＋parity guard／`test_reliable` recovery）。**各 PC＝1 commit・WIP=1・MCP/web 両面。**
+
+#### トラックA — 修正・相談・honest・canvas（PC0〜PC6）
+**PC0 Honest failure（最優先・独立）**：モデル不在で heuristic fallback を返さず `mode:'unavailable'`＋理由＋直し方。差分＝`isStubOut(out)` 判定→「初回∧JSON失敗∧stub」で `unavailable` 返却・fallback は `!isStubOut` の稀ケースに限定・`planFlow` は保存しない。検証＝`--vendor stub` で `mode:'unavailable'`（偽フロー出ない）を `test_shenron` に。
+**PC1 Readiness 可視化**：`plannerReadiness()`（vendor を実呼び出しせず dry 判定＝APIキー/CLI 検出/--vendor）＋`GET /api/shenron/readiness`＋MCP `shenron_readiness`。/shenron・canvas topbar にバッジ。依存=PC0 相補。
+**PC2 相談の多ターン化（plan-mode 相当）**：`context.brief`={confirmed,open,assumptions,blockers} を持ち回り PROMPT/REFINE に注入→未解決で再 clarify・解決で plan。UI に要件パネル。触る=`plan()` L288・`REFINE_PROMPT` L263-271・`shenron.html` L154-189。依存=PC0。
+**PC3 Needs/Blockers/Cost ブリーフ＋canvas 再掲**：plan に `brief={needs,credentials,integrations,blockers,cost}`。canvas(ui2) に「神龍ブリーフ」パネル＋`trustPreview` 再 surface（`clearTrust` no-op を実描画へ）。依存=PC1。
+**PC5 実行前ゲート**：`preflight(nodes,edges)`＝`templateGaps`＋integration enabled＋credential＋readiness を集約し run 前に不足を提示＋直す導線。触る=`fireMcpNode` L649-662・`templateGaps` L98-106。依存=PC3。
+**PC6 canvas↔planner 統合**：「神龍で作る」L179 を埋め込み相談パネルに→plan を `loadFlow` 即材料化＋PC3/PC5 同居。MCP は既存 `plan_flow` で同一。依存=PC2/PC3/PC5・canvas 統一(R0/R1)後。
+
+#### トラックB — plan 精度（5段パイプライン機構化）
+**PC4 パターン条件付け（seed＋RAG・参考であって強制でない）＋退化検出/修復**：(a) 同梱 `patterns.seed.json`＝良構造 worked 例（data-fetch→compute→threshold-router(if)→action→schedule／email urgent→Slack else log／fan-out→merge 等・**構造のみ**）＝cold-start 無し。(b) `retrievePatterns(goal,k)`＝**依存ゼロのレキシカル RAG**（BYO 埋め込み任意）。(c) PROMPT に「**参考（真似不要・自由に逸脱・新規歓迎・型に嵌めない）**」として注入＋CANVAS_REFERENCE 要約。(d) `validateFlow` 拡張：単一prompt なのに goal が複数動詞/条件→`warning:'degenerate'`＋自動 refine 1回・router 両枝欠落 lint。検証=seed なしでも multi-node／退化で warning＋再 plan。依存=PC0。
+**PC10 Capability grounding map（③・反 hallucination・F2 殺し）**：各 `step.tool` を registry で実在＋能力照合・`tool:null` 外部依存は search で実在 API 検証→`capability_map`={what,status:needed/available/external/gap/**blocked**,evidence}。blocked は F5 honest に。検証=「Kalshi 実金発注」→blocked/gap で confident な mcp にしない。触る=`discover` L194-199。依存=PC1/PC3。
+**PC11 Symbolic dry-trace（⑤・F3/F4/F6 殺し）**：`dryTrace(nodes,edges,spec,capability_map)`＝各ノード入力が上流で生成されるか・外部呼に integration 接続・router 両枝/合流・acceptance 到達経路・archetype 欠落 stage を検査し `gaps:[{node,reason}]`。検証=kalsh 型で「発注の入力(オッズ)が無い」「schedule 欠落」検出。触る=`validateFlow` L1208 深化。依存=PC4/PC10/PC12。
+**PC12 成功条件→acceptance（②・F6 殺し）**：相談で「どうなれば成功か」抽出→spec `acceptance:[{check,value}]`→automation `expect` 化（Wave R-1 統合）＝実行後に goal 充足を自動判定。依存=PC2。
+**PC7 複数候補＋judge 選択＋自己批評（⑤・精度の核）**：難 goal で 2-3 候補（API/browser/生成）→ rubric〔goal充足・条件は router・機械は parser・外部は grounded mcp・退化でない・dryTrace gaps 空・acceptance 到達〕で採点→最良＋runner-up graft・`!pass` は refine 1-2回・単純 goal は1候補。stub は PC0 に従い skip。依存=PC0/PC4/PC10/PC11。
+**PC8 パターン学習ループ（seed を採用フローで育てる・advisory）**：保存/成功フローを `patterns.json` に構造のみ冪等追記（config/secret 除外）→`retrievePatterns` が seed＋learned を統合 RAG。学習例も「参考・逸脱可」。依存=PC4・scope-drop 可。
+**PC9 Plan 品質 eval ハーネス**：`test_plan_quality.mjs`＝goal→期待構造 assert〔条件→router/機械→parser/外部→mcp or missing/曖昧→clarify/stub→unavailable〕。実モデルで構造 assert・stub で honest-failure assert。依存=PC0〜PC4/PC7。
+
+#### トラックC — 部品(component)設計の精度（「これがあったらいいな」を正しく作る）
+> 既存 `genComponent`（Python MCP server 生成→spawn+handshake+run 検証→repair→approve）を「**走る**」から「**正しく・完全に・役に立つ**」へ。失敗モード CG1 役割 spec 不在／CG2 完成度不足／CG3 I/O 契約不適合＝動くが無用／CG4 capability hallucination／CG5 「走る」検証のみ／CG6 能動提案欠落。
+**PC13 Component spec（役割由来）＋grounded codegen（CG1/CG4）**：生成前に flow 役割から `{purpose,inputs(上流emits由来),outputs(下流accepts由来),success_example,errors,deps,creds}` を導出＋使う外部 API を実在検証してから書く。触る=`genComponent`(入力を `what`→spec)・`neededCredentials` L349-353・PC10。依存=PC10。
+**PC14 完成度ルーブリック＋適合(contract)テスト（CG2/CG3/CG5）**：(a) 完成度 rubric〔入力検証・error・auth/creds・rate/pagination・idempotency・出力契約〕を judge 採点→**repair 収束条件に追加**。(b) **contract test**＝`spec.success_example` で sandbox 実行し `spec.outputs` 一致＝「どう役に立つか」実証。(c) 完成度(partial/complete) surface。依存=PC13。
+**PC15 能動提案＋部品設計アーティファクト（CG6＋透明性）**：plan に `opportunities:[{what,why_it_helps,est_cost}]`（gap でなく価値提案・任意採用）＋各部品に設計書（purpose/contract/completeness/fit-test）を approve 前提示。触る=`planFlow`・`/components/approve` L1726・`goalSuggest` 連動。依存=PC13/PC14。
+
+#### トラックD — 設計の天才（正しい理解・無駄ゼロ・自立して正しく回る）
+**PC16 Primitive 能力モデル（正しい理解・L9）**：node/component/integration(API)/DB の**実契約**を `capabilityModel()`={kind,consumes,produces,cost,precondition,failure,compose_rules} に機械可読化（node=runtime 実意味・API=tool schema/OpenAPI・DB=schema(tables/columns)）。planner/judge/dryTrace/codegen が**名前でなく能力で**推論＝実 op/column にのみ配線。触る=`CANVAS_REFERENCE`・`COMP` L510-525・`readIntegrations`・`fireNode` 実意味。依存=PC10 相補。
+**PC17 設計最適化パス（無駄ゼロ・L10）**：`optimizeFlow(nodes,edges,capabilityModel)`＝決定論 prompt を parser 化・同 tier 隣接 prompt 統合・到達不能ノード/edge 除去・fan-in を正しい merge に。judge に design-quality（node 最小・$0 比率・死に枝ゼロ）加点。前後で goal 充足不変。触る=`validateFlow` L1208。依存=PC4/PC16。
+**PC18 自立して正しく回る（autonomous correctness・L11）**：(a) **走行ゲート**=dryTrace gaps 空＋全外部依存 available＋acceptance 到達で「runnable」確定（PC5 統合）。(b) **自己修復**=実行後 acceptance 不成立 or tool 破損→`gen_component` 再生成/refine 自動起動（Wave R 統合）。(c) **自立性チェック**=外部ランタイム非依存（serverless-cron/ユーザー surface/ローカル）判定・要常時稼働なら surface。依存=PC11/PC12・Resilience。
+
+### 依存順・scope-drop（神龍-Copilot）
+- 修正＋相談：**PC0（最優先・独立）→ PC1 → PC2 → PC3 → PC5 →（PC6 は canvas 統一後）**。
+- plan 精度：**PC4 →（PC10・PC12）→ PC11 → PC7 → PC9**・**PC8 学習（随時）**。
+- 部品精度：**PC13 →（PC10 前提）→ PC14 → PC15**。設計の天才：**PC16 → PC17 → PC18**。
+- 最短で価値：**PC0＋PC1**（偽フロー撲滅）→ **PC16＋PC10＋PC11**（正理解＋実在検証＋意味検証＝設計精度の核）→ **PC7＋PC17**（候補＋無駄ゼロ）→ **PC13＋PC14**（部品を役立つ品質に）→ **PC18**（自立して正しく回る）。
+- 正典＝`docs/13_SHENRON.md` §Wave 神龍-Copilot。
+
+---
+
 ## 🔖 最新ステータス（2026-06-23）
 
 > 次にやることは ↑「次にやる（TODO 集約・正本）」に一本化。ここは直近出荷の要約のみ。
