@@ -531,7 +531,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 - **handoff `h.kind` 統一**（sweep L257-264 の `h.mcp/h.prompt/h.consensus` マーカー→単一 `h.kind`・recovery を table 化）。
 - **`fireXNode` template**（firePromptNode/Consensus/Mcp L556-663 の90%重複）→`createInternalHandoff(run,node,input,from,kind,config)` factory＋executor dispatch table。
 - **`fireNode` dispatch table**（11連 if L526-544）→`RUN[kind]`。旧 kind も table に残し alias 実行（R1 整合）。
-- **`steps[]` 撤去**（L343・読取は表示2箇所＝dead）／**trigger-filter helper**（4箇所重複 L415,707,885）／**vendor/model/tier resolver**（L243,541,560,573 散在）／**trust dedup**（`fenceEdge`↔`trustPreview` の company/redact 重複 L705-774）／**HTTP route table**（L1541-1802 巨大 if→`{path:handler}`）／**`genId(kind)` 定数化**。
+- **`steps[]` 撤去** ✅（hub saveWorkflow・読取は server.mjs 3箇所もガード＝Pass2 で ROADMAP 想定外を捕捉）／**trigger-filter helper**（4箇所重複 L415,707,885）／**vendor/model/tier resolver**（L243,541,560,573 散在）／**trust dedup**（`fenceEdge`↔`trustPreview` の company/redact 重複 L705-774）／**HTTP route table**（L1541-1802 巨大 if→`{path:handler}`）／**`genId(kind)` 定数化**。
 - 不変：MCP-first 公開・trust 意味・保存 JSON。
 > 詳細実装は下記 **### R2-B 共通アンカー＋検証** ＋ **B1〜B8**（post-frontend・additive・各1 commit）。
 
@@ -548,6 +548,8 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **不変条件**：runner は元々 nodes/edges から実行（`runFlow` L408-425）＝挙動不変。
 **検証**：全 test スイート green（`test_tenancy`/`test_nodes` が saveWorkflow 経由）。保存→読込 round-trip で nodes/edges 不変。
 **リスク・ロールバック**：表示数値が消える/再計算になるだけ。L343-344＋読取2箇所の局所 revert。独立。
+**✅ 実装結果（2026-06-25）**：hub saveWorkflow が derived `steps[]` を生成・保存しなくなった。消費側は全ガード/置換で **behavior-preserving**：list_workflows・`GET /api/workflows` の steps 表示→`nodes` 数（後者は nodes/edges 数が既存で冗長だった）。⚠ **Pass2 発見＝本節の「読取＝表示2箇所 dead」前提が server.mjs を見落とし**：`server.mjs` `searchWorkflows`(L83)/`execWorkflow`(L112)/`planOf`(L120) が `w.steps` を `|| []` 無ガードで参照＝撤去でクラッシュ寸前だった。3箇所ガード＋search は nodes 数に。`tools.mjs` get_workflow desc・shenron.html `wf.steps→nodes`・stale コメント3箇所も同 commit（lying doc 撲滅）。検証＝test_*.mjs 11本 green＋hub 実起動 round-trip（保存 JSON に steps キー不在を grep 実証）。
+- **⏭ skip（B1 で発見した別バグ・→ B-fix）**：`run_automation`(server.mjs:188)/`fire_event` は `execWorkflow`(legacy a2a) を**無条件**呼び＝`run_workflow` の `isDag`→hub `/api/runflow` 分岐が**無い非対称**。DAG フローでは steps が空ゆえ実質 no-op（automation が実フローを動かさない潜在バグ）。B1 はガードで現状 no-op を維持（behavior-preserving）＝実行経路修正は scope 外。**いつ＝beachhead デモ（次にやる B-8）で run_automation/fire_event を使い no-op が観測された時**に run_workflow と同じ isDag 分岐を追加（観測ゼロなら据置）。
 
 ### B2 — pure-extraction helpers（trigger-filter / cross-company / genId）
 **目的**：散在する同一ロジックを1関数に集約（挙動完全不変のリファクタ）＝後続 B の土台。
