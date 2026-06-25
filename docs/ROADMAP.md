@@ -414,6 +414,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 | **Canvas-1**（managedの顔・Langflow領地） | 成果物UI/canvas 足場（trust branch parked 参照・既存 Wave UI S と接続）・非技術チーム向け | Langflow canvas | Vault-1 |
 | **DX-1**（LangGraph領地・乗換導線） | SKILL.md export / MCPネイティブを武器化（「ライブラリ組むより神龍が早い」導線） | LangGraph(DX) | — |
 | **Reliable-1**（動くシステムの質）✅ | **真ギャップ=クラッシュ後のゾンビ run**: フロー run は running→completed/cancelled しか遷移せず（`'failed'` 無し）、boot の `sweep` は handoff だけ resume＝state.runs 未 reconcile。駆動 handoff も生存 child も無い running run が永久ゾンビ（Cliff-1 で durable 化＝再起動を越えて残る）。修正=`reconcileRuns()` を sweep 末尾で実行し、該当 run を `interrupted` 確定＋通知/trail/SSE close（**fixpoint で sub-flow 親まで伝播**・`awaiting_approval` 待ち run は誤殺しない）。**自動 re-run はしない**（非冪等＝re-run the flow・既存 mcp 哲学と一致）。`test_reliable.mjs`。 | LangGraph(信頼性) | — |
+| **drift→auto-pause**（Reliable follow-up）✅ | R-3 drift は検知/通知だけ＝壊れた automation を scheduler が発火し続ける問題を解消。`checkDrift` の **consecutive_fail**（3連続）で `toggleAutomation(id,false,'drift')` 自己防衛停止＋`pausedReason`＋専用通知（`automation_paused`）＋可逆（toggle on でクリア）。**既定 ON＋`shenron.config.json driftAutoPause:false`/`SHENRON_NO_DRIFT_AUTOPAUSE` で escape**（schedulerOn と同型）。`structure_shift` は対象外（pass 継続中の正当変化を誤殺しない）。saveAutomation は pausedReason/disabled を持ち越し。settings.html に停止ラベル＋drift action バッジ。`test_autopause.mjs`。 | LangGraph(信頼性) | Reliable-1 |
 | **Redact-1**（堀精度・実需後） | 秘密と業務データの区別（per-flow allowlist） | 弱点3 | 実需 |
 
 ### 実装順序（3-pass Pass-3）
