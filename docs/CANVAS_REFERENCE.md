@@ -314,7 +314,7 @@ n8n の「分かりやすさ」の正体＝**接続種別を色でなく形で�
 canvas は**大きい部品で簡潔**に、n8n 並みの細かさは **inspector の深いパラメータ**（Model の mode/vendor/model/tier/schema 等）＋ **AI サブノード◆クラスタ**（W4）に担保。
 
 ### 12.4 backend 整理（R2・frontend の後）
-handoff `h.kind` 統一・`fireXNode` template＋`fireNode` dispatch table・`steps[]` 撤去・trigger-filter/vendor-resolve/trust dedup・HTTP route table。**MCP-first 公開・trust 層の意味・保存 JSON は不変**。
+handoff `h.kind` 統一・`fireXNode` template＋`fireNode` dispatch table・`steps[]` 撤去・trigger-filter/vendor-resolve/trust dedup・HTTP route table。**MCP-first 公開・trust 層の意味・保存 JSON は不変**。**精密な実装 Wave は `docs/ROADMAP.md` の `### R2-B 共通アンカー＋検証`＋`B1〜B8`**（触る関数・行・差分・`--vendor stub` headless 検証・依存順）。
 
 ### 12.5 不変条件（refactor 全体）
 MCP-FIRST（`agentTools`/`mcpDispatch`/`/api/shenron/skill`）・trust 層（firewall/passport/承認/cross-company）・保存 JSON 後方互換・`test_nodes.mjs` green・絵文字ゼロ・SVG のみ・Netdive Blue。

@@ -531,6 +531,84 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 - **`fireNode` dispatch table**（11連 if L526-544）→`RUN[kind]`。旧 kind も table に残し alias 実行（R1 整合）。
 - **`steps[]` 撤去**（L343・読取は表示2箇所＝dead）／**trigger-filter helper**（4箇所重複 L415,707,885）／**vendor/model/tier resolver**（L243,541,560,573 散在）／**trust dedup**（`fenceEdge`↔`trustPreview` の company/redact 重複 L705-774）／**HTTP route table**（L1541-1802 巨大 if→`{path:handler}`）／**`genId(kind)` 定数化**。
 - 不変：MCP-first 公開・trust 意味・保存 JSON。
+> 詳細実装は下記 **### R2-B 共通アンカー＋検証** ＋ **B1〜B8**（post-frontend・additive・各1 commit）。
+
+### R2-B 共通アンカー＋検証（hub.mjs・実コード確認済み／post-frontend）
+> **不変条件（全 B 共通）**：① **MCP-first surface 不変**＝`agentTools` L1150-1160／`REMOTE_TOOLS` L1256／`mcpDispatch` L1306-1360／`tools/list` L1554・L1630／`/api/shenron/skill` L1739-1747。② **trust 意味不変**＝`fenceEdge` L767-774（cross `!!sc&&!!tc&&sc!==tc` L770）／`sendMode` L658／`redact` L169,682／`applyPass` L685／承認フェンス。③ **保存 JSON 後方互換**（既存 `workflows.json`／`inbox.json` がそのまま動く）。④ runner グラフ不変＝`toposort` L327-335／`advanceFrom` L794-811／`tryFire` L784-793／`settled` L780／`live` L781／`markDead` L782／`markSkipped` L783。
+> **検証基盤（実在・確認済み）**：`prototype/hub/test_*.mjs` 10本。**全て `--vendor stub` で headless E2E**（`STATE_DIR`=tmpdir 隔離・LLM 即時・`save()` は毎遷移で tmpdir に書く）。実行＝`node prototype/hub/test_<name>.mjs`。主オラクル：`test_nodes.mjs`＝全 kind を `/api/runflow`→poll 実行し出力 assert ＋ **palette↔dispatch parity guard**（ui2.html `const COMP` の kind を抽出し RUN/FENCED/STRIP/AGENT 分類を強制・L54-73）＝runner 系の要／`test_reliable.mjs`＝crash recovery（`inbox.json` seed→boot `sweep()`→`reconcileRuns`）＝handoff 系（B4）の要／`test_shenron.mjs`＝trust/IR 純ユニット（hub 不起動）＝trust 系（B7）の要／他＝`test_canvas/tenancy/autopause/role/vault/state/langflow`。
+> **各 B の検証共通**：(a) `for f in prototype/hub/test_*.mjs; do node "$f"; done` 全 green、(b) runner 変更は **stub-vendor E2E の出力が変更前と一致**（代表フローを runflow→runs poll で比較）、(c) inline JS 変更時は `vm.Script` 構文。
+> **runner kind-dispatch 現状（B5/B6 対象）**：`fireNode(run,node,input)` L526-544＝11連 if（input/output/prompt/consensus/router/mcp/workflow/parser/languagemodel/structured/＋fallthrough=agent）。内部 handoff＝`firePromptNode` L556-562／`fireConsensusNode` L610-616／`fireMcpNode` L649-663（各 `h.prompt`/`h.consensus`/`h.mcp` マーカー）。制御系＝`fireRouterNode` L639-645（`run.routerPick`）／`fireWorkflowNode` L429-434（nested `runFlow`）。
+
+### B1 — `steps[]` 撤去（dead code・最小リスク・独立）
+**目的**：`saveWorkflow` の `steps[]`（toposort 由来の旧 A2A 線形 shim）は実行に未使用＝dead。除去して「nodes/edges が唯一の正」を明確化。
+**触る関数・行**：`saveWorkflow` L340-350（生成 L343・`wf` L344）。読取＝`list_workflows`（MCP）と GET `/api/workflows`（`(w.steps||[]).length` の表示のみ）。
+**差分**：L343 の `const steps=...` と L344 の `wf` から `steps` を削除。読取2箇所は表示が要るなら read 時に `toposort(w.nodes,w.edges).filter(n=>n.agent&&n.skill).length` で算出（or 表示削除）。
+**不変条件**：runner は元々 nodes/edges から実行（`runFlow` L408-425）＝挙動不変。
+**検証**：全 test スイート green（`test_tenancy`/`test_nodes` が saveWorkflow 経由）。保存→読込 round-trip で nodes/edges 不変。
+**リスク・ロールバック**：表示数値が消える/再計算になるだけ。L343-344＋読取2箇所の局所 revert。独立。
+
+### B2 — pure-extraction helpers（trigger-filter / cross-company / genId）
+**目的**：散在する同一ロジックを1関数に集約（挙動完全不変のリファクタ）＝後続 B の土台。
+**触る関数・行**：
+- `filterTriggers(nodes,edges,{notes})→{nodes,edges}`：`runFlow` L415-416／`trustPreview` L707-708（trigger＋note 除去）／`saveAutomation` L885（trigger のみ）。**2 種ある**ので `notes` 引数で吸収。
+- `isCrossCompany(sc,tc)=!!sc&&!!tc&&sc!==tc`：`fenceEdge` L770／`trustPreview` L715。
+- `genId(kind)`：`randomUUID().slice(0,N)` 16箇所（N マップ固定＝handoff/run/alert/prompt/consensus/mcp/suggestion/SSE=8、component=6、flow/integration/automation/goal/clone=4）。**桁数は現状維持**（id 衝突/長さ不変）。
+**差分**：3 ヘルパ定義＋各サイト置換（出力同一）。
+**不変条件**：純抽出＝バイト等価の挙動。id 桁数不変。
+**検証**：全 test スイート green（純リファクタ）。
+**リスク・ロールバック**：低。各サイト独立に戻せる。
+
+### B3 — vendor/model/tier resolver 集約
+**目的**：`node>handoff>tier>global>default` の vendor 解決が各所で再実装（L243,541,572-573,581,623…）→1 関数 `resolveVendor()` に集約（優先順位は現状維持）。
+**触る関数・行**：`EXEC_VENDOR` L66／`runLocal` L243／`fireNode` L541-542／`tierRoute` L550-555／`runPrompt` L572-573・escalate L581／`runConsensus` L623。
+**差分**：`resolveVendor({node,handoff,prompt,tier})→{vendor,model,tier}` を新設し各サイトが呼ぶ。**優先順位・既定値（'stub'/'claude' 等）は1ビットも変えない**。
+**不変条件**：同入力→同 vendor/model。`--vendor stub` 経路不変（test 前提）。
+**検証**：stub-vendor E2E（`test_nodes`）出力不変＋全スイート green。
+**リスク・ロールバック**：中（解決順を誤ると vendor 変化）。サイトごと段階置換＋E2E で都度確認。
+
+### B4 — handoff `h.kind` 統一（marker → 単一フィールド・後方互換）
+**目的**：recovery が `h.mcp`/`h.prompt`/`h.consensus` の**有無**で型判定（脆い）→単一 `h.kind`（'prompt'|'consensus'|'mcp'|'agent'）に正規化。
+**触る関数・行**：handoff 生成＝`firePromptNode` L558-560／`fireConsensusNode` L613-614／`fireMcpNode` L651-653／agent は `create` L170。recovery＝`sweep` L257-264／`approve` L218。
+**差分**：各 handoff に `kind` を**追加**（既存 marker は**残す**＝表示/payload 互換）。`sweep`/`approve` を `h.kind` 優先・marker fallback に。**migration shim**：`sweep` 冒頭で `h.kind ||= (h.mcp?'mcp':h.prompt?'prompt':h.consensus?'consensus':'agent')`＝既存 `inbox.json` も無改修で正規化。
+**不変条件**：既存の running/awaiting handoff が再起動で正しく resume（recovery 挙動不変）。marker payload 不変。
+**検証**：**`test_reliable.mjs`**（crash recovery）green が主＋全スイート green。
+**リスク・ロールバック**：中（recovery 誤りは実行中フローに影響）。marker fallback＋migration shim で旧データ安全。
+
+### B5 — `fireXNode` template（`createInternalHandoff` factory）
+**目的**：firePrompt/Consensus/Mcp の handoff 生成（id/from/to/skill/status/contextId/timestamps/history）が90%重複→factory に集約。
+**触る関数・行**：`firePromptNode` L556-562／`fireConsensusNode` L610-616／`fireMcpNode` L649-663。
+**差分**：`createInternalHandoff(run,node,input,from,{kind,to,skill,extra})→h`（共通フィールド＋`kind`〔B4〕＋kind 別 `extra`＝`{prompt}/{consensus}/{mcp}` を merge）。各 fireX は factory→`touch`→`push`→executor（`runPrompt`/`runConsensus`/`runMcp`）に短縮。**fireMcp の承認ゲート分岐（sendMode/auto/deny L657-662）は fireMcp 内に保持**（factory に入れない）。
+**不変条件**：生成 handoff のフィールドが現状と1:1（B4 の `kind` 追加除く）。
+**検証**：**`test_nodes.mjs`** 全 kind E2E 出力不変＋parity guard green。`test_reliable` green。
+**リスク・ロールバック**：中。フィールド漏れは E2E/recovery で検出。依存：B4。
+
+### B6 — `fireNode` dispatch table（`RUN[kind]`）＋旧 kind alias（R1 整合）
+**目的**：11連 if を `RUN` テーブル化。新 `model` kind（R1）を追加し、旧 `languagemodel/structured/consensus/prompt` を alias 実行（後方互換）。
+**触る関数・行**：`fireNode` L526-544。parity guard＝`test_nodes.mjs` L54-73。
+**差分**：`const RUN={ input,output,prompt:firePromptNode,consensus:fireConsensusNode,router:fireRouterNode,mcp:fireMcpNode,workflow:fireWorkflowNode,parser,languagemodel,structured,model:(r,n,i,f)=>byMode(n) }`。`fireNode` 末尾＝`(RUN[node.kind]||RUN.__agent)(run,node,input,from)`。**`model` の mode 分岐**＝`plain→firePromptNode`／`system→firePromptNode(system+template)`／`structured→firePromptNode(JSON)`／`consensus→fireConsensusNode`（= R1 の KIND_ALIAS と同表）。**旧 kind は RUN に残す**＝旧 `workflows.json` も実行可。
+**不変条件**：全既存 kind の実行結果が現状と一致。MCP-first/trust 不変。
+**検証**：**`test_nodes.mjs` parity guard を更新**（`model` を RUN 分類に追加）＋全 kind E2E（旧 kind＋`model` 各 mode）出力一致＋全スイート green。
+**リスク・ロールバック**：中。取りこぼしは parity guard が静的検出。依存：B5・R1（model/KIND_ALIAS）。
+
+### B7 — trust dedup（`evaluateEdgeFence` 共有）
+**目的**：`fenceEdge`（live）と `trustPreview`（dry-run）で never 抽出＋cross-company＋redact が重複→共有ヘルパに（**trail は live のみ**＝dry-run は read-only 維持）。
+**触る関数・行**：`fenceEdge` L767-774／`trustPreview` L705-736（cross L715・L770）。`isCrossCompany`（B2）を再利用。
+**差分**：`evaluateEdgeFence(edge,value,sc,tc)→{text,removed,cross}`（never 抽出＋`redact`＋cross 判定・**audit はしない**）。`fenceEdge` は結果＋`trail('redact',...)`、`trustPreview` は結果のみ使用。
+**不変条件**：redact 除去結果・cross-company 強制・dry-run の read-only 性が完全保存。
+**検証**：**`test_shenron.mjs`**（trust 純ユニット）green が主＋E2E で fenced edge 挙動不変。
+**リスク・ロールバック**：中（安全境界）。共有関数は副作用なし＝trail 位置を呼び側に残す設計で安全。独立。
+
+### B8 — HTTP route table（巨大 if → ディスパッチ表）
+**目的**：`http.createServer` L1387〜L1850+ の約76 route が flat な `if(p===...)`/`if(p.match(...))`→表＋regex 表に整理（可読性・guard 一元化）。
+**触る関数・行**：server L1387／GET 群 L1424-1510／POST 群 L1564-1757／OPTIONS・error L1789+／認証ゲート `bearerOk` L1444。
+**差分**：`const ROUTES={ 'GET /api/health':h1, 'POST /api/runflow':h2, … }`＋`const RX=[[/^\/api\/runs\/([^/]+)\/stop$/,'POST',h]]`。dispatch＝完全一致→regex の順。**認証ゲート（`bearerOk`/`isAdmin`）の適用範囲・各 route の挙動を1ビットも変えない**。MCP-first route（tools/list・mcpDispatch・/api/shenron/skill）も同表に移すが挙動不変。
+**不変条件**：全 route のメソッド/パス/認証/レスポンスが現状と一致。
+**検証**：**全 test_*.mjs green**（大半が HTTP 経由＝widest 網羅）＋代表 GET/POST を curl 比較。
+**リスク・ロールバック**：中〜高（route 漏れは API 破壊）。最後に実施・route 単位で段階移行・各段で全スイート。単独 commit。
+
+### B 依存順・scope-drop
+- 低リスク独立：**B1・B2・B3・B7・B8**（いつでも）。runner-core チェーン：**B4→B5→B6**（B6 は R1 の `model` 前提）。
+- 重ければ：B8（route 表）後送り／B6 を R1 と同時化／B1 のみ先行、で段階縮小可。各 B＝1 revertable commit・WIP=1・frontend（R0/R1）後。
 
 > **W1〜W4 共通の検証済みアンカー（ui2.html・実コード確認済み・R0 後は関数名が `renderNode`/`CARD`/`INSPECT` に変わる点に注意）**：幾何 `endpointPos(e,end)` L790-799／`borderPoint` L784-787（temp-wire 専用）／`fpath(a,b)` L800／`nodeRect` L781／`center` L849。描画 `drawLinks()` L850-869（可視 path L859・色 L857・router 判定 `br` L856・source 端小円 L860・型ラベル箱 L861）／`<marker id="arrow">` L212。ノード `renderNodes()` L668-742（agent L672-688/`.name` L685、trigger L689-697/`.name` L695、mcp L698-712/`.name` L709、comp L713-725/`className` L716・`.name` L722、note L726-740）／`portHTML(hasIn,hasOut)`・`hasPort(arr)=(arr||['*']).length>0` L666-667。定義 `COMP` L510-525／`NI(p,w=15)` L500／`NIC` L501-509／`typeColor`+`TYPE_PALETTE` L580-581。配線 `attachNode` L744-761（pointerdown L749）／`startWire(e,src)` L829／`tryConnect(src,tgt)` L827-828／`canConnect` L802／`matchType` L804-805／`nodeOf(id)`（既存・kind 参照）／`updateTemp` L806-811。メニュー `openAddMenu()` L472／`#addMenu` L189-200／`addComp(kind)` L589-593／`addMcpNode(tl)` L606／`addTrigger()` L639／`revalidateEdges` L595-597。状態 `EDGES` L479（edge 形 `{id,source,target,type,branch?,share?}`）。CSS `:root` L9-10／`.node` L62／per-kind L85-94／`.name` L73／`.co` L77／`.port` L112／`.port.in` L115／`.port.out` L113／`.portlabel` L117-118／`.tier-badge` L125-127。共通定数（S2 で1回定義・S4/S5 で再利用）：`const AI_AUX = new Set(['languagemodel','structured','parser','consensus']);`（`COMP` 直後 L526 付近）。各 Wave＝1 revertable commit・WIP=1。色のみに依存せず「形＋線種」で区別（n8n 思想・色覚配慮）。**重要：W1〜W4＝旧 S2〜S5 の実装手順は本節に完全保存（取りこぼし無し）＝現状コード（R0 前）でも上記の関数名そのままで即実装・先行出荷できる。** R0 を先に行った場合のみ、`renderNodes` 各ループ→`renderNode`/`CARD`、`inspNode` 分岐→`INSPECT` に読み替える（幾何/配線/`drawLinks`/CSS は不変）。
 
