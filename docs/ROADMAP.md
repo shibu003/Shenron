@@ -502,29 +502,65 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 - コメント L579 を「固定 I/O ポート＋矢印・rim は後方互換」に更新（stale doc 撲滅）。
 - 検証：input→prompt→output が右→左＋矢印で繋がる／trigger に左ポート無し・output に右ポート無し／router で then/else が右辺上下に分岐／rim-drag がまだ動く。
 
+> **S2〜S5 共通の検証済みアンカー（ui2.html・実コード確認済み）**：幾何 `endpointPos(e,end)` L790-799／`borderPoint` L784-787（temp-wire 専用）／`fpath(a,b)` L800／`nodeRect` L781／`center` L849。描画 `drawLinks()` L850-869（可視 path L859・色 L857・router 判定 `br` L856・source 端小円 L860・型ラベル箱 L861）／`<marker id="arrow">` L212。ノード `renderNodes()` L668-742（agent L672-688/`.name` L685、trigger L689-697/`.name` L695、mcp L698-712/`.name` L709、comp L713-725/`className` L716・`.name` L722、note L726-740）／`portHTML(hasIn,hasOut)`・`hasPort(arr)=(arr||['*']).length>0` L666-667。定義 `COMP` L510-525／`NI(p,w=15)` L500／`NIC` L501-509／`typeColor`+`TYPE_PALETTE` L580-581。配線 `attachNode` L744-761（pointerdown L749）／`startWire(e,src)` L829／`tryConnect(src,tgt)` L827-828／`canConnect` L802／`matchType` L804-805／`nodeOf(id)`（既存・kind 参照）／`updateTemp` L806-811。メニュー `openAddMenu()` L472／`#addMenu` L189-200／`addComp(kind)` L589-593／`addMcpNode(tl)` L606／`addTrigger()` L639／`revalidateEdges` L595-597。状態 `EDGES` L479（edge 形 `{id,source,target,type,branch?,share?}`）。CSS `:root` L9-10／`.node` L62／per-kind L85-94／`.name` L73／`.co` L77／`.port` L112／`.port.in` L115／`.port.out` L113／`.portlabel` L117-118／`.tier-badge` L125-127。共通定数（S2 で1回定義・S4/S5 で再利用）：`const AI_AUX = new Set(['languagemodel','structured','parser','consensus']);`（`COMP` 直後 L526 付近）。各 Wave＝1 revertable commit・WIP=1。色のみに依存せず「形＋線種」で区別（n8n 思想・色覚配慮）。
+
 ### S2 — 線種で接続種別を区別（実線=データ / 破線=AI 補助）
-- `drawLinks` で `stroke-dasharray` 出し分け：端点 kind が AI 補助系（`languagemodel`/`structured`/`parser`/`consensus`）に絡む edge → **破線 `5 5`**＋専用色。通常 data → 実線（現状）。
-- 既存 `fenced`（firewall）破線 `6 3` と**パターンを分離**して衝突回避（AI=`5 5`/fenced=`6 3`）。router then/else は既存色（then=青/else=灰）維持。必要なら else=破線で形補強。
-- 検証：languagemodel→prompt が破線・mcp→mcp が実線。
+**目的**：edge の「意味」を線の形で表す。通常のデータ供給＝実線（現状）、AI 補助系コンポに絡む edge＝破線。色覚に依存せず形で読める。
+**触る関数・行**：`drawLinks()` L850-869（可視 path L859・色 L857）／`:root` L9-10（色追加）／`COMP` 直後 L526 付近（`AI_AUX` 定義）／`typeColor` 近傍 L581（`isAiEdge` 追加）。
+**技術設計・データフロー**（データモデル不変・両端 kind を `nodeOf(id)?.kind` で描画時に導出）：
+- 定義追加：`const AI_AUX = new Set(['languagemodel','structured','parser','consensus']);` ／ `function isAiEdge(e){ return AI_AUX.has(nodeOf(e.source)?.kind) || AI_AUX.has(nodeOf(e.target)?.kind); }`（`nodeOf` 既存）。
+- `:root` に `--aiwire:#a371f7;`（comp 紫 accent と同系＝AI/補助の視覚アイデンティティ）。
+- `drawLinks` の `br` 行（L856）直後に `const ai = !fenced && !br && isAiEdge(e);`。
+- 色（L857）を `col=fenced?'var(--amber)':br?(br==='then'?'var(--blue)':'var(--grey)'):ai?'var(--aiwire)':typeColor(e.type)` に拡張。
+- 破線（L859 の `${fenced?' stroke-dasharray="6 3"':''}`）を `${fenced?' stroke-dasharray="6 3"':ai?' stroke-dasharray="5 5"':''}` に拡張。
+- **線種の優先順位（必ずこの順）**：fenced(firewall, amber, `6 3`) ＞ router 分岐(then=blue/else=grey, 実線) ＞ AI 補助(`--aiwire`, `5 5`) ＞ データ(typeColor, 実線)。dasharray は衝突回避で固定：fenced=`6 3`・AI=`5 5`・tempwire=`6 5`（既存 `.tw`）。
+**ノード関係性・フロー接続時の挙動**：破線紫＝「この接続は AI 補助コンポ（LLM/構造化/パーサ/合議）に出入りする」＝補助・派生関係。実線＝データパイプライン本流。例：`languagemodel→prompt`（source=AI_AUX）→破線紫／`mcp→languagemodel`（target=AI_AUX）→破線紫／`prompt→output`→実線 typeColor／`router→languagemodel`→`br` 成立で `ai=false`＝**router 分岐の青/灰実線が優先**（分岐構造の可読性を勝たせる）。これは S5（AI を底◆サブノード化）の視覚的前段＝同じ edge を S5 で縦＋◆に昇格。
+**検証**：`languagemodel→prompt` が破線紫／`mcp→mcp` が実線／fenced は amber `6 3` のまま／hub 起動／inline JS `vm.Script` 構文 green／`node --test prototype/hub/test_nodes.mjs` 無回帰。
+**リスク・ロールバック**：描画のみ・データ不変ゆえ revert は L857/L859/`:root` の差分戻しだけ。dasharray 衝突は上記固定値で回避。
 
 ### S3 — アイコン色タイル＋ノード形（種別を即認識）
-- アイコンを 14→18px に拡大し、`.name` 内アイコンを**角丸塗りタイル背景＋白/淡色グリフ**に（kind→accent color マップを1つ追加・`COMP`/`NIC` の svg 流用）。
-- **trigger/input を左丸 D 字＋左外の稲妻バッジ**（CSS `border-top-left-radius/bottom-left-radius` 大 ＋ 擬似要素 or 小 span で左外に稲妻 SVG）。n8n の trigger 形を踏襲。
-- per-kind accent は既存クラス（`.node.agent/.trigger/.mcp/.comp`＋comp は `data-kind`）に色を足すだけ。
-- router の**OUT 2-dot 本格版**（then/else 各 dot を右辺上下に描画）もここ（S1 はレーン分けのみ）。
-- 検証：palette 全種を置いて色タイル＋形＋アイコンで種別判別できる。
+**目的**：種別をアイコンの「色付きタイル」＋ノードの「形」で一目認識。trigger を左丸D字＋稲妻バッジ、router の OUT を 2-dot（then/else）本格版に。
+**触る関数・行**：`renderNodes` 各ループの `.name`（agent L685・trigger L695・mcp L709・comp L722）／comp ループに `data-kind` 付与（L716-719 付近）／CSS L62-127 追記／`startWire`・`attachNode`・`tryConnect` に branch スレッド（router 2-dot 用）。
+**技術設計・データフロー**：
+- **アイコン拡大**：CSS 一括 `.node .name svg{width:18px;height:18px;}`（14→18・NI 呼び出しは触らない＝Haiku-safe）。
+- **色タイル**：各ループの icon を `<span class="icontile">…</span>` で包む。agent L685 `${NI(NIC.agent,14)}`→`<span class="icontile">${NI(NIC.agent,18)}</span>`、trigger/mcp 同様、comp L722 `${meta.svg||''}`→`<span class="icontile">${meta.svg||''}</span>`。CSS `.icontile{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;flex:none;}`。
+- **comp の data-kind**：comp ループ（L716-719 付近、`n.classList.toggle('selected',…)` の後）に `n.dataset.kind=c.kind;`。CSS が `.node.comp[data-kind="languagemodel"] .icontile{…}` で kind 別 accent を当てられる。
+- **per-kind accent マップ**（bg=rgba 薄／fg=グリフ色・明示 hex）：agent `rgba(194,214,230,.14)`/`#c2d6e6`・trigger `rgba(199,147,56,.20)`/`#e0a93a`・mcp `rgba(46,160,67,.18)`/`#3fb950`・input/output `rgba(0,179,179,.16)`/`#00c2c2`・prompt `rgba(91,155,209,.18)`/`#5b9bd1`・languagemodel `rgba(163,113,247,.18)`/`#a371f7`・structured `rgba(0,179,179,.16)`/`#22b3b3`・parser `rgba(63,174,122,.18)`/`#3fae7a`・consensus `rgba(199,147,56,.18)`/`#c79338`・router `rgba(217,119,30,.20)`/`#d9771e`・workflow `rgba(79,70,229,.20)`/`#7c7cf0`・langflow `rgba(236,72,153,.18)`/`#ec4899`。
+- **trigger D字＋稲妻**：CSS `.node.trigger{border-top-left-radius:24px;border-bottom-left-radius:24px;}`。trigger ループ `.name`（L695）冒頭に `<span class="trigbolt">${NI(NIC.trigger,12)}</span>`。CSS `.trigbolt{position:absolute;left:-13px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--amber);color:#1b1407;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg);z-index:5;}`（`.node` が position:absolute なので子の絶対配置が効く）。
+- **router OUT 2-dot**：comp ループのポート出力を router 専用に。`portHTML(hasIn,hasOut)` を router のとき `portHTML(hasIn,false)+'<span class="port out then" data-port="out" data-branch="then"></span><span class="port out else" data-port="out" data-branch="else"></span>'`。CSS `.port.out.then{top:28%;} .port.out.else{top:72%;}`（`.port` の `top:50%` を上書き＝`endpointPos` の `0.28/0.72` レーンと一致）。任意で `.portlabel` で then/else 表示。
+- **branch スレッド**（2-dot をクリックして枝別に配線）：`attachNode` L749 を `const op=e.target.closest('.port.out'); if(!wiring && op && !noteOf(id)) return startWire(e, id, op.dataset.branch||null);`／`startWire(e,src,branch)` L829 で `wiring={src,pt:canvasPt(e),over:null,branch:branch||null}`／`tryConnect(src,tgt,branch)` L827 で `EDGES.push({id:'fe_'+ ++eidc, source:src, target:tgt, type:matchType(src,tgt), ...(branch?{branch}:{})})`。drop ハンドラ（`grep -n "tryConnect(" ui2.html` で pointerup 呼び出しを特定）で `tryConnect(wiring.src, wiring.over, wiring.branch)` を渡す。
+**ノード関係性・フロー接続時の挙動**：種別＝タイル色＋形で配線前から判別。trigger は左丸D字＋稲妻＝「自動起点」が一目。router は OUT が物理的に2つ（then 上/else 下）に分かれ、**接続時にどちらの枝へ挿すかを dot 選択で決定**（branch が wiring に乗り edge.branch に保存）＝S1 の「描き分けのみ」を実操作まで昇格。endpointPos のレーンと dot 位置が一致するので線が dot から素直に出る。
+**検証**：palette 全種を配置→色タイル＋形＋アイコンで判別／trigger に D字＋稲妻／router の2 dot から then/else を別々に配線でき endpointPos レーンと一致／hub 起動・vm.Script・test_nodes 無回帰。
+**リスク・ロールバック**：`data-kind` 追加は `COMP` 構造不変ゆえ test_nodes 影響なし。タイル bg はダーク背景でコントラスト確保（上記）。revert は CSS 追記＋ラップ＋branch スレッドの局所差分。
 
 ### S4 — 線先の「+」追加ボタン（n8n の Add node）
-- `renderNodes`/`drawLinks` で、**emits を持つが OUT から出る edge が無いノード**の右ポート位置へ小 `+` SVG ボタンを描画。
-- クリック→既存 add メニュー（`openAddMenu`/`addMcpNode`/`addComp`）を**source 指定付き**で開く→ノード生成後 `tryConnect(source,new)` で自動配線。
-- 検証：OUT 未接続ノードに + が出る→クリックで mcp ノード追加＋自動配線。
+**目的**：出力はあるが下流が無いノードの OUT 位置に `+` を出し、クリック→追加メニュー→生成ノードを source から自動配線。pipeline を左→右に1クリックで伸ばす。
+**触る関数・行**：`renderNodes` 各ループ（port 描画直後）／`EDGES` 参照／`openAddMenu` L472／`addComp` L591／`addMcpNode` L606／module 変数追加（L479 付近）。
+**技術設計・データフロー**：
+- 変数 `let addSource=null;`（L479 付近）。ヘルパ `const hasOutEdge=(id)=>EDGES.some(e=>e.source===id);`。
+- 各ループの `portHTML(...)` の後に `+ (hasOut && !hasOutEdge(id) ? '<span class="addnext" data-src="'+id+'">+</span>' : '')` を連結（hasOut は各ループの emits 判定＝agent/mcp/comp/trigger）。CSS `.addnext{position:absolute;right:-34px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:50%;background:var(--panel2);border:1px dashed var(--line);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;cursor:pointer;z-index:4;} .addnext:hover{border-color:var(--blue);color:var(--blue);}`。
+- クリック：`attachNode` pointerdown 先頭（L748 付近、`.port.out` 判定より前）に `const ab=e.target.closest('.addnext'); if(ab){ addSource=ab.dataset.src; openAddMenu(); return; }`。
+- 自動配線：`addComp` L591 の `selectNode(id);` 直前に `if(addSource){ const sx=POS[addSource]?.x; if(sx!=null) COMPONENTS[COMPONENTS.length-1].x=sx+300; tryConnect(addSource,id); addSource=null; }`。`addMcpNode` L606 も push 後・render 前に同様（`MCP_NODES` 末尾へ）。`addTrigger` は trigger が target 不可（`canConnect` で false）なので配線せず `addSource=null` のみ。
+- 型安全：`tryConnect` は `canConnect`（型一致）を通った時だけ EDGES に push。不一致なら node は残るが線は引かれない（ユーザーが手で繋ぐ）。
+**ノード関係性・フロー接続時の挙動**：`+` は「この出力の次の段」を作る affordance。生成直後に `tryConnect(source,new)` で source→new を型チェック付き自動配線＝既存 `tryConnect` 再利用（新ロジック無し）。新ノードを source の右 +300px に置き「繋がった感」を出す。router の枝別 `+` は **scope-drop 可**（v1 は「out 接続が皆無のとき1個」のみ）。
+**検証**：input 単体→OUT に `+`／クリック→コンポーネント追加→input→new 自動配線／既に out 接続済みなら `+` 出ない／hub 起動・vm.Script・test_nodes 無回帰。
+**リスク・ロールバック**：`openAddMenu` は topbar 由来位置（v1 許容・将来 pointer 位置へポップ）。`addSource` の取りこぼしは生成時 null 化で回避。独立 commit＝単体で落とせる。
 
 ### S5 — AI sub-node 接続（円ノード＋◆＋破線＋底接続・最大）
-- AI 補助 kind（`languagemodel`/`structured`/`parser`/`consensus`）を `.node.ai` で**円形**描画（CSS `border-radius:50%`＋固定サイズ）。底に**ダイヤ◆ポート＋型ラベル**（Model/Parser…＝n8n `ai_languageModel` 等）。
-- `endpointPos` 拡張：source が AI 補助系の edge は **consumer の底辺中央**に接続（上向き）。`drawLinks` で破線（S2 統合）＋端点を◆（丸でなく `<rect transform="rotate(45)">`）。1 model→複数 consumer の fan-out は既存の複数 edge 描画でそのまま出る。
-- consumer 側（prompt/agent/output 等）に**底の受け◆ポート**を `renderNodes` で描画（型ラベル付き）。
-- **runner 不変**（EDGES の意味＝source→target データ供給は不変・新データモデル無し・kind から導出）。本格 interaction（底◆からドラッグ専用）は余力で。将来の9接続型（ai_memory/ai_tool/ai_retriever/ai_vectorStore/ai_embedding/ai_document/ai_textSplitter）は◆ラベル語彙の拡張で対応。
-- 検証：languagemodel（円）を prompt の底◆に破線接続／1 model を2 consumer に繋いで扇状描画を確認。
+**目的**：AI 補助 kind を円ノード化し、consumer の**底辺の◆ポート**へ破線で上向き接続。1 model→複数 consumer の fan-out を扇状描画。n8n の AI cluster 形を踏襲。runner 不変（描画のみ）。
+**触る関数・行**：CSS（`.node.comp.ai` 円形・`.port.ai` ◆）／comp ループ innerHTML（ai 用 compact 分岐・S3 の `data-kind` 前提）／`endpointPos` L790-799（AI 縦接続の分岐追加）／`drawLinks` L850-869（`vpath`＋◆）／新関数 `vpath`。
+**技術設計・データフロー**（EDGES 意味は不変・全て kind から描画時導出）：
+- **円ノード**：comp ループの `className` を `'node comp'+(AI_AUX.has(c.kind)?' ai':'')`（L716）。CSS `.node.comp.ai{width:104px;min-width:104px;max-width:104px;height:104px;border-radius:50%;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}` ＋ `.node.comp.ai .co{display:none;}`。ai 用 innerHTML 分岐：`if(AI_AUX.has(c.kind)) n.innerHTML='<div class="aibody"><span class="icontile">'+(meta.svg||'')+'</span><div class="ailabel">'+esc(cname)+'</div></div>'+'<span class="port out" data-port="out" style="top:0;left:50%;transform:translate(-50%,-50%)"></span>'; else <既存カード>`（円の上端中央に OUT）。
+- **幾何 `endpointPos` 拡張**（既存分岐の前に挿入）：`if(end==='src' && AI_AUX.has(comp(e.source)?.kind)) return { x:r.x+r.w/2, y:r.y };`（AI サブノードの上端中央＝上向き出力）／`if(end==='tgt' && AI_AUX.has(comp(e.source)?.kind)) return { x:r.x+r.w/2, y:r.y+r.h };`（consumer の底辺中央＝◆受け）／それ以外は既存（右辺/左辺・router レーン）。
+- **`vpath`**（縦 bezier・新規、`fpath` 近傍 L800）：`function vpath(a,b){ const dy=Math.max(36,Math.abs(b.y-a.y)*0.5); return 'M'+a.x+','+a.y+' C'+a.x+','+(a.y-dy)+' '+b.x+','+(b.y+dy)+' '+b.x+','+b.y; }`（a=サブノード上端→上、b=consumer 底）。
+- **`drawLinks` 分岐**：`const aiv = AI_AUX.has(comp(e.source)?.kind);`。`aiv` なら `d=vpath(a,b)`、破線 `5 5`（S2）、`marker-end` を**付けない**（矢印でなく◆で接続表現）、b に◆描画 `<rect x="${b.x-5}" y="${b.y-5}" width="10" height="10" transform="rotate(45 ${b.x} ${b.y})" fill="#0a121b" stroke="var(--aiwire)" stroke-width="2"/>`。色は `--aiwire`。型ラベル箱は任意で kind ラベル（"Model"/"Parser" 等）に。非 aiv は既存（横 fpath＋矢印）。
+- **consumer 底◆ポート**：renderNodes で「AI 補助 edge の target になっているノード」に `<span class="port ai"></span>`。条件 `EDGES.some(e=>e.target===id && AI_AUX.has(comp(e.source)?.kind))`。CSS `.port.ai{width:11px;height:11px;border-radius:2px;left:50%;bottom:-6px;top:auto;transform:translateX(-50%) rotate(45deg);background:#0a121b;border:2px solid var(--aiwire);}`。
+- **fan-out**：1 model→N consumer ＝ N 本の edge。各々 `vpath`＋◆を独立描画（既存の複数 edge 描画でそのまま扇状）。データモデル追加なし。
+- **runner 不変**：`languagemodel→prompt` は今日も通常 edge として hub.mjs runner が実行（LLM 出力→prompt 入力）。S5 は**この edge の見た目を縦＋◆＋円に変えるだけ**＝source→target 供給意味は完全保存。
+**ノード関係性・フロー接続時の挙動**：AI サブノード（円）は consumer の「下に付く部品」として関係を表す＝「この prompt/agent はこの LLM/パーサを使う」を底◆で明示。1 model を複数 consumer に繋ぐと各 consumer 底へ別 vpath で扇状。型は既存 `matchType`（languagemodel emits `text`→prompt accepts `*`）で従来通り確定。runner は通常のデータ供給として実行（円/◆/破線は純粋に描画層）。**本格 interaction（底◆からドラッグして model を後付け）は scope-drop 可**＝描画だけでも価値（`.port.ai` を `startWire` 起点にし新 edge を ai 型扱いにするのは余力時）。
+**将来の9接続型**：◆ラベル語彙を `ai_languageModel/ai_memory/ai_tool/ai_outputParser/ai_embedding/ai_vectorStore/ai_document/ai_textSplitter/ai_retriever` へ拡張＝kind→ラベルマップを足すだけ（現状 languagemodel/structured/parser/consensus がカバー）。
+**検証**：`languagemodel`（円）→prompt 底◆に破線上向き接続／1 model→2 consumer で扇状描画／**実行して runner が従来通り処理**（LLM 出力が prompt に入る＝意味保存の確認）／hub 起動・vm.Script・test_nodes 無回帰。
+**リスク・ロールバック**：円ノードは設定が inspector 側にある kind（languagemodel/structured/parser/consensus）向けゆえカード本体最小でOK。`endpointPos` の AI 分岐は router（非 AI_AUX）と排他＝衝突なし。最大の Wave につき、`drag-from-◆`＝scope-drop、`vpath`/◆/円のうち描画部分だけでも独立価値。独立 commit。
 
 ### scope-drop / rollback
 S1〜S5 各独立 commit。重ければ S5（AI 底破線）→ S2 の破線だけで価値・S4（+ボタン）も独立で落とせる。各 commit 前に hub 起動＋inline JS `vm.Script` 構文＋（可能なら）ブラウザ実描画で検証（Canvas-1 と同様 chrome 拡張未接続なら data path のみ確認し ⏭ 記録）。
