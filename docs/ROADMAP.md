@@ -413,7 +413,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 | **Vault-1**（managed 開業条件）✅ | 非Mac vault を **base64→AES-256-GCM**（認証付き＝改竄検出）。master key= `SHENRON_VAULT_KEY` env(64hex・managed/Fly で鍵をディスク外に) → 無ければ `~/.shenron/vault-master.key`(0600 生成・`auth.loadSecret` と同型)。legacy base64 は read fallback（後方互換・データ損失なし）。設定エラー(不正 hex)は loud throw・改竄/別 key は fail-closed(null) に分離。Mac Keychain path 不変・注入は `getCredential` 透過。doctor に vault backend 表示。`test_vault.mjs`。**脅威=誤commit・backup漏れ・casual を塞ぐ**（full-disk-read は対象外＝env で deploy 外出し）。 | 弱点4 | Host-1 |
 | **Canvas-1**（managedの顔・Langflow領地） | 成果物UI/canvas 足場（trust branch parked 参照・既存 Wave UI S と接続）・非技術チーム向け | Langflow canvas | Vault-1 |
 | **DX-1**（LangGraph領地・乗換導線） | SKILL.md export / MCPネイティブを武器化（「ライブラリ組むより神龍が早い」導線） | LangGraph(DX) | — |
-| **Reliable-1**（動くシステムの質） | R系（resilience/成果検証/drift）強化（「勝手に壊れない」を勝ち点に） | LangGraph(信頼性) | — |
+| **Reliable-1**（動くシステムの質）✅ | **真ギャップ=クラッシュ後のゾンビ run**: フロー run は running→completed/cancelled しか遷移せず（`'failed'` 無し）、boot の `sweep` は handoff だけ resume＝state.runs 未 reconcile。駆動 handoff も生存 child も無い running run が永久ゾンビ（Cliff-1 で durable 化＝再起動を越えて残る）。修正=`reconcileRuns()` を sweep 末尾で実行し、該当 run を `interrupted` 確定＋通知/trail/SSE close（**fixpoint で sub-flow 親まで伝播**・`awaiting_approval` 待ち run は誤殺しない）。**自動 re-run はしない**（非冪等＝re-run the flow・既存 mcp 哲学と一致）。`test_reliable.mjs`。 | LangGraph(信頼性) | — |
 | **Redact-1**（堀精度・実需後） | 秘密と業務データの区別（per-flow allowlist） | 弱点3 | 実需 |
 
 ### 実装順序（3-pass Pass-3）
