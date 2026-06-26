@@ -616,6 +616,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **不変条件**：全 route のメソッド/パス/認証/レスポンスが現状と一致。
 **検証**：**全 test_*.mjs green**（大半が HTTP 経由＝widest 網羅）＋代表 GET/POST を curl 比較。
 **リスク・ロールバック**：中〜高（route 漏れは API 破壊）。最後に実施・route 単位で段階移行・各段で全スイート。単独 commit。
+**📋 着手前の正本＝[`docs/B8-auth-map.md`](./B8-auth-map.md)**（全 route×認証ゲートの 1 枚マップ・完全性検証済み）。要点：認証は **2つの面ゲート**（GET `L1505`／POST `L1703`＝`/api/* && !bearerOk→401`）＋**その上の公開例外**で成立＝「ゲートより下だから authed」という**位置依存の暗黙継承**を表化で route 個別の `auth` 列に変換せよ。公開例外は数えるほど（GET：health/doctor/auth/verify/shenron/readiness＋auth/me=session・POST：auth/{register,login,logout,reset,reset-request}）／**isAdmin は POST `auth/role` の唯一**／非 /api（oauth・mcp 系）は面ゲート素通りで自前 bearerOk。検証は同マップ §5 の認証境界テスト（token 無→401・公開維持・admin 403）を before/after で。
 
 ### B 依存順・scope-drop
 - 低リスク独立：**B1・B2・B3・B7・B8**（いつでも）。runner-core チェーン：**B4→B5→B6**（B6 は R1 の `model` 前提）。
