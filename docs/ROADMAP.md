@@ -915,3 +915,150 @@ function dryTrace(nodes, edges, { capability_map = {}, acceptance } = {}) {
 - **✅ その前** = `5187618` Ambient-1 観察→提案（`detectSuggestions`・tickScheduler 相乗り・MCP 両surface 65/53 tool）。
 - **✅ 大規模 Wave 4 本完走**: R-1 → Login-1 → Goals-1 → Ambient-1 すべて main 反映済み。
 - **意図的見送り** = U-2 MCP 完全統一（→「設計のみ」表）。
+
+## Wave T — テスト基盤・全要素カバレッジ（campaign・2026-06-25・agile burn-down / WIP=1 / risk-first）
+
+> **動機**：PC0/1/2 レビューで「直した実バグ（PC2 の回答蒸発）が client 側ゆえ番兵ゼロ」「runner.mjs が load-bearing なのに無テスト」「cockpit はテスト皆無」が露見。user 指示＝**全機能・全要素に test**。waterfall（全 Wave 一括設計）を避け、**基盤先行→リスク順に subsystem を 1 Wave ずつ掃討**する campaign にする。T0 は実装方法が固まっているので Haiku-proof フル、T1〜は backlog 粒度（**着手時に `/plantoroad` で 8 項目展開**）。
+>
+> **現カバレッジ（既存 11 test・~344 assert・重複回避の地図）**：`test_shenron`(207=planner IR/plan/clarify/PC0/PC2/trust 純ユニット)・`test_nodes`(42=node 種別 parity＋readiness e2e)・`test_langflow`(25=LF 変換)・`test_tenancy`(19=owner/visibility＋HTTP smoke)・`test_vault`(12=AES-256-GCM)・`test_canvas`(9=成果物集約)・`test_role`(9=admin/member gate)・`test_autopause`(8=drift→pause)・`test_state`(7=atomic write)・`test_reliable`(5=zombie reconcile)・`test_r0_snapshot`(characterization・assert 無し)。
+> **risk-ranked ギャップ**：🔴 `runner.mjs`(全 flow が通るのに ZERO)／🟡 cockpit HTML(ZERO・PC2 バグの住処)／🟡 HTTP ~76 route(smoke のみ)／🟡 MCP dispatch behavior(surface guard は presence のみ)／🟡 node 実行 runtime(parity はあるが実走薄い)／🟢 scheduler/automations 発火。**基盤の穴**＝決定的 planner seam 不在（stub→PC0 unavailable で clarify/plan を HTTP/E2E で踏めない）・全 test 一括 runner 不在。
+
+### T0 — テスト基盤: mock planner seam + run-all runner（keystone・🟢 低リスク・独立）
+**目的**：`--vendor stub` では PC0 unavailable が返り clarify/plan/brief を HTTP/E2E で踏めない。決定的な planner seam（`--vendor mock`）と全 test 一括 runner を入れ、T1〜T7 全てが「実スタックを貫通する flow テスト」を書ける土台にする。今やる理由＝campaign 全 Wave の前提（keystone）。
+**触る関数・行（実コード確認済み・2026-06-25）**：
+- `runner.mjs` `runVendorAsync(vendor, prompt, stub='', {model})` L75-94 ＝ vendor dispatch の単一窓口（hub の `planFlow`→`shenronPlan`→`run(vendor,…)` が最終的にここを呼ぶ）。stub fallback は L76 `const stubOut = stub || `[stub] (no vendor "${vendor}")``。**import は L4 `import { spawnSync, spawn } from 'node:child_process'` のみ＝`readFileSync` 未 import**。
+- `hub.mjs` `EXEC_VENDOR` L66（`--vendor` フラグ・env 無視）→ `planFlow` L1354 が `vendor: EXEC_VENDOR || 'claude'` で `shenronPlan` に渡す（mock もここを素通る）。
+- `shenron.mjs` `plan()` L307 ＝ `run = runVendorAsync` 既定注入（in-process test は run 差し替え可・hub 経由 HTTP は既定の runVendorAsync を使う＝seam が要る理由）。
+- hub 起動パターン＝`test_nodes.mjs` L81-85：`STATE_DIR = mkdtempSync(path.join(os.tmpdir(),'nodes-test-'))` + `spawn('node',['prototype/hub/hub.mjs','--port',String(PORT),'--vendor','stub'],{cwd:ROOT,stdio:'ignore',env:{...process.env,STATE_DIR,SHENRON_NO_AUTOSPAWN:'1',SHENRON_NO_SCHEDULER:'1',SHENRON_NO_ESCALATE:'1'}})` + `waitUp`＝`/api/health` を 60×100ms poll。
+**実装ステップ**：
+  1. `runner.mjs` L4 に `import { readFileSync } from 'node:fs';` を追加。
+  2. `runner.mjs` モジュール冒頭（`runVendorAsync` の外・関数群の前）に `let _mockQueue = null, _mockIdx = 0;` を追加。
+  3. `runVendorAsync` L76 の `const stubOut = …;` の**直後**に mock 分岐を挿入：
+     ```js
+     if (vendor === 'mock') {   // T0: 決定的 planner seam（HTTP/E2E 用）。SHENRON_MOCK_PLANNER=<生 planner 出力の JSON 配列ファイルのパス>。1 コールずつ shift。
+       if (_mockQueue === null) { try { _mockQueue = JSON.parse(readFileSync(process.env.SHENRON_MOCK_PLANNER, 'utf8')); } catch { _mockQueue = []; } }
+       const r = _mockIdx < _mockQueue.length ? _mockQueue[_mockIdx++] : _mockQueue[_mockQueue.length - 1];
+       return Promise.resolve(typeof r === 'string' ? r : JSON.stringify(r ?? stubOut));   // ponytail: 枯渇→最後を再利用（1 プロセス 1 シナリオ・reset=hub 再起動 or 別 STATE_DIR）
+     }
+     ```
+  4. 新 `prototype/hub/test_all.mjs`：`readdirSync(__dir)` で `/^test_.*\.mjs$/`（**自身 test_all.mjs を除外**）を集め `spawnSync('node',[path.join(dir,f)],{encoding:'utf8'})`、pass/fail 集計＋失敗 file の stdout/stderr 末尾を表示、`process.exit(fail?1:0)`。run＝`node prototype/hub/test_all.mjs`。
+  5. 新 `prototype/hub/test_planflow_http.mjs`（seam の証明＋PC2 の HTTP 回帰オラクル）：test_nodes L81-85 の起動を `--vendor mock` + `env.SHENRON_MOCK_PLANNER=<tmp JSON ファイル>` で再利用。tmp JSON＝`[<clarify1 JSON 文字列>, <clarify2 JSON 文字列>, <plan JSON 文字列>]`。`POST /api/shenron/plan` を 3 回（① `{goal}` ② `{goal,context:{choices:[{question:'Q1',answer:'A1'}],brief:r1.brief}}` ③ `{goal,context:{choices:[{question:'Q2',answer:'A2'}],brief:r2.brief}}`）。
+**技術設計**：seam を dispatch 窓口 1 箇所（`runVendorAsync`）に集約＝`planFlow`/node 実行/`goal_suggest` 全てが mock を通る。queue はモジュール level state（runner は hub に 1 回 import されるので index がプロセス内で持続・E2E は 1 boot=1 シナリオ）。文字列 or オブジェクト両対応（オブジェクトは `JSON.stringify`）。`SHENRON_MOCK_PLANNER` 未設定×mock → queue=[] → stubOut → `plan()` が `isStubFail`→unavailable（無害な退行）。**なぜ vendor 分岐か**＝`plan()` の `run` 注入は in-process 専用で hub の別プロセス HTTP/E2E を貫通できない。vendor seam なら env 1 つで子プロセス hub 全体が決定的になる。**他案却下**＝prompt 内容で response を keying する案は堅牢だが複雑（hub は planner を複数用途で呼ぶ）→ sequential shift＋天井明記の最小版を採用。
+**フロー・ノード関係性**：mock は planner 出力（JSON 文字列）を返すだけ＝後段は実コードそのまま。`{"clarify":[…]}` → `plan()` が mode:'clarify'＋`mergeBrief` で brief を組む（実ロジック）→ HTTP で client に返る。`{"steps":[…]}` → `buildPlanIR`→`validateFlow`(port 整合)→`layoutFlow`→`saveWorkflow` の実パイプラインが走り `workflowId` が出る。つまり seam は「入口の非決定性」だけ潰し、**port 整合・brief 蓄積・保存は実装を検証**する（mock しない）。
+**検証**：`node prototype/hub/test_all.mjs` で既存 11 + 新 1 = **12 green**。`test_planflow_http.mjs` の assert＝① 1 回目 `mode==='clarify'`・`clarify[0].question==='Q1'` ② 2 回目 `mode==='clarify'`・`brief.confirmed` に `'Q1: A1'` ③ 3 回目 `steps.length>0`・`workflowId` 有り。回帰オラクル＝PC2 の HTTP 配管（unit の run 注入では届かない層）。手動＝`STATE_DIR=$(mktemp -d) SHENRON_MOCK_PLANNER=/tmp/mp.json node prototype/hub/hub.mjs --vendor mock --port 8801` 起動 + curl 3 連。
+**リスク・ロールバック**：低。runner に分岐 1 つ（+import +module state）＋新 test 2 ファイル（既存不変）。revert＝該当 commit 単位。依存＝無し（campaign の起点）。
+**scope 落とし候補**：`test_planflow_http` を最小 1 シナリオ（clarify→plan の 2 コール）に縮小可。`test_all` は後回し可だが keystone ゆえ同梱。
+
+> **着手順序**：T0(keystone)→T1(最高リスク・独立)→T2(client バグ番兵)→{T3,T4,T5 相互独立＝並列可}→T6(T2 前提)→T7。WIP=1・各 1 commit。
+
+### T1 — runner.mjs vendor matrix（🔴 最高優先・ZERO coverage・独立）
+**目的**：全 flow が通る vendor 実行（runner.mjs）が無テスト。各 vendor の成功 parse と全 `[…→stub]` fallback を固定し、API 仕様変更/リグレッションを検出。今やる理由＝load-bearing かつ最大ギャップ。
+**触る関数・行（確認済）**：`runner.mjs` `runAnthropicApi` L12-25・`runOllama` L30-38・`runOpenAiApi` L42-52・`runGeminiApi` L58-72・`runVendorAsync` L75-94（dispatch: ollama L77／openai L78／gemini L79／claude+key L80／非対応→`stubOut` L81／codex・claude CLI spawn L82-93）。各 API は `fetch` を呼び `!r.ok`→`[<v> <status> → stub]`、empty→`[<v> empty → stub]`、anthropic `stop_reason:'refusal'`→`[anthropic refusal → stub]`、gemini candidates 無→`[gemini blocked → stub]`。
+**実装ステップ**：
+  1. 新 `prototype/hub/test_runner.mjs`。先頭で `const realFetch = globalThis.fetch` を保存、各ケースで `globalThis.fetch = async (url, opts) => ({ ok, status, text: async()=>'', json: async()=>SCRIPTED })` を代入、ケース後 `globalThis.fetch = realFetch` で復元。
+  2. anthropic 成功：`process.env.ANTHROPIC_API_KEY='x'`、fetch が `{content:[{type:'text',text:'OK'}]}`→`await runVendorAsync('claude','p')` === `'OK'`。
+  3. anthropic 異常：`{ok:false,status:429}`→`/^\[anthropic 429 → stub\]/`・`{content:[]}`→`/anthropic empty → stub/`・`{stop_reason:'refusal'}`→`/anthropic refusal → stub/`。
+  4. openai：key 無→`/openai → stub\] OPENAI_API_KEY 未設定/`（fetch 未呼）・key 有+`{choices:[{message:{content:'X'}}]}`→`'X'`・`{ok:false,status:500}`→`/openai 500 → stub/`。
+  5. ollama：`{response:'Y'}`→`'Y'`・`!ok`→`/ollama \d+ → stub/`・fetch throw→`/ollama failed → stub/`。
+  6. gemini：key 有+`{candidates:[{content:{parts:[{text:'Z'}]}}]}`→`'Z'`・`{promptFeedback:{blockReason:'SAFETY'}}`（candidates 無）→`/gemini blocked → stub/`。
+  7. 非対応：`runVendorAsync('stub','p')`→`/^\[stub\] \(no vendor "stub"\)/`。
+**技術設計**：実 HTTP を叩かず `globalThis.fetch` 差し替え（runner は `fetch` をグローバル参照＝Node18+ 既定）。CLI 系（codex/claude spawn L82-93）は spawn を伴うので**本 wave 対象外**（key-direct path と stub fallback に集中・spawn は T5/手動）。key は `process.env` を case ごとに set/unset し finally で原状復帰＝**並列 claude の env を汚さない**。
+**フロー・ノード関係性**：runner は flow の各 step の最終実行点。ここが stub を返すと上流 plan が本物でも出力が `[…stub]`→`isStubFail`(shenron.mjs:429)が拾い PC0 unavailable や node 失敗表示に化ける。本 test は「vendor 層が約束どおり text か正しい stub sentinel を返す」を保証＝PC0/consensus/routing の前提を固める。
+**検証**：`node prototype/hub/test_runner.mjs` 単体 green（~14 assert）＋`test_all.mjs` 全体 green。回帰オラクル＝各 fallback 文字列の正規表現一致（API 仕様変更で文字列が変われば検出）。
+**リスク・ロールバック**：低。新ファイル1つ（既存不変）。`fetch` 差し替えは finally 復元で漏れ防止。依存＝無し。
+**scope 落とし候補**：gemini/ollama を後送り可（anthropic/openai/stub が最頻）。CLI spawn path は明示的に別 wave。同梱 fix：#5 `_cliProbe` コメント正直化（runner 隣接の readiness なのでここで）。
+
+### T2 — cockpit pure logic 抽出＋単体（🟡 PC2 バグの住処・ZERO・中リスク）
+**目的**：cockpit(HTML)はテスト皆無で、PC2 で直した回答蒸発バグも client 側ゆえ番兵が無い。純ロジックを importable module に出し単体化＝revert で落ちる番兵を作る。
+**触る関数・行（確認済）**：`shenron.html` `submitClarify(deepen)` L719（`clarify.map((q,qi)=>clarifyChoices[qi]!=null?{question,answer}:null).filter(Boolean)`）・readiness badge L132-134（`model→🟢計画できます/🔴`）・`loadReadiness` L658・brief パネル（PC2・confirmed/assumptions）。`hub.mjs` 静的 serve は**明示 route のみ**（`/shenron`→`SHENRON_UI_FILE`(L75) を L1465 で `readFileSync`）＝generic static 無し。
+**実装ステップ**：
+  1. 新 `prototype/hub/cockpit-logic.mjs`：純関数 export。`pairChoices(plan, clarifyChoices)`＝L719 のペア化を移植。`readinessBadge(r)`＝`r?.model ? {cls:'ok',text:'🟢 計画できます',vendor:r.vendor} : {cls:'bad',text:'🔴 計画モデル未接続',fix:r?.fix?.[0]||''}`。`briefView(brief)`＝`{confirmed:brief?.confirmed||[], assumptions:brief?.assumptions||[]}`。
+  2. `hub.mjs` L75 隣に `const COCKPIT_LOGIC_FILE = path.join(HERE, 'cockpit-logic.mjs');`、`/shenron` route(L1465) の隣に `if (req.method==='GET' && p==='/cockpit-logic.mjs'){ try{ res.writeHead(200,{'content-type':'text/javascript'}); return res.end(fs.readFileSync(COCKPIT_LOGIC_FILE)); }catch{ res.writeHead(404); return res.end(); } }`。
+  3. `shenron.html`：app() の script の**前**に `<script type="module">import * as CL from '/cockpit-logic.mjs'; window.CL = CL;</script>` を追加し、`submitClarify` の choices 構築を `const choices = window.CL.pairChoices(this.plan, this.clarifyChoices);` に、badge を `window.CL.readinessBadge(this.readiness)` 由来に置換（inline ロジックを消す＝二重実装禁止）。
+  4. 新 `prototype/hub/test_cockpit.mjs`：`import {pairChoices, readinessBadge, briefView} from './cockpit-logic.mjs'`。pairChoices＝`{clarify:[{question:'Q1'}]}`+`{0:'A1'}`→`[{question:'Q1',answer:'A1'}]`・未選択 index 除外・空→`[]`。readinessBadge＝`{model:true,vendor:'claude'}`→`cls:'ok'`／`{model:false,fix:['x']}`→`cls:'bad',fix:'x'`。
+**技術設計**：module 化で二重実装を消し HTML と test が同一コードを共有（DRY）。Alpine は CDN script で `app()` をグローバル参照するため module で `window.CL` に橋渡し（module scope はグローバルを汚さないので明示代入）。hub に static module route を**1 本だけ**追加（generic static は作らない＝攻撃面を増やさない）。
+**フロー・ノード関係性**：client 専用＝flow/node には触れない。`pairChoices` の出力 `[{question,answer}]` は `POST /api/shenron/plan` の `context.choices` に入り server 側 `mergeBrief`(PC2) で confirmed に蓄積＝**T0 の test_planflow_http が server 端、本 wave が client 端で「ペアであること」の契約を両端から固める**。
+**検証**：`node prototype/hub/test_cockpit.mjs` green（~6 assert）。**hub 実起動して `/shenron` 200・`/cockpit-logic.mjs` が text/javascript で 200・cockpit が JS エラー無しで描画**（[[feedback_verify_boot]]＝module 橋渡しは実機確認必須）。
+**リスク・ロールバック**：中（単一ファイル cockpit の module 化＝Alpine グローバル橋渡しを誤ると app 起動不能）。revert＝cockpit-logic.mjs 削除＋HTML 差分＋route 削除。依存＝無し（T6 が前提にする）。
+**scope 落とし候補**：badge/briefView を後送りし `pairChoices`（バグ直撃点）のみ抽出に縮小可。
+
+### T3 — HTTP route 網羅 sweep（🟡 ~98 route・smoke のみ・dep T0）
+**目的**：~98 route（GET/POST）が auth gate・成功・error path で正しく振る舞うか。今は readiness と tenancy smoke のみ。
+**触る関数・行（確認済）**：`hub.mjs` createServer L1444〜。GET 群 L1482-1602（auth gate L1505＝`GET /api/* && !bearerOk→401`・readiness L1502 と health L1495/doctor L1499 はゲート前）。POST 群 L1625〜（auth/register L1625・login L1635）。`json(res,code,obj)` L1444。404=L1602 直前・405=L1602。route 総数 98。
+**実装ステップ**：
+  1. 新 `prototype/hub/test_routes.mjs`：T0 起動パターン（test_nodes L81-85）で `--vendor mock` hub を起動。
+  2. **auth gate**：token 無し（openDev）で `GET /api/state`→200。`A2A_SHARED_TOKEN` を env 設定して再起動→未 token `GET /api/state` 401・`GET /api/health` 200（ゲート前）・`GET /api/shenron/readiness` 200（ゲート前 L1502）。
+  3. **成功 path**（mock hub・openDev）：`/api/health`(ok/version)・`/api/workflows`(配列)・`/api/integrations`・`/api/automations`・`/api/artifacts`・`/api/goals`・`/api/config`(secret 在否のみ)・`/api/templates` が 200＋期待 shape。
+  4. **error path**：`GET /api/goals/<不存在>`→404(L1568)・`POST /api/<未知>`→405(L1602)・`GET /api/<未知>`→404。
+  5. **POST flow**：`/api/shenron/plan`（mock script で clarify→plan）・`/api/automations`(add→list に出る)・`/api/integrations`(add→get で tools)。
+**技術設計**：1 hub 起動で多 route を category 別に。auth gate は env 違いで2回起動（openDev／token 有）＝gate の both-sides を踏む。mock seam で plan/automation が決定的。
+**フロー・ノード関係性**：route 層は MCP PROXY と同一実装を共有（`/api/shared` は list_shared と単一実装 L1512）＝本 wave が HTTP 面、T4 が MCP 面で**同一 backend を二面から固める**。
+**検証**：`node test_routes.mjs` green（~20 assert・2 起動）＋`test_all.mjs`。回帰オラクル＝status code＋shape。
+**リスク・ロールバック**：低〜中（2 回起動でやや重い）。新ファイル1つ。依存＝T0。
+**scope 落とし候補**：POST flow を T4/T5 に委譲し GET＋gate に絞る。同梱 fix：#7 `hasKey` 削除（readiness shape を触るのでここで・model 計算の内部変数は残す）。
+
+### T4 — MCP dispatch behavior（🟡 presence のみ・dep T0）
+**目的**：surface guard は tool の存在だけ。実 dispatch が正しい shape を返すか・REMOTE_DENY が remote で塞ぐかを固める。
+**触る関数・行（確認済）**：`server.mjs` `callTool(name,args)` L134（cases L136〜＝search_agents/get_agent/…/`shenron_readiness` L156/`plan_flow` L163）。`hub.mjs` `mcpDispatch(name,args)` L1364（`REMOTE_DENY` guard L1365・plan_flow L1366/add_integration L1367/add_automation L1368/hub_health L1369/get_config L1370/save_workflow L1372/clone_workflow L1373）。`REMOTE_DENY` は tools.mjs 由来(import L28)。
+**実装ステップ**：
+  1. 新 `prototype/hub/test_mcp_dispatch.mjs`。**stdio 面**：`openStdio`（test_shenron が import 済）で server.mjs 起動→`hub_health`→`{ok,uptime}`・`shenron_readiness`→`{model,...}`・`search_workflows`→配列・`get_agent`(不存在)→throw。
+  2. **remote 面**：T0 起動の mock hub に `POST /mcp`（jsonrpc tools/call）で `plan_flow`(mock→clarify)・`hub_health`・`get_config` を叩き shape 確認。
+  3. **REMOTE_DENY**：`REMOTE_DENY` の各 name を remote `POST /mcp` で呼び**全て error**（`not available on the remote surface`）。stdio では同 name が成功（hidden≠blocked の非対称を assert）。
+  4. **両面 parity**：plan_flow が stdio と remote で同じ mode/shape（mock 固定で決定的）。
+**技術設計**：stdio は子プロセス（openStdio）、remote は HTTP `/mcp`。mock seam で plan_flow を決定化。REMOTE_DENY は集合なので各要素を loop。
+**フロー・ノード関係性**：MCP は北極星のコントロールプレーン。plan_flow→hub planFlow→shenronPlan は HTTP route と同一関数＝T3 と裏で同一 backend。run_workflow→runFlow は T5 の node 実行に繋がる。
+**検証**：`node test_mcp_dispatch.mjs` green（~15 assert）。回帰オラクル＝surface guard(presence)＋本 wave(behavior)の二段。
+**リスク・ロールバック**：中（stdio+remote 2 経路起動）。依存＝T0。
+**scope 落とし候補**：remote 面のみに縮小可（stdio は surface guard が presence 担保済）。同梱 fix：#3 `mode:'plan'`（`plan()` の `return ir` 直前に `ir.mode=ir.mode||'plan'`）・#4 unavailable に `tools_needed:[]` 追加（plan_flow shape を触るのでここで）。
+**⚠ #3 の波及確認**：`buildPlanIR` を返す全経路に `mode:'plan'` が乗るので、test_shenron の既存 assert（source/steps を見る・mode 不在に依存しないこと）を `node test_shenron.mjs` で再確認してから commit。
+
+### T5 — node 実行（fireNode/RUN dispatch・runtime 実走）（🟡 parity あり・実走薄い・dep T0）
+**目的**：node 種別の parity（test_nodes）はあるが、各 kind が**実発火し正しい出力/分岐**するかは薄い。runtime 実走で router 分岐・consensus・parser を固める。
+**触る関数・行（確認済）**：`hub.mjs` `RUN` dispatch 表 L538（prompt/parser/structured/languagemodel→LLMish・`consensus`→`fireConsensusNode` L645・`router`→`fireRouterNode` L673・`mcp`→`fireMcpNode` L683）。`fireNode(run,node,input)` L564＝`(RUN[node.kind]||RUN.__agent)(...)` L567。
+**実装ステップ**：
+  1. 新 `prototype/hub/test_fire.mjs`：T0 起動（`--vendor mock`）。flow は test 内で nodes/edges を直書きし save→run（or `POST /api/runflow`）。
+  2. **parser**（$0・LLM 不要）：parser node の template に input が差し込まれた出力（mock 不要で発火）。
+  3. **router then/else**：`condition:contains:URGENT` の router flow を2回。上流 mock 出力に `URGENT` 含む→then 枝発火・else 未発火。含まない→逆。発火枝は run の node 状態/trail で観測。
+  4. **structured**：fields 指定 node→mock が JSON 返す→出力が指定 field を持つ。
+  5. **consensus**：consensus node→mock を同一値 N で固定→medoid 選択で出力確定。
+  6. **mcp**：integration 未接続の mcp node→`fireMcpNode` が gap/承認待ち（実 side-effect 出さない）。
+**技術設計**：mock seam で各 step の LLM 出力を scripted（router 条件・structured JSON・consensus 値）。発火枝は run の node 状態/trail で観測。
+**フロー・ノード関係性**：**router の then/else 先**＝条件で片枝のみ発火し合流 node で再結合（PC2 PROMPT が router を強制する設計の実証）。consensus＝N 並列→medoid 合流。parser＝$0 で input→template。mcp＝信頼境界（承認 gate）を越えない限り side-effect ゼロ。
+**検証**：`node test_fire.mjs` green（~12 assert）＋`test_all.mjs`。回帰オラクル＝発火枝・出力 shape。
+**リスク・ロールバック**：中（flow run の E2E）。依存＝T0。
+**scope 落とし候補**：consensus/mcp を後送りし router/parser（分岐の核）に絞る。
+
+### T6 — Playwright E2E（cockpit 多ターン・実 UI 回帰）（🟢・dep T0+T2）
+**目的**：実ブラウザで cockpit の多ターン相談を回帰。WISH→clarify クリック→2往復→brief パネル→plan 図を検証＝UI 配線の番兵。
+**触る関数・行（確認済）**：`shenron.html` WISH textarea L139・`submitWish` L704・clarify UI 質問ボタン・「再プラン」L191・「もっと詰める」(PC2)・brief パネル(PC2 confirmed/assumptions)。起動＝`--vendor mock`(T0)。driver＝MCP `mcp__playwright__browser_*`。
+**実装ステップ**：
+  1. 新 `prototype/hub/test_e2e_cockpit.md`（手動 E2E 手順書）。**ponytail**: `playwright` を devDep に入れず MCP playwright tools で駆動＝新 dep ゼロ。CI 自動化は scope 外（[[feedback_skip_record]]・トリガ＝「playwright を devDep に入れる判断が出たら `test_e2e_cockpit.mjs` 化」）。
+  2. mock hub 起動（clarify→clarify→plan の3 script）。
+  3. `browser_navigate /shenron`→WISH に goal 入力→submitWish→clarify 表示を snapshot assert。
+  4. Q1 オプションをクリック→「再プラン」→clarify(Q2) 表示＋brief パネルに「✓ Q1: A1」を assert。
+  5. Q2 クリック→再プラン→plan 図（mermaid/ascii）表示を assert。
+  6. 「もっと詰める」（空選択）で brief 維持のまま再 clarify を assert。
+**技術設計**：mock seam で planner を決定化（E2E の肝）。playwright は MCP tools 経由＝新 dep ゼロ。snapshot/テキスト assert で UI 状態確認。
+**フロー・ノード関係性**：T2(client pairing)＋T0(server brief)＋本 wave(実 UI)で**回答蒸発バグの3層番兵**（unit client・http server・browser E2E）が揃う。
+**検証**：手順 md どおり実行し全 step pass。回帰＝多ターンで brief が消えない（PC2 の本丸）を実 UI で実証。
+**リスク・ロールバック**：低〜中（ブラウザ駆動の不安定さ）。手動 E2E に留める（CI 化しない）。依存＝T0+T2。
+**scope 落とし候補**：「もっと詰める」step を後送り。最小＝clarify→plan の1往復。
+
+### T7 — scheduler/automations 発火 + reconcile edges（🟢・dep T0）
+**目的**：schedule automation の発火・catch-up と zombie reconcile の未カバー枝を固める。
+**触る関数・行（確認済）**：`hub.mjs` `schedulerOn` L54（`SHENRON_NO_SCHEDULER` hard-off）・`schedule(h)` L235・`reconcileRuns` L279（running→completed/cancelled のゾンビ回収・trail `run-reconciled` L291）・`saveAutomation` L918・schedule 永続 `SCHED_FILE`/`writeSchedState` L1119-1122（automation id→最後の発火 epoch ms）・`tickScheduler` L1136（live も catch-up も同経路）。
+**実装ステップ**：
+  1. 新 `prototype/hub/test_scheduler.mjs`。`tickScheduler`/`reconcileRuns` が未 export なら pure 部分を切り出すか、起動 hub（scheduler on）で観測。
+  2. **catch-up**：SCHED_FILE に「過去 due・未発火」の automation を書き hub 起動（scheduler on）→tick で発火し SCHED_FILE の epoch 更新（catch-up 経路）。mock seam で workflow run を決定化。
+  3. **二重発火なし**：直近 due を過ぎていない automation は発火しない。
+  4. **reconcile**：STATE に running のまま駆動も child も無い run を仕込み boot→`reconcileRuns` が completed/cancelled に遷移＋`run-reconciled` trail（test_reliable 5 assert の隣接枝補完）。
+**技術設計**：scheduler は `SHENRON_NO_SCHEDULER` で off れるので test は明示 on で起動。SCHED_FILE は STATE_DIR 内＝隔離。tick の発火は automation の workflow run で観測（mock seam で決定化）。
+**フロー・ノード関係性**：automation 発火→workflow run（T5 の node 実行経路）。catch-up は hub 再起動を跨ぐ＝Reliable 系（reconcile）と同じ「crash/restart 耐性」テーマ。
+**検証**：`node test_scheduler.mjs` green（~8 assert）。回帰＝catch-up の epoch 更新・二重発火なし・zombie 回収。
+**リスク・ロールバック**：中（時間依存・schedule の due 計算）。依存＝T0。
+**scope 落とし候補**：catch-up のみに絞り reconcile は test_reliable 拡張に回す。
+
+### Wave T 同梱の review findings（test と同 commit で fix＝センス悪い即修正・skip-record・どの wave で直すか確定済）
+- **#2 dedup-by-question**（🟡）：`mergeBrief`(shenron.mjs) で confirmed を質問キーで最新上書き＝T0 の `test_planflow_http`（brief 蓄積を触る）と同 commit で fix+test。
+- **#3 `mode:'plan'`**（🟢）→ **T4**（plan_flow shape）。**#4 `tools_needed:[]` 対称**（🟢）→ **T4**。
+- **#5 `_cliProbe` コメント正直化**（🟢）→ **T1**（runner 隣接 readiness）。**#7 `hasKey` 削除**（🟢）→ **T3**（readiness route shape）。
