@@ -589,6 +589,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 **不変条件**：生成 handoff のフィールドが現状と1:1（B4 の `kind` 追加除く）。
 **検証**：**`test_nodes.mjs`** 全 kind E2E 出力不変＋parity guard green。`test_reliable` green。
 **リスク・ロールバック**：中。フィールド漏れは E2E/recovery で検出。依存：B4。
+**✅ 実装結果（2026-06-25）**：`createInternalHandoff(run,node,input,from,{kind,to,skill,extra})→h` を firePromptNode 直前に新設。3 サイト（firePromptNode/fireConsensusNode/fireMcpNode）の 16 フィールド handoff リテラル（id/from/to/skill/input/status/result/error/contextId/timestamps/history…）を factory に集約。**`...extra` を `history:[]` と `runId` の間にスプレッド**＝kind 別フィールド（`{prompt}/{consensus}/{mcp}`）の位置が元と完全一致＝save() の JSON フィールド順 byte 等価（「フィールド1:1」不変条件を満たす）。**副作用（touch/push/save/executor）は呼び側に残置**＝mcp の承認ゲート（sendMode/auto/deny）が prompt/consensus の `touch(approved)→executor` と非対称ゆえ factory は純粋なオブジェクト構築のみ。consensus は `input` 引数に `task`（trim 済）を渡し factory の `input||''` で吸収（`''` も等価）。検証＝test_*.mjs 11本 green（`test_nodes`＝全 kind E2E＋parity guard 主／`test_reliable`＝crash recovery）＋hub 実起動 `--vendor stub` で prompt→consensus フロー completed・出力 `[consensus claude · agree 0.71]…[prompt:stub] Hi world` を実証（factory 生成 handoff が両 kind とも正常完了）。⚠ 検証中の harness 知見＝`EXEC_VENDOR` は `--vendor` CLI フラグ専用（env var 無視・hub.mjs:66）ゆえ smoke は必ずフラグで stub 強制。
 
 ### B6 — `fireNode` dispatch table（`RUN[kind]`）＋旧 kind alias（R1 整合）
 **目的**：11連 if を `RUN` テーブル化。新 `model` kind（R1）を追加し、旧 `languagemodel/structured/consensus/prompt` を alias 実行（後方互換）。
