@@ -716,7 +716,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 
 #### トラックA — 修正・相談・honest・canvas（PC0〜PC6）
 
-##### PC0 — Honest failure（黙って偽フローを返さない・最優先・独立）
+##### ✅ PC0 — Honest failure（黙って偽フローを返さない）— 出荷 `89d220c`・2026-06-25
 **目的**：計画モデル不在/失敗時に heuristic fallback（input→prompt→output）を返さず `mode:'unavailable'`＋理由＋直し方を返す。kalsh-80 体験の直接修正。
 **触る関数・行**：`shenron.mjs` `plan()` L278-296（fallback L292-294）。**既存 `isStubFail`（shenron.mjs:429・`/(?:→ stub\]|^\[stub\])/`）を再利用**＝`runner.mjs` runVendorAsync の全 stub sentinel（`[stub] (no vendor …)`／`[… → stub]`／`[… failed → stub]`）を網羅。`hub.mjs` `planFlow` L1297／`renderPlan` L147。
 **差分**：`plan()` の `if (!ir) ir = refine ? context.prev_plan : buildPlanIR(…'heuristic'…)`（L292-294）を：
@@ -732,6 +732,8 @@ if (!ir) {
 `planFlow`（L1297 直後）に `if (ir.mode==='unavailable') return { ...ir, available: availableSummary(), ...renderPlan(ir) };`（clarify と同様・**保存しない**）。`renderPlan` 冒頭の clarify 分岐条件に `|| ir.mode==='unavailable'` を足し、unavailable 時は `summary_text` に「🐉 まだ計画できません：計画モデル未接続。直し方：…(fix を列挙)」。
 **検証**：`test_shenron.mjs` に `plan({goal:'x', run:async()=>'[stub] (no vendor "stub")'})` → `mode==='unavailable' && nodes.length===0`。`--vendor stub` の `POST /api/shenron/plan` が偽フローを返さない HTTP e2e。
 **リスク・ロールバック**：低（fallback 条件を狭めるのみ・`isStubFail` 既存）。L292-294 の局所差分のみ。**独立・最優先**。
+**✅ 実装結果（`89d220c`・27挿入4削除）**：`shenron.mjs` plan()（`if(!ir)` をブロック化し `!refine && isStubFail(out)` で unavailable 早期 return・refine は prev_plan 維持）／renderPlan()（unavailable 専用 summary）／`hub.mjs` planFlow()（clarify 同様 未保存）／`shenron.html`（Save&Run を mode ガード）／`test_shenron`（stub sentinel 2種→unavailable/nodes:0/fix・refine ガード回帰）。検証＝hub test 11/11 green＋hub 実起動の `POST /api/shenron/plan`（`--vendor stub`・kalsh-80 goal）が `{mode:'unavailable',nodes:0,workflowId:null,fix:[3]}` を返す e2e（偽フロー撲滅を実証）。
+- **予測とのズレ3点（後続 PC で再利用）**：① hub.mjs 行が下方シフト＝planFlow **L1303**・clarify return **L1315**（予測 L1297・別 claude B4 編集分）。② renderPlan は「clarify 分岐条件に `||` 追加」予測を変更し**独立した早期 return**に（clarify の質問列挙 lines を unavailable に流用不可・専用 summary が要るため）。③ shenron.html は「L192 を両 mode 除外」予測を変更し **Save&Run ブロックのみ** `mode!=='unavailable'` でガード（L192 を絞ると summary 自体が消えるため・summary は残して「まだ計画できません＋直し方」を表示）。②③は honest 表示を保つ設計改善。
 
 ##### PC1 — Readiness 可視化（計画できる状態か）
 **目的**：計画モデル可否＋接続 integration/credential を一目＋MCP からも。
