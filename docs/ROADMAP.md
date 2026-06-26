@@ -65,6 +65,7 @@
 | **大規模 Wave（R-2/R-3・Goals・Login・Ambient）** | 「生成の*後*の世界」4群。**R-1 は出荷済**（上表）。R-2(repair)/R-3(drift)・Goals(ゴール記憶)・Login(クレデンシャル生命管理)・Ambient(観察→提案) は↓「大規模 Wave 計画」セクションに設計。実装順 `R→Login→Goals→Ambient`。 | 下記 |
 | **テナンシー Wave（社内＝課金土台）** | 個人=永久無料 wedge / 社内=seat 課金の**課金"対象物"**を作る。欠けてた唯一のプリミティブ=テナンシー(owner/visibility)。`T-0` 土台 → `A` 共有エージェント庫（生成×再利用）→ `B` 共有ハブ/管理。**会社間+trust 商品化は切った**（価値薄・user 判断）。billing 機構は seam のみ（後付け）。実装順 `T-0→A1→B1→肉付け`。 | ↓「テナンシー Wave 計画」 |
 | **Wave Cockpit（玄関統合 + ノード検証 + UI/UX）✅0/1/2** | 3 cockpit(ui.html旧/ui2作業場/shenron事務所)の drift を「玄関 router」で統合。**`Cockpit-0`(検証)/`1`(玄関+ui.html退役)/`2`(攻殻 UI テーマ統一+⌘Kナビ+役割分離) は完了・PR #1 `50acb65` で main マージ済**。残=`3`(UX 磨き)。B1 の前後可。 | ↓「Wave Cockpit 計画」 |
+| **Wave N — n8n 採用バックログ（moat-first・2026-06-26）** | n8n build doc 完全精読→honest loss→whitespace 判定で **user 承認の 16 件採用**を正本化。順序＝moat-first：**N1=gen-eval（生成品質を数値化＝loss#3「堀の生死」・#56/#60/#61）を最初**→trust/生成隣接（#49/#69/#47）→低リスク体験（#51/#55/#21/#35/#38/#28）。🟡5件（#18/#23/#33/#63/#64）は tenancy Wave 着手までトリガ付き defer。N1 のみ完全 Haiku-proof・N2 以降は着手前に個別3-pass。 | ↓「Wave N 計画」 |
 
 ## Wave UI — 成果物UI（操作面）設計メモ
 
@@ -1070,3 +1071,60 @@ function dryTrace(nodes, edges, { capability_map = {}, acceptance } = {}) {
 - **#2 dedup-by-question**（🟡）：`mergeBrief`(shenron.mjs) で confirmed を質問キーで最新上書き＝T0 の `test_planflow_http`（brief 蓄積を触る）と同 commit で fix+test。
 - **#3 `mode:'plan'`**（🟢）→ **T4**（plan_flow shape）。**#4 `tools_needed:[]` 対称**（🟢）→ **T4**。
 - **#5 `_cliProbe` コメント正直化**（🟢）→ **T1**（runner 隣接 readiness）。**#7 `hasKey` 削除**（🟢）→ **T3**（readiness route shape）。
+
+---
+
+## Wave N 計画 — n8n 採用バックログ（moat-first・設計のみ📋・2026-06-26）
+
+**出自**：`docs/n8n/build`（n8n 公式 Build doc・10,931 行）完全精読 → honest loss 評価 → whitespace（勝てる空白）判定を経て user が **16 件の採用を確定**。
+**判定の核**：神龍の moat は合成「**MCP 駆動 × cross-owner × 生成 × 他者 flow fence の四重自傷**」であり機能をバラで借りると合成が薄まる。**最大の敗北＝loss#3「gen 品質の eval 無し」＝堀の生死**（生成軸が主張のまま崩れる）。
+**順序＝moat-first**：eval（#56/#60/#61）を**最初**に置き生成品質を主張→数値へ。次に moat 強化の trust/生成隣接（#49/#69/#47）、その後 低リスク体験、🟡 中期は tenancy 着手まで defer（🟡 タグ自身の条件）。
+**進め方（agile・WIP=1）**：**先頭 N1 のみ完全 Haiku-proof**。N2 以降は順序つき backlog（アンカー実在確認済・spec 軽量）で、着手前に個別 3-pass loop で詰める（BDUF 禁止＝N1 実装の知見を N2 spec へ反映）。
+**全 Wave 不変条件**：MCP-FIRST 北極星（同 commit で MCP tool・cockpit は薄い view）／trust 層不変／保存 JSON 後方互換（新 state は「無ければ空」・新 kind は alias で旧フロー load 可）／絵文字ゼロ・SVG・Netdive Blue／回帰＝`node test_nodes.mjs`＋`node test_shenron.mjs`＋hub 実起動 `/api/health`。Wave Canvas-n8n・Wave T と独立。
+
+### N1 — gen-eval（生成品質を測れるようにする＝堀の生死）🟢・完全 spec
+**目的**：loss#3 を塞ぐ。`genComponent`（gap→道具生成）が実際にどれだけ**収束し・期待を満たすか**を dataset で測り history に積んで**回帰検出**。GATE-2（生成が動く道具に収束する）を主張→数値へ。n8n 対応＝#56(light eval)+#60(regression)+#61(行複製) を 1 Wave に畳む。
+**触る関数・行（確認済）**：`shenron.mjs` `genComponent` L418（`({what,vendor,maxIters=3,run,sandbox})→{what,code,iters,converged,output?,error?,needsCredentials?,credentials?}`・run/sandbox 注入可）・`evalExpect` **L476**（`(expect:{kind:'assert'|'judge',rule}, actual, {run,vendor,model})→{ok,reason}`・R-1 出荷済 `99aa25b`・**再利用＝新評価器を書かない**）。`hub.mjs` `checkOutcome` L486 + checkResults ring **L498-499**（`(state.checkResults||=[]).push(rec); if(len>50) slice(-50)`・**回帰 history はこれを踏襲**・既存は read のみ）・route 雛形 `'POST /api/shenron/gen-component'` L1715 / 読み雛形 `list_check_results` L1422。`server.mjs` `case 'gen_component'` L218。`tools.mjs`（`TOOLS`/`forStdio` 単一ソース）。`test_shenron.mjs` L147-182（`genComponent` を fake run/sandbox 注入で決定論テストする既存ハーネス）。
+**実装ステップ**：
+  1. dataset 新規 `prototype/hub/eval/gen-cases.json` ＝配列 `[{what, expect:{kind,rule}}]`・初期5件 seed。各 `what` は実在 API で収束可能な小タスク・`expect.rule` は既存 assert 文法のみ（新 DSL 禁止）。例 `{"what":"fetch current temperature for a city via wttr.in JSON API","expect":{"kind":"assert","rule":"contains:temp"}}`。
+  2. `shenron.mjs` に純粋関数 `runGenEval(cases,{run,sandbox,gen=genComponent,evaluate=evalExpect})` を `evalExpect` 直後に export。各 case：`r=await gen({what:c.what,run,sandbox})`→`scored=r.converged?await evaluate(c.expect,r.output,{run}):{ok:false,reason:r.error||'no-converge'}`→`results.push({what,converged:r.converged,iters:r.iters,ok:scored.ok,reason:scored.reason})`。集計 `{cases,convergeRate,passRate,results}` 返却（注入で test 決定化）。
+  3. `hub.mjs` 書き route `'POST /api/shenron/gen-eval'`（L1715 隣）＝dataset 読込→`runGenEval(cases)`（run/sandbox default＝実 vendor+`verifyMcpServer`）→rec に ts 付与→`(state.genEvalHistory||=[]).push(rec); if(len>50) slice(-50)`（checkResults と同 ring）→`save()`→`json(res,200,rec)`。
+  4. `hub.mjs` 読み route `'GET /api/shenron/gen-eval'`＝`(state.genEvalHistory||[]).slice(-(limit||20))`（list_check_results L1513 と同型）。回帰＝末尾2行の passRate 差。
+  5. `hub.mjs` mcpDispatch（L1421 set_check 隣）に `run_gen_eval`/`list_gen_eval`。
+  6. `server.mjs`（L218 隣）に `case 'run_gen_eval': return await hub('/api/shenron/gen-eval',{});`＋`case 'list_gen_eval': return await hub('/api/shenron/gen-eval');`。
+  7. `tools.mjs` に `run_gen_eval`/`list_gen_eval` def（`gen_component` を真似る・forStdio は他 shenron tool 同方針）。
+  8. `test_shenron.mjs` に `runGenEval` 単体（fake 注入）＝①全 converge+assert pass→passRate 1.0／②1件 sandbox fail→convergeRate 下降／③assert fail→passRate 下降。
+**技術設計**：既存 `evalExpect` 再利用で新評価器ゼロ・expect は R-1 と同 `{kind,rule}`・assert は $0 決定論。history＝`state.genEvalHistory` リング(cap50)＝checkResults 完全同型（state.json に乗る・「無ければ空」後方互換自動）・回帰は末尾比較でタダ。**live 実行（実 vendor+python3）が default**＝loss#3 は実 gen 品質測定が目的ゆえ stochastic で正しい（n8n light-eval も operator 起動・stochastic）。**test_nodes の green ゲートにはしない**（非決定・vendor 依存）・決定論単体は fake 注入版(step8)が担保。行複製(#61)＝dataset が JSON 配列ゆえ case 追加は append。
+**フロー・ノード関係性**：flow ノードでなく生成器を回す eval harness。`gen-cases.json`→`runGenEval`→各 case を `genComponent`（what→生成→sandbox 収束）→収束 output を `evalExpect(expect,output)`（output string が assert rule に渡り合否）→集計→`genEvalHistory` ring→MCP/HTTP 露出。**信頼境界**：judge 経路は actual を vendor へ送る新 egress だが `redact()` L512 が既に挟まる（R-1 実装済）・assert 経路は LLM 不使用＝egress 無し・seed は assert 中心ゆえ egress 最小。
+**検証**：単体 `cd prototype/hub && node test_shenron.mjs`→`runGenEval` 3 assert green（既存14/14 維持が回帰オラクル）。live e2e（手動）：hub 起動（`--vendor claude`・`EXEC_VENDOR=claude` か `ANTHROPIC_API_KEY` 要）→MCP `run_gen_eval`（or `curl -XPOST /api/shenron/gen-eval`）→`{cases:5,convergeRate,passRate,results[]}`＋history 1行→再実行で2行目→`list_gen_eval` で passRate 差＝回帰可視。vendor 未設定なら genComponent fail-fast（L425 sentinel）で converge 0＝「測れた(0%)」と正しく報告。hub 実起動 `/api/health` 200（[[feedback_verify_boot]]）。
+**リスク・ロールバック**：**低**。新規 route+純粋関数+dataset＝既存経路を変えない。revert＝1 commit。依存＝無し（R-1 出荷済）。
+**scope 落とし候補**：①cockpit thin view（history を /settings/ui2 表示）→MCP+GET 先行・UI は次 sub-wave（MCP-FIRST ゆえ後でも北極星を割らない）。②judge メトリクス→seed は assert のみ開始・judge case は dataset 追加だけ。③行複製 UI→JSON 直編集で代替。
+
+### backlog（N2..N11・順序つき・着手前に個別 3-pass で 8 項目展開／N1 が手本）
+
+**tier 2＝moat 強化（trust/生成隣接）**
+
+- **N2 — #1 ai_* 12型 §11 修正**（🟢 doc-only・最低リスク・N1 と並行差込可）：`docs/CANVAS_REFERENCE.md` §11「n8n 視覚語彙との対応」が ai_* を 9 型で記載→実際の **12 型**（ai_agent/ai_chain/ai_document/ai_embedding/ai_languageModel/ai_memory/ai_outputParser/ai_retriever/ai_textSplitter/ai_tool/ai_vectorRetriever/ai_vectorStore）へ。コード無変更（`ui2.html` `AI_AUX` L609=`new Set(['model','parser'])` は神龍語彙で正・§11 は対応表ゆえ doc のみ）。リスク極低。
+- **N3 — #49 Return intermediate steps→trust audit に tool 履歴**（🟢・moat 強化）：AI agent の中間ステップ（どの tool をどう呼んだか）を hash-chain audit へ。アンカー `hub.mjs` `runMcp` L704／`trail(...)` 系 L507／`firePromptNode` L594。設計＝tool 呼び毎に `trail('tool-step',{...})` 1本＋read MCP tool で露出。リスク低〜中（audit 追記経路）。
+- **N4 — #69 credentials 分離（BYO-credential 9.1 延長）**（🟢・moat 強化）：生成道具の要求 credential を per-integration allowlist でさらに明示分離。アンカー `mcp-client.mjs` `SECRET_RE` L16／`safeEnv` L17／`shenron.mjs` `neededCredentials` L395／`genComponent` L427-429／`hub.mjs` `saveIntegration` L875。設計＝既存 allowlist 注入は実装済→integration 単位の管理 UI/MCP を薄く。リスク低。
+- **N5 — #47 $fromAI 実行時補完（MCP tool args）**（🟢・生成×MCP wedge）：MCP tool 引数を実行時に AI 補完（n8n `$fromAI()`）。アンカー `hub.mjs` `fireMcpNode` L683／`runMcp` L704／`mcp-client.mjs` `callMcpTool` L21。設計＝node.config の fromAI マーク引数を cheap-LLM で埋めてから callMcpTool・redact/fence は既存経路。リスク中（実行経路に LLM 介在＝非決定・新 egress→redact 必須）。
+
+**tier 3＝低リスク体験**
+
+- **N6 — #51 plan real-time phases UX**（🟢）：神龍 plan の進行フェーズ（inventory→validate→layout→gen）をライブ表示。アンカー `shenron.mjs` `plan` L315／`buildPlanIR` L78／`server.mjs` `plan_flow` L163・既存 SSE `emitRunEvent`/`stream_run`。設計＝各段で進捗 emit→cockpit が SSE 購読。リスク低（観測追加・既存 SSE 流用）。
+- **N7 — #55 AI usage on/off**（🟢）：AI 機能のグローバル on/off トグル（コスト/プライバシ・BYOAI 整合）。アンカー `hub.mjs` config 経路（`GET/POST /api/config`・`server.mjs` L159-160）。設計＝config に `aiEnabled` 1フラグ→AI 経路（judge/gen/fromAI）が読んで gate。リスク低。
+- **N8 — #21 pin/mock data**（🟢）：ノード出力を pin/mock してフロー単体テスト。アンカー `hub.mjs` `fireNode` L564／`advanceFrom` L831／`runFlow` L416／`ui2.html` `COMP` L533。設計＝node.config の `pin`（固定出力）あれば fireNode が実行せず pin 返却・保存 JSON は「pin 無ければ従来」。リスク中（実行分岐に condition）。
+- **N9 — #35 Wait node（co-pilot checkpoint）**（🟢）：フロー途中で待機/人間 checkpoint。アンカー `ui2.html` `COMP` L533（新 kind）／`hub.mjs` `fireNode` L564 dispatch／`firePromptNode` L594（既存 awaiting_approval gate `touch(h,'awaiting_approval')` L694 が手本）。設計＝新 comp kind `wait`→awaiting_approval 状態→resume 待ち・`KIND_ALIAS` で後方互換。リスク中（新 kind＝canvas+backend+MCP 3点同時 [[feedback_ui_sync]]）。
+- **N10 — #38 error workflow（honest failure 実装面）**（🟢）：フロー失敗時に別フロー発火。アンカー `hub.mjs` `runFlow` L416（status='failed' 経路）／`emitRunNotify` L893／`checkOutcome` L486／automation 設定 `add_automation`（server.mjs L149）。設計＝workflow settings に `errorWorkflow` id→fail 時に `runFlow({fromAutomation})`。リスク中（失敗経路に新 dispatch）。
+- **N11 — #28 getWorkflowStaticData 相当（scheduler marker）**（🟢）：workflow 単位の永続 static state（重複発火防止 marker 等）。アンカー `hub.mjs` `tickScheduler` L1136／`lastDue` L1142／`SCHED_FILE` L1120。設計＝workflow id 単位の小 KV を state に持ち node から read/write・marker で二重実行抑止。リスク中（永続 state 新区画・「無ければ空」後方互換）。
+
+### 🟡 中期 defer（tenancy/SaaS 化 Wave 着手まで保留・トリガ付き）
+🟡 タグ自身が「テナンシー/SaaS 化と同時」を条件とする。単一テナント prototype の現状で入れても活きず moat 合成も薄めるため defer。**トリガ＝tenancy Wave（T-0/A/B・seat 境界・課金対象物）着手時に同時設計**（`shenron.mjs` L542- の「テナンシー: レコード可視性」純粋関数が既に種）。skip 記録 [[feedback_skip_record]]：理由＝単一テナントで価値出ず合成を薄める・再開トリガ＝tenancy Wave 着手。
+- **#18 publish/version**（draft↔published 版管理）＝複数編集者が出て初めて要る。
+- **#23 quota 計上**（実行量メータリング）＝課金(SaaS)と同時。
+- **#33 edit lock**（共同編集ロック）＝複数 seat と同時。
+- **#63 Data Tables**（ワークフロー間の表データ）＝マルチテナントのデータ基盤と同時。
+- **#64 Variables**（カスタム変数）＝Data Tables と同区画。
+
+### 全体検証（Wave をまたぐ受け入れ基準）
+各 Wave 完了時＝`cd prototype/hub && node test_nodes.mjs`（parity green）＋`node test_shenron.mjs`（純ユニット green）＋hub 実起動 `node hub.mjs --vendor stub`→`/api/health` 200。MCP-FIRST＝新機能は MCP tool（`tools.mjs`+`server.mjs`+`hub.mjs` mcpDispatch の3点）から呼べ cockpit は薄い view。後方互換＝旧 `workflows.json`/`state.json` を round-trip。**N1 完了＝moat 防衛の最小成立（gen 品質が数値で出て回帰検出可）。これを満たしてから N2 以降へ（WIP=1）**。
