@@ -956,6 +956,8 @@ function dryTrace(nodes, edges, { capability_map = {}, acceptance } = {}) {
 > **着手順序**：T0(keystone)→T1(最高リスク・独立)→T2(client バグ番兵)→{T3,T4,T5 相互独立＝並列可}→T6(T2 前提)→T7。WIP=1・各 1 commit。
 
 ### T1 — runner.mjs vendor matrix（🔴 最高優先・ZERO coverage・独立）
+**✅実装済み（`0240d57`・未 push）**：`test_runner.mjs`（13 assert）＝`globalThis.fetch` 差し替えで実 HTTP を叩かず 4 vendor を網羅 — anthropic(成功/429/empty/refusal)・openai(keyless/成功/500)・ollama(成功/!ok/throw)・gemini(成功/blocked)・非対応→stubOut。env key は case ごと set/delete＋finally 復元（並列 claude の env 不汚染）。CLI spawn 経路（codex/claude -p・runner L82-93）は対象外＝key-direct と stub fallback に集中。**#5 `_cliProbe` コメント正直化**も同梱（初回 readiness は claude+codex の 2 spawn＝最大 ~6s loop を塞ぐと明示）。単体 13 green ＋ `test_all.mjs` **14/14 green**。
+> **実装メモ（後続 T へ）**：① fetch mock は `globalThis.fetch = async()=>({ok,status,json:async()=>X,text:async()=>''})` で成立（runner は bare `fetch`＝グローバル参照・Node18+ 既定／**reassign 可**を実機確認）。empty/refusal/blocked は `!r.ok` の後段ゆえ **mock に `ok:true` 必須**。② boot 不要の純ユニット＝最速 test（HTTP/spawn 無し）。③ key gate は `runVendorAsync` 側（openai L78/gemini L79）＝keyless は fetch 未呼で stub。
 **目的**：全 flow が通る vendor 実行（runner.mjs）が無テスト。各 vendor の成功 parse と全 `[…→stub]` fallback を固定し、API 仕様変更/リグレッションを検出。今やる理由＝load-bearing かつ最大ギャップ。
 **触る関数・行（確認済）**：`runner.mjs` `runAnthropicApi` L12-25・`runOllama` L30-38・`runOpenAiApi` L42-52・`runGeminiApi` L58-72・`runVendorAsync` L75-94（dispatch: ollama L77／openai L78／gemini L79／claude+key L80／非対応→`stubOut` L81／codex・claude CLI spawn L82-93）。各 API は `fetch` を呼び `!r.ok`→`[<v> <status> → stub]`、empty→`[<v> empty → stub]`、anthropic `stop_reason:'refusal'`→`[anthropic refusal → stub]`、gemini candidates 無→`[gemini blocked → stub]`。
 **実装ステップ**：
