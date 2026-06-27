@@ -103,7 +103,17 @@ try {
   const gotInteg = (await (await GET('/api/integrations', TOKEN)).json()).find((i) => i.id === integ.id);
   assert.ok(gotInteg && gotInteg.tools[0].name === 'echo', 'integration が tools 付きで list に出る');
 
-  console.log('OK route table — auth boundary(B8) + 成功 shape/error 404/POST 往復(T3)');
+  // ── T6: cockpit 配信の floor（実ブラウザ多ターン E2E は test_e2e_cockpit.md・ここは HTTP 層の永続 sentinel）──
+  // T2 の「module bridge を実機で」smoke を自動化＝/shenron が配信され /cockpit-logic.mjs が module として載ることを固定（どちらも a:'open'）。
+  const shen = await GET('/shenron');
+  assert.equal(shen.status, 200, '/shenron 配信 200（cockpit 到達可）');
+  const shenBody = await shen.text();
+  assert.ok(/submitWish\(/.test(shenBody) && /mode === 'clarify'/.test(shenBody), '/shenron に多ターン UI 要素（submitWish・clarify panel）');
+  const cl = await GET('/cockpit-logic.mjs');
+  assert.equal(cl.status, 200, '/cockpit-logic.mjs 200（T2 module bridge）');
+  assert.match(cl.headers.get('content-type') || '', /javascript/, '/cockpit-logic.mjs は javascript で配信（import * as CL 可能）');
+
+  console.log('OK route table — auth(B8) + 成功 shape/error/POST 往復(T3) + cockpit 配信 floor(T6)');
 } catch (e) { bad = true; console.error('FAIL', e.message); }
 finally { hub.kill(); }
 process.exit(bad ? 1 : 0);
