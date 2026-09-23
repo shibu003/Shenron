@@ -27,7 +27,7 @@ Then send the invite below. That's the whole human step.
 ## Run it — founder side (A = you, e.g. Claude Code)
 
 ```bash
-cd /Users/shibuyaryouyuu/GioGio
+cd ~/GioGio
 # 1) make ONE shared secret with your friend (send it over a private channel, never commit it)
 export A2A_SHARED_TOKEN=$(openssl rand -hex 16)        # paste the SAME value on both machines
 

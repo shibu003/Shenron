@@ -349,7 +349,7 @@ goal: { id, wish, metric, target, current, unit, deadline, automationIds[], chec
 
 # テナンシー Wave 計画（社内＝課金土台・設計・2026-06-23）
 
-> **発端（user 2026-06-23）**: 「課金要素を見つけ出すか作り出したい・基本は無料でないと誰も使わないのでは」。会話で収束 → 個人=永久無料 wedge、社内(チーム)=利益源、**会社間+trust 商品化は切る**（⚠ PROJECT.md North Star V3＝cross-person/company handoff と矛盾する更新ゆえ、古い「会社間/trust を売る」枠組みに戻らないこと）。欠けてた唯一のプリミティブ=**テナンシー(owner/visibility)**。詳細計画＝`~/.claude/plans/users-shibuyaryouyuu-shenron-docs-roadm-composed-whisper.md`（承認済 `2026-06-23`）。状態=全 📋（実装は次セッションから）。
+> **発端（user 2026-06-23）**: 「課金要素を見つけ出すか作り出したい・基本は無料でないと誰も使わないのでは」。会話で収束 → 個人=永久無料 wedge、社内(チーム)=利益源、**会社間+trust 商品化は切る**（⚠ PROJECT.md North Star V3＝cross-person/company handoff と矛盾する更新ゆえ、古い「会社間/trust を売る」枠組みに戻らないこと）。欠けてた唯一のプリミティブ=**テナンシー(owner/visibility)**。詳細計画＝`~/.claude/plans/users-<user>-shenron-docs-roadm-composed-whisper.md`（承認済 `2026-06-23`）。状態=全 📋（実装は次セッションから）。
 
 ## 核（なぜ）
 - **個人 = 永久無料 wedge**（BYO-key・ローカル・OSS）。WTP ほぼ0・機能 gate は fork の餌＝**ここから金は取らない**。
@@ -436,7 +436,7 @@ atomic write で torn-write の崖には手すりを付けた。残る崖と渡�
 
 ## Wave Cockpit 計画（玄関 router 統合 + ノード検証 + UI/UX・設計・2026-06-23）
 
-> **発端（user 2026-06-23）**: cockpit HTML が3つ並存し drift（`/`=ui.html旧・`/ui2`=canvas作業場・`/shenron`=事務所）。`legendary-review` 結論=ui2/shenron は冗長でなく**相補的半身（作る vs 回す）**・患部は両者の動脈断絶＝**統合でなく廊下**。user 決定=`/` に「玄関(launcher)」新設し作業場/神龍を選ばせる（IDE welcome パターン・家を cockpit でなく router に）。+全ノード/component 種別の検証 +UI/UX 改善。詳細 plan＝`~/.claude/plans/wave-users-shibuyaryouyuu-shenron-docs-r-radiant-aho.md`（承認済）。**状態=Cockpit-0/1/2 ✅完了・PR #1 (`50acb65`) で main マージ済（2026-06-24）／Cockpit-3 のみ 📋**。**backend `/api/*` 不変＝UI のみ（北極星 MCP-FIRST 整合）。B1 の前後どちらでも可。**
+> **発端（user 2026-06-23）**: cockpit HTML が3つ並存し drift（`/`=ui.html旧・`/ui2`=canvas作業場・`/shenron`=事務所）。`legendary-review` 結論=ui2/shenron は冗長でなく**相補的半身（作る vs 回す）**・患部は両者の動脈断絶＝**統合でなく廊下**。user 決定=`/` に「玄関(launcher)」新設し作業場/神龍を選ばせる（IDE welcome パターン・家を cockpit でなく router に）。+全ノード/component 種別の検証 +UI/UX 改善。詳細 plan＝`~/.claude/plans/wave-users-<user>-shenron-docs-r-radiant-aho.md`（承認済）。**状態=Cockpit-0/1/2 ✅完了・PR #1 (`50acb65`) で main マージ済（2026-06-24）／Cockpit-3 のみ 📋**。**backend `/api/*` 不変＝UI のみ（北極星 MCP-FIRST 整合）。B1 の前後どちらでも可。**
 
 > **実装結果メモ（2026-06-24）**: 当初計画（navigation + 一貫性）を超えて、UI テーマ **「攻殻機動隊 / Netdive Blue（フラット青）」**を全4面に適用（正本 `docs/THEME.md`）。絵文字→SVG ラインアイコン・**絵文字ゼロ**、**⌘K コマンドパレット**（Zed流・全ページ）、**役割重複の解消**（神龍=作る/canvas=編集/設定=/settings 一本化・ui2 内蔵神龍 dead code 除去）まで実施。下の Cockpit-1/2 の detail prose は当初計画（🐉 emoji リンク等）で、実装は上記の通り発展している。
 

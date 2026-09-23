@@ -10,7 +10,7 @@ Offline-tolerant cross-agent handoff: send work to an agent that's **offline**; 
 
 ## Quickstart
 ```bash
-cd /Users/shibuyaryouyuu/GioGio
+cd ~/GioGio
 node prototype/hub/hub.mjs --vendor stub         # → http://localhost:8795  (--vendor stub = instant local exec; omit for real LLM)
 # open http://localhost:8795 — click "正解例を配置" or wire a node's right OUT port to the next node's left IN port, then ▶ Run.
 # LOCAL agents (sales/marketing) run IN THE HUB — flip to ⚡auto → submit→running→completed with NO worker.

@@ -34,7 +34,7 @@ read/act 分離。**act は二段 fence**：(1) `confirm:true`（or `--unattende
 { "mcpServers": {
     "buildhud": {
       "command": "node",
-      "args": ["/Users/shibuyaryouyuu/GioGio/prototype/mcp/server.mjs"],
+      "args": ["~/GioGio/prototype/mcp/server.mjs"],
       "env": { "A2A_SHARED_TOKEN": "<your-shared-token>" }
     } } }
 ```
@@ -44,7 +44,7 @@ read/act 分離。**act は二段 fence**：(1) `confirm:true`（or `--unattende
 ## B. スタンドアロン smoke test（client 無しで stdio に流す）
 
 ```bash
-cd /Users/shibuyaryouyuu/GioGio
+cd ~/GioGio
 printf '%s\n' \
 '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
 '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
@@ -59,7 +59,7 @@ id4 は `confirm` 無しなので **dry-run plan**（実行しない）。
 `run_workflow(confirm:true)` は実行時に agents が起動している必要あり（`../agents/README.md`）。
 
 ```bash
-cd /Users/shibuyaryouyuu/GioGio
+cd ~/GioGio
 export A2A_SHARED_TOKEN=$(openssl rand -hex 16)
 # 1) agents 起動（別ターミナル可。ここでは background）
 node prototype/agents/agent.mjs --config prototype/agents/sales.json     &   # A社/Codex :8810

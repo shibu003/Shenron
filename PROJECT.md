@@ -176,7 +176,7 @@
 
 ## 7. 運用メモ（重要）
 
-- ⚠️ **HOME git hazard**: 親（HOME）に誤って作られた `.git` がある。**この repo は `/Users/shibuyaryouyuu/GioGio` で独立 `git init` 済**（toplevel が GioGio であることを毎回確認）。HOME repo には絶対 commit しない。
+- ⚠️ **HOME git hazard**: 親（HOME）に誤って作られた `.git` がある。**この repo は `~/GioGio` で独立 `git init` 済**（toplevel が GioGio であることを毎回確認）。HOME repo には絶対 commit しない。
 - commit は **safe-commit**（明示パス add → staged==expected 検証 → 1 行で commit）。`git add -A`/`.` 禁止。
 - **private GitHub**: `shibu003/GioGio`（origin, main 同期済）。push は明示時のみ。
 - `.gitignore`: `.env*`/`.dev.vars*`/secret/`.claude/`/`prototype/config.json`/`*.log` 除外。token は env(`A2A_SHARED_TOKEN`)、コミットしない。
