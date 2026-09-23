@@ -1,7 +1,7 @@
 // test_shenron.mjs — Wave 1 self-check for buildPlanIR (pure IR assembly; no LLM).
 // run: node prototype/hub/test_shenron.mjs
 import assert from 'node:assert';
-import { buildPlanIR, suggestionFromSearch, discover, toLangflowFlow, extractCode, genComponent, plan, flowSkill, componentKey, matchComponent, verifyMcpServer, neededCredentials, renderPlan, evalExpect, runGenEval, goalStatus } from './shenron.mjs';
+import { agentLoopPrompt, buildPlanIR, componentKey, discover, evalExpect, extractCode, flowSkill, genComponent, goalStatus, matchComponent, neededCredentials, parseAgentStep, plan, renderPlan, runGenEval, suggestionFromSearch, toLangflowFlow, verifyMcpServer } from './shenron.mjs';
 import { spawnSync } from 'node:child_process';
 import { openStdio } from '../mcp/mcp-client.mjs';
 import { classify, SEED_RULES, addAllowRule } from '../permissions.mjs';
@@ -574,5 +574,24 @@ assert.ok(!('routing' in renderPlan(rir)), 'routing: omitted when no ctx (backwa
   assert.deepEqual(goalStatus({ status: 'reached', createdAt: now - 99 * DAY, deadline: new Date(now).toISOString() }, now, opt), { stalled: false, deadlineNear: false }, 'Goals-2: reached は対象外');
   assert.equal(goalStatus({ status: 'active' }, now, opt).stalled, false, 'Goals-2: 旧データ(createdAt/checkin 無)→停滞誤発火しない');
   console.log('Goals-2 goalStatus OK');
+}
+
+// ---------- Wave P-4: tool 使用エージェント ----------
+{
+  assert.deepStrictEqual(parseAgentStep('{"tool":"recall","args":{"query":"x"}}'), { kind: 'tool', tool: 'recall', args: { query: 'x' } }, 'P-4: tool call parsed');
+  assert.deepStrictEqual(parseAgentStep('考え中…\n{"answer":"42"}'), { kind: 'answer', answer: '42' }, 'P-4: answer parsed (prefix 無視)');
+  assert.strictEqual(parseAgentStep('ただのテキスト').kind, 'answer', 'P-4: 非JSON は最終回答扱い');
+  assert.strictEqual(parseAgentStep('ただのテキスト').answer, 'ただのテキスト', 'P-4: 非JSON は全文を回答に');
+  assert.deepStrictEqual(parseAgentStep('{"tool":"x"}').args, {}, 'P-4: args 欠落は {}');
+  const p = agentLoopPrompt({ systemPrompt: 'SP', tools: ['recall', 'agent_foo'], input: 'IN' });
+  assert.ok(p.includes('recall') && p.includes('agent_foo') && p.includes('IN') && p.includes('{"answer"'), 'P-4: ループプロンプトに道具+input+出力規約');
+  const { readFileSync } = await import('node:fs');
+  const hubSrc = readFileSync(new URL('./hub.mjs', import.meta.url), 'utf8');
+  const safeLine = (hubSrc.match(/const SAFE_AGENT_TOOLS = new Set\(\[[^\]]*\]\)/) || [''])[0];
+  assert.ok(safeLine, 'P-4: SAFE_AGENT_TOOLS allowlist 定義');
+  assert.ok(!/credential|set_|run_|gen_|delete_|approve|export_|fire_|install_/.test(safeLine), 'P-4: allowlist は read-only のみ（副作用/秘匿/承認系なし＝fence 不変）');
+  assert.ok(/redact\(JSON\.stringify\(tres\)\)/.test(hubSrc), 'P-4: 道具結果は redact してから vendor へ再注入（egress firewall）');
+  assert.ok(/depth < 2 && Array\.isArray\(lc\.tools\)/.test(hubSrc), 'P-4: sub-agent 再帰を depth<2 で有界化');
+  console.log('P-4 tool-agent guard OK');
 }
 console.log('test_shenron OK');
