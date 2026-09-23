@@ -166,7 +166,16 @@ try {
   assert.equal(run.routerPick.r, 'then', 'router: redacted → then 分岐');
   assert.ok('t' in run.outputs, 'router: then 側 output が発火');
   assert.ok(run.skipped.includes('e'), 'router: else 側は skip（dead-branch elimination）');
-  console.log('OK router');
+  console.log('OK router (then branch)');
+
+  // router else 枝（predicate false → else 発火・then skip）＝両枝の dead-branch elimination を完全に固める（T5: 上が then のみだった gap）
+  run = await runAndWait(
+    [{ id: 'i', kind: 'input', config: { text: 'clean payload (no marker)' } }, { id: 'r', kind: 'router', config: { predicate: 'redacted' } }, { id: 't', kind: 'output' }, { id: 'e', kind: 'output' }],
+    [{ source: 'i', target: 'r' }, { source: 'r', target: 't', branch: 'then' }, { source: 'r', target: 'e', branch: 'else' }]);
+  assert.equal(run.routerPick.r, 'else', 'router(else): 非 redacted 入力 → else 分岐');
+  assert.ok('e' in run.outputs, 'router(else): else 側 output が発火');
+  assert.ok(run.skipped.includes('t'), 'router(else): then 側は skip（両枝の対称性を固める）');
+  console.log('OK router (else branch)');
 
   // workflow（保存済みフローを sub-flow として nested run）
   const child = await post('/api/workflows', { name: 'tn-child', nodes: [{ id: 'ci', kind: 'input', config: { text: 'CHILD' } }, { id: 'co', kind: 'output' }], edges: [{ source: 'ci', target: 'co' }] });

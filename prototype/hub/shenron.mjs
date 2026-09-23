@@ -333,11 +333,12 @@ export async function plan({ goal, agents = [], tools = [], workflows = [], vend
     if (!refine && isStubFail(out))   // PC0 honest failure: 計画モデルが応答しない（APIキー無/--vendor stub/CLI 不達）→ 偽フロー(input→prompt→output)化せず unavailable を返す
       return { goal, mode: 'unavailable', reason: 'planner-model', detail: String(out).slice(0, 160),
         fix: ['hub env に ANTHROPIC_API_KEY を設定', 'または hub から claude/codex CLI を使える状態に', 'または起動時 --vendor を指定'],
-        plain_summary: goal, source: 'unavailable', nodes: [], edges: [], steps: [], missing: [], blockers: [] };
+        plain_summary: goal, source: 'unavailable', nodes: [], edges: [], steps: [], missing: [], blockers: [], tools_needed: [] };   // #4: clarify と対称に tools_needed:[]（shape 安定＝消費側が分岐不要）
     ir = refine ? context.prev_plan                                                                       // refine 失敗 → 元 plan 維持（編集を捨てない）
       : buildPlanIR(goal, { plain_summary: goal, steps: [{ action: goal, kind: 'prompt', tool: null }] }, 'heuristic', gap);   // LLM は動いたが JSON 壊れ＝稀
   }
   if (search && ir.missing.length) await discover(ir.missing, search);   // Wave 2: gap に外部ツール提案を mutate（caller が fence）
+  ir.mode = ir.mode || 'plan';   // #3: plan 経路にも明示 mode（clarify/unavailable と対称＝cockpit/MCP が ir.mode で分岐できる・既存 prev_plan の mode は保つ）
   return ir;
 }
 

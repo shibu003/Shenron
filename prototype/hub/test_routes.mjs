@@ -87,7 +87,7 @@ try {
 
   // ── T3: error path。handler 内の不存在は本物の 404／未マッチ path は dispatch 設計どおり（GET↔POST 非対称）を pin ──
   assert.equal((await GET('/api/workflows?id=__nope__', TOKEN)).status, 404, 'workflows?id=不存在 → 404（handler 内 find 失敗）');
-  // 非対称（hub.mjs:1846-1849 を pin）: 未マッチ GET /api/*（token 有）→ 405「use POST」（/api 変更は POST 主の nudge）。token 無→401（path 存在を漏らさない）。未マッチ POST→404。
+  // 非対称（hub.mjs の dispatch を pin）: 未マッチ GET /api/*（token 有）→ 405「use POST」（/api 変更は POST 主の nudge）。token 無→401（path 存在を漏らさない）。未マッチ POST→404。
   assert.equal((await GET('/api/__unknown_get__', TOKEN)).status, 405, '未マッチ GET(token) → 405 use POST');
   assert.equal((await GET('/api/__unknown_get__')).status, 401, '未マッチ GET(no token) → 401（path leak 防止）');
 
@@ -103,7 +103,17 @@ try {
   const gotInteg = (await (await GET('/api/integrations', TOKEN)).json()).find((i) => i.id === integ.id);
   assert.ok(gotInteg && gotInteg.tools[0].name === 'echo', 'integration が tools 付きで list に出る');
 
-  console.log('OK route table — auth boundary(B8) + 成功 shape/error 404/POST 往復(T3)');
+  // ── T6: cockpit 配信の floor（実ブラウザ多ターン E2E は test_e2e_cockpit.md・ここは HTTP 層の永続 sentinel）──
+  // T2 の「module bridge を実機で」smoke を自動化＝/shenron が配信され /cockpit-logic.mjs が module として載ることを固定（どちらも a:'open'）。
+  const shen = await GET('/shenron');
+  assert.equal(shen.status, 200, '/shenron 配信 200（cockpit 到達可）');
+  const shenBody = await shen.text();
+  assert.ok(/submitWish\(/.test(shenBody) && /mode === 'clarify'/.test(shenBody), '/shenron に多ターン UI 要素（submitWish・clarify panel）');
+  const cl = await GET('/cockpit-logic.mjs');
+  assert.equal(cl.status, 200, '/cockpit-logic.mjs 200（T2 module bridge）');
+  assert.match(cl.headers.get('content-type') || '', /javascript/, '/cockpit-logic.mjs は javascript で配信（import * as CL 可能）');
+
+  console.log('OK route table — auth(B8) + 成功 shape/error/POST 往復(T3) + cockpit 配信 floor(T6)');
 } catch (e) { bad = true; console.error('FAIL', e.message); }
 finally { hub.kill(); }
 process.exit(bad ? 1 : 0);
